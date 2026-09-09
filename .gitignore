@@ -1,0 +1,22 @@
+# ============ 密钥与环境（绝不入库） ============
+.env
+
+# ============ 虚拟环境 / 缓存 ============
+.venv/
+__pycache__/
+*.pyc
+.uv-cache/
+.hf-cache/
+.idea/
+
+# ============ 运行时数据（可再生的本地产物，不入库） ============
+data/
+logs/
+content/plans/
+content/raw/
+model_cache/
+
+# ============ 教材知识库说明 ============
+# chroma_db/ 与 content/structured_auto/ 已入库：
+# content/structured_auto/*.md = 教材自动切节文本（向量化源）
+# chroma_db/ = 预建向量库（151 块，可直接检索；也可按 README 重建）

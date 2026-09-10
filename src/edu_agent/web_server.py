@@ -30,8 +30,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 STATIC = ROOT / "static"
 
-from fastapi import FastAPI, UploadFile, File  # noqa: E402
-from fastapi.responses import StreamingResponse, HTMLResponse  # noqa: E402
+from fastapi import FastAPI, UploadFile, File, Query  # noqa: E402
+from fastapi.responses import StreamingResponse, HTMLResponse, Response, JSONResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
@@ -342,7 +342,9 @@ def _stream_coach(sid: str, req: ChatReq, text: str):
     except Exception as e:
         yield {"t": "error", "text": "A 出错：" + type(e).__name__ + ": " + str(e)}
         return
-    _store.append(sid, "assistant", _tag("A") + final_answer)
+    _store.append(sid, "assistant", _tag("A") + final_answer,
+                  meta={"mode": "A", "citations": citations,
+                        "pages": sorted({c.get("page") for c in citations if c.get("page")})})
     yield {"t": "done", "mode": "A", "text": final_answer, "citations": citations}
 
 
@@ -372,7 +374,9 @@ def _stream_supervisor(sid: str, req: ChatReq, text: str):
         elif ty == "error":
             yield ev
             return
-    _store.append(sid, "assistant", _tag("S") + final_text)
+    _store.append(sid, "assistant", _tag("S") + final_text,
+                  meta={"mode": "S", "citations": citations,
+                        "pages": sorted({c.get("page") for c in citations if c.get("page")})})
     yield {"t": "done", "mode": "S", "agent": "A" if not html_name else "B",
            "text": final_text, "citations": citations, "html": html_name}
 
@@ -390,7 +394,9 @@ def _stream_planner(sid: str, req: ChatReq, text: str):
         html_path = plan_html.save_html(md, rec.title)
         html_name = html_path.name
         _store.set_last_html(sid, html_name)
-        _store.append(sid, "assistant", _tag("B") + md)
+        _store.append(sid, "assistant", _tag("B") + md,
+                      meta={"mode": "B", "citations": [c.model_dump() for c in rec.citations],
+                            "pages": sorted({c.page for c in rec.citations if c.page})})
         yield {"t": "done", "mode": "B", "text": md, "html": html_name,
                "title": rec.title, "citations": [c.model_dump() for c in rec.citations]}
     except Exception as e:
@@ -430,7 +436,65 @@ def api_textbook():
     return {"file": _TXT_NAME, "offset": _TXT_OFF, "exists": _TXT_DIR is not None}
 
 
+@app.get("/api/page_image")
+def api_page_image(page: int = Query(..., ge=1, le=999), source: str = "", dpi: int = 150):
+    """教材/上传 PDF 的某一页渲染成 PNG（引用卡「看原页」，2026-09-10 P0）。
+
+    page   教材 = 引用里的**印刷页码**（内部 +_TXT_OFF 换算物理页）；
+           上传件 = **物理页**（pdf_upload 入库记的就是物理页，offset=0）。
+    source 上传资料标识（source 或文件名）；空 = 教材原文。
+    只读：渲染产物写 data/page_cache/，不动 PDF 与向量库。
+    """
+    from edu_agent import page_image
+
+    dpi = max(72, min(int(dpi or 150), 300))
+    if source:
+        hit = next((s for s in pdf_upload.list_sources()
+                    if source in (str(s.get("source") or ""), str(s.get("file") or ""))), None)
+        if hit is None:
+            return JSONResponse({"ok": False, "error": "上传资料不存在"}, status_code=404)
+        pdf, off, prefix = pdf_upload.PDF_DIR / str(hit.get("file") or ""), 0, "up"
+    else:
+        s = load_settings()
+        pdf = s.textbook_pdf if (s.textbook_pdf and s.textbook_pdf.exists()) else None
+        off, prefix = _TXT_OFF, "tb"
+    try:
+        data, cache_file, phys = page_image.get_page_image(pdf, page, offset=off, dpi=dpi, prefix=prefix)
+    except FileNotFoundError as e:
+        return JSONResponse({"ok": False, "error": f"PDF 不可用：{e}"}, status_code=404)
+    except IndexError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=404)
+    except Exception as e:  # noqa: BLE001 —— 渲染失败不该把网关带崩
+        log.warning("page_image failed page=%s: %s", page, e)
+        return JSONResponse({"ok": False, "error": f"{type(e).__name__}: {e}"}, status_code=500)
+    return Response(
+        content=data,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=86400",
+                 "X-Physical-Page": str(phys), "X-Cache-File": cache_file.name},
+    )
+
+
 _AUTO_DIR = ROOT / "content" / "structured_auto"
+_TOC_FILE = ROOT / "content" / "toc_ranges.json"        # 现行位置（随仓库走）
+_TOC_FILE_LEGACY = ROOT / "data" / "toc_ranges.json"    # 旧位置（data/ 不入库，仅本地兼容）
+
+
+@app.get("/api/textbook/toc")
+def api_textbook_toc():
+    """教材目录页码范围（由 scripts/build_toc_ranges.py 生成）。
+
+    给「看原页」浏览器用：知道某个知识点在哪一节、这一章从第几页到第几页、全书多少页。
+    数据源 = 向量库片段的 chapter/section/page 聚合 + PDF 章首页探测。
+    """
+    if not _TOC_FILE.exists() and _TOC_FILE_LEGACY.exists():
+        return json.loads(_TOC_FILE_LEGACY.read_text(encoding="utf-8"))
+    if not _TOC_FILE.exists():
+        return JSONResponse({"ok": False, "error": "toc 未生成：请跑 scripts/build_toc_ranges.py"}, status_code=404)
+    try:
+        return json.loads(_TOC_FILE.read_text(encoding="utf-8"))
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"ok": False, "error": f"toc 解析失败：{e}"}, status_code=500)
 
 
 @app.get("/api/textbook/chapters")

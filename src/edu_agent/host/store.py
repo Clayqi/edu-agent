@@ -125,12 +125,21 @@ class SessionStore:
     def delete(self, sid: str) -> None:
         self._exec("DELETE FROM sessions WHERE id=?", (sid,))
 
-    def append(self, sid: str, role: str, content: str) -> None:
-        """追加一条消息（超长截断到 _MSG_CAP 条，与旧版落盘行为一致）。"""
+    def append(self, sid: str, role: str, content: str, meta: dict | None = None) -> None:
+        """追加一条消息（超长截断到 _MSG_CAP 条，与旧版落盘行为一致）。
+
+        meta（可选，2026-09-10 新增）：随消息一起持久化的附加信息，目前用于**引用 citations**
+        ——此前只存正文，刷新/重开会话后正文里的引用 pill 就消失了（George 2026-09-10 报的 bug）。
+        形状：{"mode": "A|S|B", "citations": [...], "pages": [...]}
+        老消息没有 meta 键，前端按「无引用」处理，向后兼容。
+        """
         sess = self.get(sid)
         if sess is None:
             return
-        msgs = sess["messages"] + [{"role": role, "content": content}]
+        msg: dict = {"role": role, "content": content}
+        if meta:
+            msg["meta"] = meta
+        msgs = sess["messages"] + [msg]
         self._exec(
             "UPDATE sessions SET messages=?, updated=? WHERE id=?",
             (self._dump(msgs), time.time(), sid),

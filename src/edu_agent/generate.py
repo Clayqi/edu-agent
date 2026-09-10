@@ -127,23 +127,53 @@ def _to_conversation(history):
     return session.Conversation()
 
 
-def build_messages(question: str, hits, history=None, hints=None) -> list[dict]:
-    """组装消息。history: Conversation 或 turn 列表/dict；hints: 结构化坐标提示。"""
-    snips = []
+def _snippet_block(hits, snippet_len: int = 400) -> str:
+    """组装「【检索到的教材片段】」整块（含图片/公式硬约束）。
+
+    2026-09-10 P0：给含图片段/低保真片段加 ⚠ 标注，并在块尾追加 prompts.FIGURE_GUARD。
+    标注口径优先取入库回填的元数据（has_figure/fig_nums/fidelity，由 figdetect 生成、
+    scripts/backfill_chunk_meta.py 回填），元数据缺失时（如用户上传 PDF）退化为对文本实时判定。
+    build_messages（非流式）与 ask_stream（流式 UI 主路径）共用本函数，避免两条链路口径漂移。
+    """
+    from edu_agent import figdetect
+
+    lines: list[str] = []
+    needs_guard = False
     for i, h in enumerate(hits, 1):
         md = h.metadata
-        snips.append(
-            prompts.SNIPPET_TMPL.format(
-                i=i,
-                chapter=md.get("chapter", ""),
-                section=md.get("section", "") or "",
-                heading=md.get("heading", "") or "",
-                page=md.get("page", "?"),
-                text=h.text[:400],
-            )
+        line = prompts.SNIPPET_TMPL.format(
+            i=i,
+            chapter=md.get("chapter", ""),
+            section=md.get("section", "") or "",
+            heading=md.get("heading", "") or "",
+            page=md.get("page", "?"),
+            text=h.text[:snippet_len],
         )
+        info = figdetect.figure_info(h.text or "")
+        figs = (md.get("fig_nums") or info["fig_nums"] or "").strip()
+        fidelity = md.get("fidelity") or info["fidelity"]
+        has_fig = md.get("has_figure")
+        marks = []
+        if figs:
+            marks.append(prompts.SNIPPET_FIG_MARK.format(figs=figs))
+        if fidelity == "low":
+            marks.append(prompts.SNIPPET_LOWFID_MARK)
+        if not marks and (has_fig is True or info["has_figure"]):
+            marks.append(prompts.SNIPPET_PAGEIMG_MARK)
+        if marks:
+            needs_guard = True
+            line += "\n" + "\n".join(marks)
+        lines.append(line)
+    block = "【检索到的教材片段】\n" + "\n\n".join(lines)
+    if needs_guard:
+        block += "\n\n" + prompts.FIGURE_GUARD
+    return block
+
+
+def build_messages(question: str, hits, history=None, hints=None) -> list[dict]:
+    """组装消息。history: Conversation 或 turn 列表/dict；hints: 结构化坐标提示。"""
+    blocks = [_snippet_block(hits)]
     conv = _to_conversation(history)
-    blocks = ["【检索到的教材片段】", "\n\n".join(snips)]
     hb = conv.history_block()
     if hb:
         blocks.append("【对话上文（仅作衔接理解，不是事实来源）】\n" + hb)
@@ -356,20 +386,7 @@ def ask_stream(question: str, history=None, memory_prefix: str = "",
         blocks.append("【长期记忆】" + memory_prefix)
     if history:
         blocks.append("【最近对话（仅用于理解指代）】\n" + _summarize_history(history))
-    snips = []
-    for i, h in enumerate(hits, 1):
-        md = h.metadata
-        snips.append(
-            prompts.SNIPPET_TMPL.format(
-                i=i,
-                chapter=md.get("chapter", ""),
-                section=md.get("section", "") or "",
-                heading=md.get("heading", "") or "",
-                page=md.get("page", "?"),
-                text=h.text[:snippet_len],
-            )
-        )
-    blocks.append("【检索到的教材片段】\n" + "\n\n".join(snips))
+    blocks.append(_snippet_block(hits, snippet_len=snippet_len))
     blocks.append("【学生问题】" + question)
     user = "\n\n".join(blocks) + "\n\n" + prompts.STREAM_INSTR
     messages = [{"role": "system", "content": prompts.SYSTEM_PROMPT}, {"role": "user", "content": user}]

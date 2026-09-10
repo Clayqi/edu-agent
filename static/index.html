@@ -6,7 +6,7 @@
 <title>教育 Agent · UnderstandAnything</title>
 <style>
 :root{
-  --ink-900:#1a1a1b; --ink-700:#3f3f46; --ink-600:#52525b; --ink-500:#71717a; --ink-400:#a1a1aa;
+  --ink-900:#1a1a1b; --ink-800:#27272a; --ink-700:#3f3f46; --ink-600:#52525b; --ink-500:#71717a; --ink-400:#a1a1aa;
   --line:#ececec; --line-strong:#d9d9d9;
   --bg:#ffffff; --bg-soft:#fafafa; --bg-hover:#f4f4f4; --bg-active:#f1f1f0;
   --blue:#3b82f6; --blue-soft:#eff6ff;
@@ -43,12 +43,23 @@ svg{display:block}
 /* ===== Shell ===== */
 .shell{display:flex;flex:1;min-height:0;background:var(--bg)}
 .sidebar{width:252px;flex:none;background:var(--bg);border-right:.5px solid var(--line);display:flex;flex-direction:column;min-height:0}
-.side-brand{padding:14px 14px 10px}
+.side-brand{padding:14px 14px 10px;position:relative}
 .side-brand .name{font-size:15px;font-weight:600;letter-spacing:-.01em}
 .side-brand .ver{font-size:11px;color:var(--ink-500);margin-top:2px}
+/* 侧边栏收起（2026-09-10 对齐 DeepSeek Harness：品牌行右上角一个方框左半填充的收起按钮，
+   收起后主区顶部出现同款展开按钮；宽度用过渡，状态存 localStorage） */
+.side-toggle{position:absolute;right:10px;top:13px;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;
+  border:.5px solid var(--line);background:var(--bg);border-radius:var(--r-sm);color:var(--ink-500);cursor:pointer}
+.side-toggle:hover{background:var(--bg-hover);color:var(--ink-700)}
+.side-toggle svg{width:14px;height:14px}
+.shell.side-collapsed .sidebar{width:0;border-right:none;overflow:hidden}
+.sidebar{transition:width .16s ease}
+.side-expand{display:none}
+.shell.side-collapsed .side-expand{display:inline-flex}
 .side-actions{padding:6px 10px 8px}
 .newtask{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:none;background:transparent;border-radius:var(--r-sm);font-size:13.5px;color:var(--ink-700);text-align:left}
-.newtask:hover{background:var(--bg-hover)}
+.newtask:hover:not(:disabled){background:var(--bg-hover)}
+.newtask:disabled{opacity:.4;cursor:not-allowed}
 .newtask svg{width:15px;height:15px}
 .side-nav{padding:0 10px}
 .snav{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:none;background:transparent;border-radius:var(--r-sm);font-size:13.5px;color:var(--ink-700);text-align:left}
@@ -315,7 +326,10 @@ svg{display:block}
 .sidepanel{width:300px;flex:none;border-left:.5px solid var(--line);background:var(--bg);display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:18px 16px;min-height:0}
 .sp-title{font-size:15px;font-weight:600}
 .sp-sub{font-size:12.5px;color:var(--ink-500);margin-top:4px}
-.quad{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:18px}
+/* 右上 2x2 圆钮：标签是绝对定位在圆下方 17px 处的（bottom:-17px，高 15px），
+   原来 row-gap 只有 8px，导致上一行标签被下一行的圆压住（2026-09-10 修：留出 34px 行距 + 底部 26px 余量，
+   否则最后一行标签会怼到下面的 #spBody）。 */
+.quad{display:grid;grid-template-columns:repeat(2,1fr);column-gap:8px;row-gap:34px;margin-top:18px;margin-bottom:26px}
 .qbtn{width:76px;height:76px;border-radius:var(--r-pill);border:.5px solid var(--line);background:transparent;color:var(--ink-800);display:flex;align-items:center;justify-content:center;position:relative}
 .qbtn:hover{background:var(--bg-soft)}
 .qbtn svg{width:22px;height:22px}
@@ -365,6 +379,9 @@ svg{display:block}
       <div class="side-brand">
         <div class="name">教育 Agent</div>
         <div class="ver">v1.4.0</div>
+        <button class="side-toggle" id="btnSideToggle" title="收起侧边栏">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M3 4h6v16H3z" fill="currentColor" stroke="none" opacity=".18"/></svg>
+        </button>
       </div>
       <div class="side-actions">
         <button class="newtask" id="newChatBtn">
@@ -423,8 +440,10 @@ svg{display:block}
     <!-- ===== Main ===== -->
     <main class="main">
       <div class="main-head">
+        <button class="side-expand wctl" id="btnSideExpand" title="展开侧边栏" style="width:30px;height:30px;margin-right:2px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M3 4h6v16H3z" fill="currentColor" stroke="none" opacity=".18"/></svg>
+        </button>
         <div class="crumb" id="crumb"><b>主界面</b></div>
-        <button class="branch-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/></svg>new-chat</button>
         <div class="mh-spacer"></div>
         <div class="mh-right">
           <button class="wctl" title="工具栏" style="width:30px;height:30px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>
@@ -599,7 +618,8 @@ svg{display:block}
       n.classList.toggle('active', n.dataset.view===v);
     });
     var crumbText = {market:'Skill 市场',skill:'Skill 详情',chat:'新对话',library:'教材库',lesson:'我的课程',question:'我的题库',services:'MCP 服务'}[v]||'主界面';
-    document.getElementById('crumb').innerHTML = '<b>'+crumbText+'</b>';
+    if(v==='chat') crumbText = convLabel(CUR_TITLE);   /* 聊天页显示当前对话名称 */
+    document.getElementById('crumb').innerHTML = '<b>'+escHtml(crumbText)+'</b>';
     if(v==='chat'){ updateGreeting(); }
     if(v==='library'){ libRender(); }
   }
@@ -611,6 +631,8 @@ svg{display:block}
     n.addEventListener('click', function(){ switchView(n.dataset.view); });
   });
   document.getElementById('newChatBtn').addEventListener('click', function(){
+    // 生成中直接返回：按钮此时已被 setBusy() 置灰(原生 disabled)，这里只作兜底
+    if(BUSY) return;
     switchView('chat');
     newChatIn(DEFAULT_PROJ);
   });
@@ -720,6 +742,21 @@ svg{display:block}
     document.getElementById('sidePanel').style.display = document.getElementById('sidePanel').style.display==='none'?'':'none';
   });
 
+  /* ==== 左侧栏收起/展开（2026-09-10：对齐 DeepSeek Harness 的侧边栏开关）====
+     收起 = 整条左栏宽度归零（主区自动变宽）；品牌行右上角按钮收起，主区顶部同款按钮展开；状态存 localStorage。 */
+  var SHELL = document.querySelector('.shell');
+  function setSideCollapsed(v){
+    if(!SHELL) return;
+    SHELL.classList.toggle('side-collapsed', !!v);
+    try{ localStorage.setItem('edu_side_collapsed', v ? '1' : '0'); }catch(e){}
+  }
+  (function(){
+    var t = document.getElementById('btnSideToggle'), e = document.getElementById('btnSideExpand');
+    if(t) t.addEventListener('click', function(){ setSideCollapsed(true); });
+    if(e) e.addEventListener('click', function(){ setSideCollapsed(false); });
+    try{ if(localStorage.getItem('edu_side_collapsed') === '1') SHELL.classList.add('side-collapsed'); }catch(err){}
+  })();
+
   /* ==== Side panel 内容补齐（状态 / 引用 / 知识源 / 会话） ==== */
   var lastCites = [], spView = 'term';
   var spBody = document.getElementById('spBody');
@@ -765,9 +802,123 @@ svg{display:block}
     var h = '<div class="sp-h">引用来源 <span style="font-weight:400">最近回答 · ' + lastCites.length + ' 处</span></div>';
     lastCites.forEach(function(c){
       h += '<div class="sp-card"><div class="t">'+escHtml(((c.book||'')+' '+(c.chapter||'')+(c.section?' '+c.section:'')).trim()||'教材')+' <span style="color:var(--ink-400);font-weight:400">P'+(c.page||'?')+'</span></div>' +
-           '<div class="s">'+escHtml((c.quote||'').slice(0,120))+'</div></div>';
+           '<div class="s">'+escHtml((c.quote||'').slice(0,120))+'</div>';
+      if(c.page){
+        h += '<div style="margin-top:8px"><button class="pill-btn pg-open" data-page="'+c.page+'" data-src="'+escHtml(c.source||'')+'">看原页 P'+c.page+'</button></div>';
+      }
+      h += '</div>';
     });
     spBody.innerHTML = h;
+    spBody.querySelectorAll('.pg-open').forEach(function(b){
+      b.onclick = function(){ openPageImage(b.dataset.page, b.dataset.src); };
+    });
+  }
+  /* ==== 看原页浏览器（2026-09-10 P0 + 翻页/跳页升级）====
+     公式、图象在教材里是图片、文字层抽不到时，不给模型编的机会，直接让用户看原书页。
+     支持：上一页/下一页、跳到任意页、本节首/本章首、键盘 ← → 翻页、Esc 关闭；
+     并显示「这个知识点在哪一节 · 这一章从第几页到第几页 · 全书多少页」。 */
+  var TOC = null, PG = { page: 0, src: '', total: 0, cite: 0, sec: null, chap: null };
+  function loadToc(){
+    if(TOC) return Promise.resolve(TOC);
+    return spJson('/api/textbook/toc').then(function(d){
+      if(d && d.ok) TOC = d;
+      return TOC;
+    }).catch(function(){ return null; });
+  }
+  function pgLocate(page){
+    PG.sec = null; PG.chap = null;
+    if(!TOC) return;
+    (TOC.chapters||[]).forEach(function(c){
+      if(page >= c.start && page <= c.end){
+        PG.chap = c;
+        (c.sections||[]).forEach(function(s){ if(page >= s.start && page <= s.end) PG.sec = s; });
+      }
+    });
+  }
+  function pgRangeText(page){
+    if(!TOC) return '第 '+page+' 页';
+    pgLocate(page);
+    var out = [];
+    if(PG.sec) out.push(((PG.sec.section? PG.sec.section+' ':'') + (PG.sec.heading||'')).trim() + '（p'+PG.sec.start+'–p'+PG.sec.end+'）');
+    if(PG.chap) out.push(PG.chap.chapter + '（p'+PG.chap.start+'–p'+PG.chap.end+'）');
+    out.push('全书 p'+TOC.printed_first+'–p'+TOC.printed_last);
+    return '第 '+page+' 页 · ' + out.join(' · ');
+  }
+  function pgLoad(n, keepImg){
+    var total = PG.total || 260;
+    n = Math.max(1, Math.min(total, parseInt(n,10) || 1));
+    PG.page = n;
+    var pos = document.getElementById('pgPos'); if(pos) pos.textContent = '第 '+n+' / '+total+' 页';
+    var rg = document.getElementById('pgRange'); if(rg) rg.textContent = pgRangeText(n);
+    var jp = document.getElementById('pgJump'); if(jp) jp.value = n;
+    var pv = document.getElementById('pgPrev'), nx = document.getElementById('pgNext');
+    if(pv) pv.disabled = (n <= 1);
+    if(nx) nx.disabled = (n >= total);
+    var secB = document.getElementById('pgSec'), chB = document.getElementById('pgChap');
+    if(secB){ var okSec = PG.sec && PG.sec.start !== n; secB.style.display = okSec ? '' : 'none';
+              if(okSec) secB.textContent = '本节首 p'+PG.sec.start; }
+    if(chB){ var okCh = PG.chap && PG.chap.start !== n; chB.style.display = okCh ? '' : 'none';
+             if(okCh) chB.textContent = '本章首 p'+PG.chap.start; }
+    var bk = document.getElementById('pgBack'); if(bk) bk.style.display = (PG.cite && n !== PG.cite) ? '' : 'none';
+    if(keepImg) return;
+    var w = document.getElementById('pgWrap'); if(!w) return;
+    w.innerHTML = '<div style="color:var(--ink-400);font-size:13px;padding:24px 0">正在加载第 '+n+' 页…</div>';
+    var im = new Image();
+    im.onload = function(){
+      var ww = document.getElementById('pgWrap'); if(!ww) return;
+      ww.innerHTML = '';
+      im.style.cssText = 'max-width:100%;border:.5px solid var(--line);border-radius:8px;display:block;margin:0 auto';
+      im.alt = '教材原页 P' + n;
+      ww.appendChild(im);
+    };
+    im.onerror = function(){
+      var ww = document.getElementById('pgWrap');
+      if(ww) ww.innerHTML = '<div style="color:#dc2626;font-size:13px;padding:24px 0">第 '+n+' 页加载失败（超出范围或 PDF 未配置）</div>';
+    };
+    im.src = '/api/page_image?page=' + n + (PG.src ? '&source=' + encodeURIComponent(PG.src) : '');
+  }
+  function pgKey(e){
+    if(!document.querySelector('.overlay')){ document.removeEventListener('keydown', pgKey); return; }
+    if(e.key === 'ArrowLeft'){ pgLoad(PG.page - 1); }
+    else if(e.key === 'ArrowRight'){ pgLoad(PG.page + 1); }
+    else if(e.key === 'Escape'){ closeModal(); }
+  }
+  function openPageImage(page, source){
+    var p = parseInt(page, 10);
+    if(!p || p < 1) return;
+    PG.src = source || ''; PG.cite = p; PG.sec = null; PG.chap = null;
+    TOC = TOC || null; PG.total = (TOC && TOC.printed_last) || 260;
+    var bp = '<button class="m-close wctl" style="position:static;float:right;width:32px;height:32px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>';
+    var ctl = '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:12px">' +
+        '<button class="pill-btn" id="pgPrev">‹ 上一页</button>' +
+        '<button class="pill-btn" id="pgNext">下一页 ›</button>' +
+        '<span style="font-size:12px;color:var(--ink-500);margin-left:6px">跳到第</span>' +
+        '<input class="text-input" id="pgJump" type="number" min="1" style="width:74px;padding:4px 8px" value="'+p+'">' +
+        '<span style="font-size:12px;color:var(--ink-500)">页</span>' +
+        '<button class="pill-btn" id="pgGo">跳转</button>' +
+        '<button class="pill-btn" id="pgSec" style="display:none"></button>' +
+        '<button class="pill-btn" id="pgChap" style="display:none"></button>' +
+        '<button class="pill-btn" id="pgBack" style="display:none">回到引用页 P'+p+'</button>' +
+        '<span id="pgPos" style="font-size:12px;color:var(--ink-500);margin-left:auto"></span>' +
+      '</div>';
+    var body = bp +
+      '<div class="set-h" style="font-size:19px">教材原页</div>' +
+      '<div class="m-sub" id="pgRange">正在读取目录…</div>' +
+      ctl +
+      '<div id="pgWrap" style="margin-top:12px;text-align:center;min-height:120px"></div>' +
+      '<div style="margin-top:10px;font-size:11.5px;color:var(--ink-400)">提示：键盘 ← → 可翻页，Esc 关闭；公式与图象以原书这一页为准。</div>';
+    openModal(body, true);
+    loadToc().then(function(){ PG.total = (TOC && TOC.printed_last) || 260; pgLoad(PG.cite, true); });
+    document.addEventListener('keydown', pgKey);
+    var g = function(id){ return document.getElementById(id); };
+    if(g('pgPrev')) g('pgPrev').onclick = function(){ pgLoad(PG.page - 1); };
+    if(g('pgNext')) g('pgNext').onclick = function(){ pgLoad(PG.page + 1); };
+    if(g('pgGo')) g('pgGo').onclick = function(){ pgLoad(g('pgJump').value); };
+    if(g('pgJump')) g('pgJump').onkeydown = function(e){ if(e.key === 'Enter'){ e.preventDefault(); pgLoad(g('pgJump').value); } };
+    if(g('pgSec')) g('pgSec').onclick = function(){ if(PG.sec) pgLoad(PG.sec.start); };
+    if(g('pgChap')) g('pgChap').onclick = function(){ if(PG.chap) pgLoad(PG.chap.start); };
+    if(g('pgBack')) g('pgBack').onclick = function(){ pgLoad(PG.cite); };
+    pgLoad(p);
   }
   function spRenderWeb(){
     spBody.innerHTML = '<div class="sp-h">知识源</div>';
@@ -961,6 +1112,23 @@ svg{display:block}
   var msgBox = document.getElementById('chatMsgBox');
   var home = document.getElementById('home');
   var CUR = null, BUSY = false, lastQ = '', thinkEl = null;
+  /* 当前对话的标题（2026-09-10：左上角面包屑显示"当前对话名称"，不再是写死的"新对话"）
+     数据源：新建时后端给「新会话」；首条消息后后端 set_title_if_new 改成问题前 18 字，
+     SSE session 事件与 /api/session/get 都带 title；重命名后同步更新。 */
+  var CUR_TITLE = '';
+  function convLabel(t){ return (!t || t === '新会话') ? '新对话' : t; }
+  function setConvTitle(t){
+    CUR_TITLE = t || '';
+    if(currentView === 'chat') document.getElementById('crumb').innerHTML = '<b>'+escHtml(convLabel(CUR_TITLE))+'</b>';
+  }
+  // DeepSeek 式忙态：生成中把「新建任务」(及项目树里的「＋ 新对话」) 置灰——原生 disabled，
+  // 点了没反应、不弹任何提示，回答结束后自动恢复可点。
+  function setBusy(v){
+    BUSY = !!v;
+    var b = document.getElementById('newChatBtn');
+    if(b) b.disabled = BUSY;
+    document.querySelectorAll('.proj-add-sess').forEach(function(e){ e.disabled = BUSY; });
+  }
 
   function escHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function mdLight(s){
@@ -1020,17 +1188,24 @@ svg{display:block}
     cites.forEach(function(c,i){
       var sp = document.createElement('span'); sp.className='st-pill green';
       sp.innerHTML = '<sup>['+(i+1)+']</sup> '+escHtml((c.book||'')+' '+(c.chapter||'')+(c.section?' '+c.section:'')+' P'+(c.page||'?'));
+      if(c.page){
+        sp.dataset.page = c.page; sp.dataset.src = c.source || '';
+        sp.style.cursor='pointer';
+        sp.title = '点开看教材原页 P'+c.page+'（可翻页/跳页）';
+        sp.onclick = function(){ openPageImage(c.page, c.source||''); };
+      }
       row.appendChild(sp);
     });
     el.appendChild(row);
   }
-  function addActions(el, raw){
+  function addActions(el, raw, q){
     var row = document.createElement('div');
     row.style.cssText='margin-top:10px;display:flex;gap:6px;flex-wrap:wrap';
     var cp = document.createElement('button'); cp.className='pill-btn'; cp.textContent='复制';
     cp.onclick = function(){ if(navigator.clipboard) navigator.clipboard.writeText(raw).then(function(){ cp.textContent='已复制'; setTimeout(function(){ cp.textContent='复制'; },1500); }); };
     var rg = document.createElement('button'); rg.className='pill-btn'; rg.textContent='重新生成';
-    rg.onclick = function(){ if(BUSY || !lastQ) return; sendText(lastQ); };
+    /* q：该条回答对应的问题（历史恢复时逐条传入，避免"重新生成"用了别的轮次的问题） */
+    rg.onclick = function(){ if(BUSY) return; var qq = q || lastQ; if(!qq) return; sendText(qq); };
     row.appendChild(cp); row.appendChild(rg);
     el.appendChild(row);
   }
@@ -1046,16 +1221,27 @@ svg{display:block}
     fetch('/api/session/get',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:sid})})
       .then(function(r){ return r.json(); }).then(function(d){
         var msgs = (d && d.messages) || [];
+        setConvTitle(d && d.title);          /* 左上角显示该对话名称 */
         if(!msgs.length){ resetToHome(); return; }
         enterConversation();
         msgBox.innerHTML='';
+        lastCites = [];
+        var prevQ = '';
         msgs.forEach(function(m){
           var c = (m.content||'').replace(/^【\*{2}.*?\*{2}】\s*/,'');
           if(!c) return;
-          if(m.role==='user'){ bubbleUser(c); }
-          else { var b = bubbleAiStart(); b.innerHTML = mdLight(c); }
+          if(m.role==='user'){ prevQ = c; bubbleUser(c); }
+          else {
+            var b = bubbleAiStart(); b.innerHTML = mdLight(c);
+            /* 2026-09-10 修复：引用随消息持久化（web_server 写入 meta），恢复时重建绿色 pill。
+               此前只存正文 -> 刷新/重开会话后 pill 全丢（George 报的"刷新之后没有绿色按钮"）。 */
+            var cs = (m.meta && m.meta.citations) || [];
+            if(cs.length){ lastCites = cs; addCites(b, cs); }
+            addActions(b, c, prevQ);
+          }
         });
         scrollChat();
+        if(spView==='docs') spRenderDocs();
       }).catch(function(){ resetToHome(); });
   }
   /* ===== 项目树：多项目 + 会话 + 删除（归属存 localStorage；后端会话平铺不动） ===== */
@@ -1114,6 +1300,8 @@ svg{display:block}
         }
       });
       box.innerHTML = html;
+      // 项目树整段重建：重建后按当前忙态恢复「＋ 新对话」的置灰状态
+      box.querySelectorAll('.proj-add-sess').forEach(function(e){ e.disabled = BUSY; });
       box.querySelectorAll('.proj-row').forEach(function(r){
         r.addEventListener('click', function(){
           var pn = r.dataset.p, o = lsGet(PROJS_KEY+'_open', {});
@@ -1144,6 +1332,7 @@ svg{display:block}
       lsSet(PROJS_KEY, projs);
       var o = lsGet(PROJS_KEY+'_open', {}); o[pn] = 1; lsSet(PROJS_KEY+'_open', o);
       CUR = d.id;
+      setConvTitle('新会话');            /* 新会话：左上角回落显示「新对话」，发出首问后自动变成问题名 */
       msgBox.innerHTML='';
       resetToHome();
       switchView('chat');
@@ -1365,7 +1554,7 @@ svg{display:block}
     if(!name) return;
     fetch('/api/session/rename',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({id:sid, title:name.slice(0,18)})})
-      .then(function(r){ return r.json(); }).then(function(){ buildTree(); }).catch(function(){});
+      .then(function(r){ return r.json(); }).then(function(){ if(sid === CUR) setConvTitle(name.slice(0,18)); buildTree(); }).catch(function(){});
   }
   var projAddBtn = document.getElementById('projAdd');
   if(projAddBtn) projAddBtn.addEventListener('click', addProject);
@@ -1375,7 +1564,7 @@ svg{display:block}
     document.getElementById('chatInput').value='';
     lastQ = val;
     showThink('正在检索教材 · 可取消');
-    BUSY = true;
+    setBusy(true);
     var doFetch = function(sid){
       return fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({text:val,session_id:sid||CUR||'',preset:curPreset,template_id:'default',corpus:curCorpus})})
@@ -1384,7 +1573,7 @@ svg{display:block}
     };
     var p = CUR ? doFetch(CUR) : fetch('/api/session/new',{method:'POST'}).then(function(r){return r.json();})
         .then(function(d){ CUR = d.id; return doFetch(CUR); });
-    p.catch(function(e){ hideThink(); showErr('网络错误：'+(e.message||'连接失败')+'。服务是否在运行？'); BUSY=false; });
+    p.catch(function(e){ hideThink(); showErr('网络错误：'+(e.message||'连接失败')+'。服务是否在运行？'); setBusy(false); });
   }
   function bindComposer(inputId, orbId){
     var input = document.getElementById(inputId);
@@ -1406,7 +1595,7 @@ svg{display:block}
     },3000);
     function pump(){
       return reader.read().then(function(res){
-        if(res.done){ clearInterval(wt); BUSY=false; return; }
+        if(res.done){ clearInterval(wt); setBusy(false); return; }
         buf += dec.decode(res.value,{stream:true}); lastEvt=Date.now();
         var i;
         while((i=buf.indexOf('\n\n'))>=0){
@@ -1420,7 +1609,7 @@ svg{display:block}
     }
     function handleEv(ev){
       var t = ev.t;
-      if(t==='session'){ CUR = ev.id; }
+      if(t==='session'){ CUR = ev.id; setConvTitle(ev.title); }
       else if(t==='status'){ if(thinkEl) showThink(ev.text||'正在处理…'); }
       else if(t==='d'){ hideThink(); raw += ev.text||''; bodyEl.innerHTML = mdLight(raw); scrollChat(); }
       else if(t==='done'){

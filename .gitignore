@@ -20,3 +20,7 @@ model_cache/
 # chroma_db/ 与 content/structured_auto/ 已入库：
 # content/structured_auto/*.md = 教材自动切节文本（向量化源）
 # chroma_db/ = 预建向量库（151 块，可直接检索；也可按 README 重建）
+
+# ============ 前端备份文件（不入库） ============
+static/*.bak-*
+*.bak-*

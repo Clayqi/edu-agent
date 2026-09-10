@@ -36,6 +36,11 @@
 
 # 3) 别把本地产物提交进去（.gitignore 已挡，检查一下）
 git status --short          # 不应出现 .env / data/ / model_cache/ / *.bak-*
+
+# 4) ⚠️ chroma_db/chroma.sqlite3 会「假脏」：只要读过向量库（跑了一次问答/脚本/单测），
+#    sqlite 就会重写该文件 —— 内容其实没变（片段数与元数据一致），git 却显示 M。
+#    处理：不是真要更新教材库就丢弃它：git checkout -- chroma_db/chroma.sqlite3
+#    （实测：git checkout 后再读一次，文件 md5 又变回同一个值 → 证明是读写噪声，不是数据变更）
 ```
 
 ## 四、提交消息

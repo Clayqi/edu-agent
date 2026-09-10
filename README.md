@@ -151,14 +151,14 @@
 |---|---|---|
 | 片段体检 | `src/edu_agent/figdetect.py` | 给每个片段判 `has_figure` / `fig_nums`(图号) / `fidelity`(文字层是否损坏)；口径与入库回填一致 |
 | 元数据回填 | `scripts/backfill_chunk_meta.py` | 给向量库 151 个片段补上述三键（跑前自动整库备份到 `data/backup/`）。实测：有图号 64、低保真 33 |
-| 生成侧硬约束 | `prompts.FIGURE_GUARD` + `generate._snippet_block()` | 含图片段加 ⚠ 标注并附硬指令：片段文字里没出现的公式/符号**一律当"书上只有图"**，禁止写出/推导/用常识补全，只给页码+图号并提示看原页。非流式与流式两条链路共用同一函数，防口径漂移 |
-| 原页图接口 | `GET /api/page_image?page=N[&source=&dpi=]`（`page_image.py`） | 印刷页 → 物理页 `+6`；pymupdf 渲染 150dpi PNG，缓存 `data/page_cache/`；越界 404、非法 422 |
+| 生成侧硬约束 | `src/edu_agent/prompts.py`（FIGURE_GUARD）+ `src/edu_agent/generate.py`（`_snippet_block()`） | 含图片段加 ⚠ 标注并附硬指令：片段文字里没出现的公式/符号**一律当"书上只有图"**，禁止写出/推导/用常识补全，只给页码+图号并提示看原页。非流式与流式两条链路共用同一函数，防口径漂移 |
+| 原页图接口 | `GET /api/page_image?page=N[&source=&dpi=]`（`src/edu_agent/page_image.py`） | 印刷页 → 物理页 `+6`；pymupdf 渲染 150dpi PNG，缓存 `data/page_cache/`；越界 404、非法 422 |
 | 看原页浏览器（前端） | `static/index.html` | 正文绿色引用 pill 与侧栏引用卡都可点开原书页：上一页/下一页、跳任意页、本节首/本章首、回到引用页、键盘 ←→、Esc |
 | 目录页码范围 | `scripts/build_toc_ranges.py` → `content/toc_ranges.json`；`GET /api/textbook/toc` | 回答"这个知识点在哪节、这一章从第几页到第几页"（第三章 p59–p102、3.3 幂函数 p89–p92、全书 p1–p260） |
 
 **UI 细节**：左侧栏可收起（对齐 DeepSeek Harness，品牌行右上角按钮，状态记 localStorage）；左上角面包屑显示当前对话名称（首问后自动命名）；引用随消息持久化（`store.append(meta=)`，刷新/重开会话后绿色 pill 与「复制/重新生成」仍在）；修复右侧面板圆钮标签被下一行圆遮挡、以及 `--ink-800` 变量未定义导致激活态标签白底白字看不见。
 
-**注意**：`prompts.py` / `generate.py` / `web_server.py` 改动需重启 5174；`static/` 前端改完刷新即可。向量库或教材更换后需重跑 `scripts/build_toc_ranges.py`。
+**注意**：`src/edu_agent/prompts.py` / `src/edu_agent/generate.py` / `src/edu_agent/web_server.py` 改动需重启 5174；`static/` 前端改完刷新即可。向量库或教材更换后需重跑 `scripts/build_toc_ranges.py`。
 
 ## 运行
 - **UI（唯一入口，Harness 风格聊天页）**：`start_web.cmd` / `启动课本教练.bat` / `run_ui.ps1` → http://127.0.0.1:5174（先确保 Ollama bge-m3 在 localhost:11434 运行）；顶部切 Agent A（答疑多轮）/ B（教案）/ S（总指挥派单）/ 自动；B 按当前模板出教案（默认=已认定《函数的概念》模板），含 PDF 上传问答与模板认定；日志滚到 `data/logs/edu_agent.log`

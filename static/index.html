@@ -238,6 +238,39 @@ svg{display:block}
 
 /* ===== Section title rows ===== */
 .view-sec{padding:22px 34px 0}
+/* ===== 教育能力分组伸缩（2026-09-10）===== */
+#eduCapHead{cursor:pointer;user-select:none}
+#eduCapNav{overflow:hidden;max-height:340px;opacity:1;transition:max-height .18s ease,opacity .18s ease}
+#eduCapNav.collapsed{max-height:0;opacity:0}
+#eduCapToggle svg{transition:transform .18s ease}
+#eduCapToggle.collapsed svg{transform:rotate(-90deg)}
+/* ===== 教案 × PPT 可视化编排工作台 ===== */
+.dz-grid{display:grid;grid-template-columns:minmax(340px,1fr) minmax(300px,1fr);gap:16px;padding:16px 34px 40px;align-items:start}
+.dz-col{min-width:0}
+.dz-h{font-size:13px;font-weight:600;color:var(--ink-700);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.dz-stat{font-size:11.5px;font-weight:400;color:var(--ink-400)}
+.dz-step{border:.5px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin-bottom:8px;background:#fff}
+.dz-step .r1{display:flex;gap:8px;align-items:center}
+.dz-step .idx{width:22px;height:22px;border-radius:999px;background:var(--blue-soft);color:var(--blue);font-size:11.5px;display:flex;align-items:center;justify-content:center;flex:none}
+.dz-step input.name{flex:1;min-width:0;height:28px;border:.5px solid var(--line);border-radius:6px;padding:0 8px;font-size:13px;font-family:inherit;color:var(--ink-800)}
+.dz-step input.min{width:58px;height:28px;border:.5px solid var(--line);border-radius:6px;padding:0 6px;font-size:12.5px;text-align:center;font-family:inherit;color:var(--ink-800)}
+.dz-step textarea{width:100%;margin-top:8px;border:.5px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12.5px;line-height:1.55;resize:vertical;min-height:54px;font-family:inherit;color:var(--ink-700)}
+.dz-ops{display:flex;gap:4px}
+.dz-ops button{width:24px;height:24px;border-radius:6px;border:.5px solid var(--line);background:#fff;color:var(--ink-500);font-size:12px;line-height:1;cursor:pointer}
+.dz-ops button:hover{background:var(--bg-hover)}
+.dz-slides{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px}
+.dz-slide{border:.5px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:#fff;cursor:pointer}
+.dz-slide:hover{border-color:var(--line-strong)}
+.dz-slide .mini{aspect-ratio:16/9;background:linear-gradient(160deg,#fbfcff,#eef2ff);border-bottom:.5px solid var(--line);padding:9px 11px;box-sizing:border-box;display:flex;flex-direction:column;gap:4px;position:relative;overflow:hidden;min-height:0}
+.dz-slide .mini .t{font-size:11.5px;font-weight:700;color:var(--ink-900);line-height:1.25;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.dz-slide .mini ul{margin:0 0 0 13px;padding:0;font-size:9.5px;line-height:1.45;color:var(--ink-600)}
+.dz-slide .mini ul li{margin:0}
+.dz-slide .mini .pn{position:absolute;right:8px;bottom:6px;font-size:9.5px;font-weight:600;color:var(--blue)}
+.dz-slide .body{padding:6px 10px 8px}
+.dz-slide .n{font-size:10.5px;color:var(--ink-400)}
+.dz-slide .t{font-size:12.5px;font-weight:600;margin-top:2px;color:var(--ink-800)}
+.dz-slide .body ul{margin:6px 0 0 14px;padding:0;font-size:11.5px;color:var(--ink-600);line-height:1.5}
 .view-h1{font-size:24px;font-weight:600;letter-spacing:-.02em}
 .view-sub{font-size:13px;color:var(--ink-500);margin-top:6px}
 .sec-h{margin-top:26px}
@@ -400,9 +433,13 @@ svg{display:block}
         </button>
       </div>
 
-      <div class="sec-label">教育能力</div>
-      <div class="side-nav">
-        <button class="snav" data-view="chat">
+      <div class="sec-label" id="eduCapHead" style="display:flex;align-items:center;justify-content:space-between;padding-right:14px">教育能力
+        <button id="eduCapToggle" title="收起 / 展开 教育能力" aria-label="收起或展开教育能力" style="width:22px;height:22px;border-radius:6px;border:none;background:transparent;color:var(--ink-500);display:inline-flex;align-items:center;justify-content:center;cursor:pointer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+      </div>
+      <div class="side-nav" id="eduCapNav">
+        <button class="snav" data-view="design" data-view-student="chat" data-ro-swap="1">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>
           <span data-ro="teacher">教案中心</span><span data-ro="student">AI 答疑</span>
         </button>
@@ -533,6 +570,37 @@ svg{display:block}
           </div>
         </div>
 
+        <!-- ===== Lesson × PPT design workbench (教案中心入口，2026-09-10) ===== -->
+        <div class="view" id="view-design">
+          <div class="view-sec">
+            <div class="view-h1">教案 × PPT 编排</div>
+            <div class="view-sub">左边编排这节课的环节，右边即时生成对应的 PPT 页面——改哪边两边一起变</div>
+          </div>
+          <div class="view-sec" style="padding-top:14px">
+            <div class="row-card" style="padding:14px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <input class="text-input" id="dzTitle" placeholder="课题，例：3.3 幂函数" style="width:230px;height:34px">
+              <input class="text-input" id="dzGrade" placeholder="学情/课时，例：重点班 45 分钟" style="width:220px;height:34px">
+              <button class="pill-btn dark" id="dzSkeleton">生成骨架</button>
+              <button class="pill-btn" id="dzAddStep">＋ 添加环节</button>
+              <span style="flex:1"></span>
+              <button class="pill-btn" id="dzSave">保存</button>
+              <button class="pill-btn" id="dzExport">导出 HTML</button>
+              <button class="pill-btn" id="dzPreview">预览 PPT</button>
+            </div>
+          </div>
+          <div class="dz-grid">
+            <div class="dz-col">
+              <div class="dz-h">教案结构 <span id="dzStat" class="dz-stat"></span></div>
+              <div id="dzSteps"></div>
+            </div>
+            <div class="dz-col">
+              <div class="dz-h">PPT 幻灯片 <span id="dzSlideStat" class="dz-stat"></span>
+                <span style="font-weight:400;color:var(--ink-400);font-size:11.5px">（点卡片跳到对应环节）</span></div>
+              <div id="dzSlides" class="dz-slides"></div>
+            </div>
+          </div>
+        </div>
+
         <!-- ===== Question ===== -->
         <div class="view" id="view-question">
           <div class="view-sec">
@@ -604,7 +672,7 @@ svg{display:block}
   }
 
   /* ==== View switching ==== */
-  var views = ['market','skill','chat','library','lesson','question','services'];
+  var views = ['market','skill','chat','library','lesson','question','services','design'];
   function switchView(v){
     currentView = v;
     views.forEach(function(id){
@@ -617,15 +685,21 @@ svg{display:block}
     document.querySelectorAll('.proj-leaf[data-view]').forEach(function(n){
       n.classList.toggle('active', n.dataset.view===v);
     });
-    var crumbText = {market:'Skill 市场',skill:'Skill 详情',chat:'新对话',library:'教材库',lesson:'我的课程',question:'我的题库',services:'MCP 服务'}[v]||'主界面';
+    var crumbText = {market:'Skill 市场',skill:'Skill 详情',chat:'新对话',library:'教材库',lesson:'我的课程',question:'我的题库',services:'MCP 服务',design:'教案中心'}[v]||'主界面';
     if(v==='chat') crumbText = convLabel(CUR_TITLE);   /* 聊天页显示当前对话名称 */
     document.getElementById('crumb').innerHTML = '<b>'+escHtml(crumbText)+'</b>';
     if(v==='chat'){ updateGreeting(); }
     if(v==='library'){ libRender(); }
+    if(v==='design'){ dzRender(); }
   }
 
   document.querySelectorAll('.snav[data-view]').forEach(function(n){
-    n.addEventListener('click', function(){ switchView(n.dataset.view); });
+    n.addEventListener('click', function(){
+      /* 同一按钮双角色：教师=教案中心(编排台)，学生=AI 答疑(对话) */
+      var v = n.dataset.view;
+      if(n.dataset.roSwap === '1' && role === 'student' && n.dataset.viewStudent) v = n.dataset.viewStudent;
+      switchView(v);
+    });
   });
   document.querySelectorAll('.proj-leaf[data-view]').forEach(function(n){
     n.addEventListener('click', function(){ switchView(n.dataset.view); });
@@ -1904,6 +1978,228 @@ svg{display:block}
     }
     buildTree();
   }).catch(function(){});
+
+  /* ==== 教育能力分组：伸缩（点标题或箭头收起/展开，状态记忆）==== */
+  (function(){
+    var head = document.getElementById('eduCapHead'), nav = document.getElementById('eduCapNav'), tg = document.getElementById('eduCapToggle');
+    if(!head || !nav || !tg) return;
+    var open = true;
+    try{ if(localStorage.getItem('edu_cap_open') === '0') open = false; }catch(e){}
+    function apply(v){
+      nav.classList.toggle('collapsed', !v);
+      tg.classList.toggle('collapsed', !v);
+      head.setAttribute('aria-expanded', v ? 'true' : 'false');
+      try{ localStorage.setItem('edu_cap_open', v ? '1' : '0'); }catch(e){}
+    }
+    apply(open);
+    function flip(){ open = !open; apply(open); }
+    tg.addEventListener('click', function(e){ e.stopPropagation(); flip(); });
+    head.addEventListener('click', function(e){ if(e.target && e.target.closest && e.target.closest('#eduCapToggle')) return; flip(); });
+  })();
+
+  /* ==== 教案 × PPT 可视化编排（教案中心入口，2026-09-10）====
+     左栏每行 = 一个教学环节（名称/分钟/要点）；右栏每张 = 一页 PPT（与环节一一对应）。
+     两边同一个数据模型 DZ 驱动：改左边右边即时变，点右卡片跳回左边对应环节。
+     数据落 localStorage（edu_design_v1），可导出独立 HTML。 */
+  var DZ_KEY = 'edu_design_v1';
+  var DZ = null;
+  function dzBlank(){
+    return { title:'', grade:'', steps:[
+      { name:'导入', minutes:5, points:'情境/问题引入\n回顾上一节' },
+      { name:'新知讲授', minutes:15, points:'核心概念与定义\n关键结论与注意点' },
+      { name:'例题精讲', minutes:10, points:'课本例题（逐步讲解）\n变式一题' },
+      { name:'随堂练习', minutes:10, points:'课本练习（当堂完成）\n错因点评' },
+      { name:'小结', minutes:5, points:'知识框架\n易错点提醒' }
+    ] };
+  }
+  function dzSanitize(o){
+    if(!o || typeof o !== 'object' || !Array.isArray(o.steps) || !o.steps.length) return dzBlank();
+    return {
+      title: String(o.title || ''), grade: String(o.grade || ''),
+      steps: o.steps.map(function(s){
+        return { name: String((s && s.name) || '环节'),
+                 minutes: Math.max(1, parseInt(s && s.minutes, 10) || 5),
+                 points: String((s && s.points) || '') };
+      })
+    };
+  }
+  function dzLoad(){
+    try{ var raw = localStorage.getItem(DZ_KEY); if(raw) return dzSanitize(JSON.parse(raw)); }catch(e){}
+    return dzBlank();
+  }
+  function dzPersist(){ try{ localStorage.setItem(DZ_KEY, JSON.stringify(DZ)); }catch(e){} }
+  function dzTotal(){ return DZ.steps.reduce(function(a, s){ return a + (parseInt(s.minutes, 10) || 0); }, 0); }
+  function dzBullets(s){ return String(s.points || '').split('\n').map(function(x){ return x.trim(); }).filter(Boolean); }
+  function dzRenderSlides(){
+    var sb = document.getElementById('dzSlides'); if(!sb) return;
+    var h = '';
+    DZ.steps.forEach(function(s, i){
+      var b = dzBullets(s).slice(0, 2);
+      h += '<div class="dz-slide" data-i="'+i+'" title="点一下跳到左边第 '+(i+1)+' 个环节">' +
+        '<div class="mini">' +
+          '<div class="t">'+escHtml(s.name)+'</div>' +
+          (b.length ? '<ul>'+b.map(function(x){ return '<li>'+escHtml(x)+'</li>'; }).join('')+'</ul>'
+                    : '<ul><li style="color:var(--ink-400)">（未填要点）</li></ul>') +
+        '</div>' +
+        '<div class="body"><div class="n">第 '+(i+1)+' 页 · '+(parseInt(s.minutes, 10) || 0)+' 分钟</div></div>' +
+        '</div>';
+    });
+    sb.innerHTML = h;
+    var ss = document.getElementById('dzSlideStat'); if(ss) ss.textContent = '共 '+DZ.steps.length+' 页';
+    var st = document.getElementById('dzStat'); if(st) st.textContent = '共 '+DZ.steps.length+' 个环节 · '+dzTotal()+' 分钟';
+  }
+  function dzRender(){
+    if(!DZ) DZ = dzLoad();
+    var tEl = document.getElementById('dzTitle'), gEl = document.getElementById('dzGrade');
+    if(tEl && tEl.value !== DZ.title) tEl.value = DZ.title;
+    if(gEl && gEl.value !== DZ.grade) gEl.value = DZ.grade;
+    var box = document.getElementById('dzSteps'); if(!box) return;
+    var h = '';
+    DZ.steps.forEach(function(s, i){
+      h += '<div class="dz-step" data-i="'+i+'"><div class="r1">' +
+        '<span class="idx">'+(i+1)+'</span>' +
+        '<input class="name" data-i="'+i+'" data-f="name" value="'+escHtml(s.name)+'" placeholder="环节名，例：新知讲授">' +
+        '<input class="min" type="number" min="1" data-i="'+i+'" data-f="minutes" value="'+(parseInt(s.minutes, 10) || 0)+'">' +
+        '<span style="font-size:11.5px;color:var(--ink-400)">分钟</span><span style="flex:1"></span>' +
+        '<span class="dz-ops">' +
+          '<button data-act="up" data-i="'+i+'" title="上移">↑</button>' +
+          '<button data-act="down" data-i="'+i+'" title="下移">↓</button>' +
+          '<button data-act="del" data-i="'+i+'" title="删除">✕</button>' +
+        '</span></div>' +
+        '<textarea data-i="'+i+'" data-f="points" placeholder="这一环节的要点（每行一条，会成为 PPT 上的要点）">'+escHtml(s.points)+'</textarea>' +
+        '</div>';
+    });
+    box.innerHTML = h;
+    dzRenderSlides();
+    dzPersist();
+  }
+  function dzExportHTML(){
+    var steps = DZ.steps.map(function(s, i){
+      var b = dzBullets(s);
+      return '<section class="s"><h3>'+(i+1)+'. '+escHtml(s.name)+'　<span class="m">'+(parseInt(s.minutes, 10) || 0)+' 分钟</span></h3>' +
+        (b.length ? '<ul>'+b.map(function(x){ return '<li>'+escHtml(x)+'</li>'; }).join('')+'</ul>' : '<p class="m">（未填要点）</p>') + '</section>';
+    }).join('');
+    var slides = DZ.steps.map(function(s, i){
+      var b = dzBullets(s);
+      return '<div class="slide"><div class="num">'+(i+1)+'</div><div class="st">'+escHtml(s.name)+'</div>' +
+        (b.length ? '<ul>'+b.slice(0,5).map(function(x){ return '<li>'+escHtml(x)+'</li>'; }).join('')+'</ul>' : '') + '</div>';
+    }).join('');
+    var html = '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>' +
+      escHtml(DZ.title || '教案') + '</title><style>' +
+      'body{font-family:"Microsoft YaHei",system-ui,sans-serif;margin:0;padding:32px 40px;color:#18181b;background:#fff}' +
+      'h1{font-size:24px;margin:0 0 4px}h2{font-size:16px;margin:34px 0 10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb}' +
+      '.m{font-size:13px;color:#71717a;font-weight:400}.s{margin:14px 0;padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px}' +
+      '.s h3{font-size:15px;margin:0 0 6px}ul{margin:6px 0 0 20px;padding:0;line-height:1.65;font-size:14px}' +
+      '.deck{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}' +
+      '.slide{border:1px solid #e5e7eb;border-radius:12px;padding:14px;background:linear-gradient(160deg,#fafbff,#eef2ff)}' +
+      '.slide .num{width:26px;height:26px;border-radius:999px;background:#3b82f6;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px}' +
+      '.slide .st{font-size:15px;font-weight:600;margin:8px 0 4px}</style></head><body>' +
+      '<h1>'+escHtml(DZ.title || '未命名课题')+'</h1><div class="m">'+escHtml(DZ.grade || '') +
+      '　·　共 '+DZ.steps.length+' 个环节 / '+dzTotal()+' 分钟</div>' +
+      '<h2>一、教案</h2>' + steps +
+      '<h2>二、PPT 大纲（每页对应一个环节）</h2><div class="deck">' + slides + '</div>' +
+      '<p class="m" style="margin-top:28px">导出自 edu-agent 教案 × PPT 编排台</p></body></html>';
+    try{
+      var blob = new Blob([html], { type:'text/html;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = (DZ.title || '教案') + '-教案与PPT大纲.html';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      showToast('已导出 HTML（下载里找）');
+    }catch(e){ showToast('导出失败：' + e.message, false); }
+  }
+  function dzPreviewPPT(){
+    var w = window.open('', '_blank');
+    if(!w){ showToast('浏览器拦截了新窗口', false); return; }
+    var css = 'body{margin:0;background:#0f172a;font-family:"Microsoft YaHei",system-ui,sans-serif}' +
+      '.slide{width:88vw;max-width:900px;aspect-ratio:16/9;margin:26px auto;background:#fff;border-radius:16px;padding:40px 48px;box-sizing:border-box;display:flex;flex-direction:column}' +
+      '.st{font-size:34px;font-weight:700;color:#1e293b}.n{font-size:14px;color:#94a3b8;margin-bottom:6px}' +
+      'ul{margin:22px 0 0 26px;padding:0;font-size:22px;line-height:1.85;color:#334155}';
+    var body = DZ.steps.map(function(s, i){
+      var b = dzBullets(s);
+      return '<div class="slide"><div class="n">第 '+(i+1)+' / '+DZ.steps.length+' 页　'+(parseInt(s.minutes,10)||0)+' 分钟</div><div class="st">'+escHtml(s.name)+'</div>' +
+        (b.length ? '<ul>'+b.map(function(x){ return '<li>'+escHtml(x)+'</li>'; }).join('')+'</ul>' : '') + '</div>';
+    }).join('');
+    w.document.write('<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>' +
+      escHtml(DZ.title || 'PPT 预览') + '</title><style>'+css+'</style></head><body>'+body+'</body></html>');
+    w.document.close();
+  }
+  (function dzBind(){
+    var box = document.getElementById('dzSteps'),
+        sl = document.getElementById('dzSlides'),
+        tEl = document.getElementById('dzTitle'),
+        gEl = document.getElementById('dzGrade');
+    if(!box) return;
+    DZ = dzLoad();
+    function syncInputs(){
+      if(tEl){ DZ.title = tEl.value; }
+      if(gEl){ DZ.grade = gEl.value; }
+      dzPersist();
+    }
+    if(tEl){
+      tEl.value = DZ.title;
+      tEl.addEventListener('input', function(){ DZ.title = tEl.value; dzPersist(); });
+    }
+    if(gEl){
+      gEl.value = DZ.grade;
+      gEl.addEventListener('input', function(){ DZ.grade = gEl.value; dzPersist(); });
+    }
+    box.addEventListener('input', function(e){
+      var el = e.target;
+      if(!el || !el.dataset || !el.dataset.f) return;
+      var i = parseInt(el.dataset.i, 10);
+      if(!(i >= 0 && i < DZ.steps.length)) return;
+      DZ.steps[i][el.dataset.f] = el.value;
+      dzRenderSlides();     /* 只重画右栏，避免左边输入框失焦/光标跳 */
+      dzPersist();
+    });
+    box.addEventListener('click', function(e){
+      var b = e.target && e.target.closest ? e.target.closest('button[data-act]') : null;
+      if(!b) return;
+      var i = parseInt(b.dataset.i, 10), a = b.dataset.act, t;
+      if(a === 'up' && i > 0){ t = DZ.steps[i-1]; DZ.steps[i-1] = DZ.steps[i]; DZ.steps[i] = t; }
+      else if(a === 'down' && i < DZ.steps.length - 1){ t = DZ.steps[i+1]; DZ.steps[i+1] = DZ.steps[i]; DZ.steps[i] = t; }
+      else if(a === 'del'){
+        if(DZ.steps.length <= 1){ showToast('至少保留一个环节', false); return; }
+        DZ.steps.splice(i, 1);
+      }
+      dzRender();
+    });
+    if(sl) sl.addEventListener('click', function(e){
+      var c = e.target && e.target.closest ? e.target.closest('.dz-slide') : null;
+      if(!c) return;
+      var i = parseInt(c.dataset.i, 10);
+      var row = document.querySelector('#dzSteps .dz-step[data-i="'+i+'"]');
+      if(!row) return;
+      row.scrollIntoView({ block:'center' });
+      var inp = row.querySelector('input.name'); if(inp) inp.focus();
+      row.style.borderColor = 'var(--blue)';
+      setTimeout(function(){ row.style.borderColor = ''; }, 900);
+    });
+    var add = document.getElementById('dzAddStep');
+    if(add) add.addEventListener('click', function(){
+      DZ.steps.push({ name:'新环节', minutes:5, points:'' });
+      dzRender();
+      var rows = document.querySelectorAll('#dzSteps .dz-step');
+      var last = rows[rows.length - 1];
+      if(last){ last.scrollIntoView({ block:'center' }); var inp = last.querySelector('input.name'); if(inp){ inp.focus(); inp.select(); } }
+    });
+    var sk = document.getElementById('dzSkeleton');
+    if(sk) sk.addEventListener('click', function(){
+      syncInputs();
+      DZ.steps = dzBlank().steps;
+      dzRender();
+      showToast('已生成 5 个环节骨架：' + DZ.steps.map(function(s){ return s.name; }).join(' → '));
+    });
+    var sv = document.getElementById('dzSave');
+    if(sv) sv.addEventListener('click', function(){ syncInputs(); dzPersist(); showToast('已保存（本机浏览器）'); });
+    var ex = document.getElementById('dzExport');
+    if(ex) ex.addEventListener('click', function(){ syncInputs(); dzExportHTML(); });
+    var pv = document.getElementById('dzPreview');
+    if(pv) pv.addEventListener('click', function(){ syncInputs(); dzPreviewPPT(); });
+    dzRender();
+  })();
 })();
 </script>
 </body>

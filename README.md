@@ -160,6 +160,21 @@
 
 **注意**：`src/edu_agent/prompts.py` / `src/edu_agent/generate.py` / `src/edu_agent/web_server.py` 改动需重启 5174；`static/` 前端改完刷新即可。向量库或教材更换后需重跑 `scripts/build_toc_ranges.py`。
 
+## 教案中心 = 教案 × PPT 可视化编排台（2026-09-10 晚）
+
+侧栏「教育能力 → 教案中心」（教师角色）不再进对话，而是打开编排工作台 `#view-design`：
+
+| 区域 | 内容 |
+|---|---|
+| 顶部 | 课题、学情/课时、生成骨架、＋添加环节、保存、导出 HTML、预览 PPT |
+| 左栏「教案结构」 | 每个环节一行：序号 / 名称 / 分钟 / 上移 ↓ / 下移 / 删除；要点文本框（每行一条） |
+| 右栏「PPT 幻灯片」 | 每页对应一个环节：缩略图显示标题+要点，底部标注「第 N 页 · X 分钟」；点卡片跳回左侧对应环节 |
+
+两侧由同一份状态驱动，任一侧改动另一侧即时同步；统计（共 N 个环节 · X 分钟）实时更新。
+数据自动存 `localStorage: edu_design_v1`；「导出 HTML」产出含教案全文 + PPT 大纲的独立 HTML；「预览 PPT」按 16:9 全屏逐页预览。
+侧栏「教育能力」分组也可伸缩（点标题或箭头收起/展开，状态记忆在 `localStorage: edu_cap_open`）。
+学生角色下同一入口仍是「AI 答疑」（对话视图）。
+
 ## 运行
 - **UI（唯一入口，Harness 风格聊天页）**：`start_web.cmd` / `启动课本教练.bat` / `run_ui.ps1` → http://127.0.0.1:5174（先确保 Ollama bge-m3 在 localhost:11434 运行）；顶部切 Agent A（答疑多轮）/ B（教案）/ S（总指挥派单）/ 自动；B 按当前模板出教案（默认=已认定《函数的概念》模板），含 PDF 上传问答与模板认定；日志滚到 `data/logs/edu_agent.log`
 - **Agent A CLI**：`.venv/Scripts/python.exe src/edu_agent/generate.py "怎么判断函数单调性？"`；多轮：`... generate.py --chat`

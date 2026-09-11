@@ -1,14 +1,24 @@
 @echo off
 rem ============================================================
 rem start_web.cmd —— 启动 Agent Web UI（端口 5174，启用本地 rerank 精排）
-rem 用法：双击本文件，或在终端执行 deploy\start_web.cmd
-rem 停止：deploy\stop_ui.cmd（或查杀 5174 端口）
-rem 便携性：用 %~dp0 定位脚本自身目录，仓库放在哪个盘/哪个目录都能跑
+rem 便携性：%~dp0 = 本脚本目录(deploy\)，%~dp0.. = 仓库根
+rem 停止：deploy\stop_ui.cmd ｜ 顶层等价入口：启动课本教练.bat
 rem ============================================================
+setlocal
 chcp 65001 >nul
 cd /d "%~dp0.."
+set "PY=%~dp0..\.venv\Scripts\python.exe"
 
-rem 有本地 rerank 模型才开精排；没有则降级纯向量检索（见 start_ui.cmd 同款说明）
+if not exist "%PY%" (
+  echo [错误] 未找到虚拟环境: %PY%
+  echo 修复：在仓库根目录执行
+  echo     python -m venv .venv
+  echo     .venv\Scripts\python.exe -m pip install -r requirements.txt
+  pause
+  exit /b 1
+)
+
+rem rerank：本地模型存在才开精排，缺失自动降级纯向量检索（同上，模型目录不入库）
 if exist "%~dp0..\model_cache\bge-reranker-v2-m3" (
   set RERANK_ON=1
   set RERANK_PROVIDER=local
@@ -20,7 +30,7 @@ if exist "%~dp0..\model_cache\bge-reranker-v2-m3" (
 )
 
 echo 正在启动 Agent Web UI (127.0.0.1:5174) ...
-start "" /min ".venv\Scripts\python.exe" "src\edu_agent\web_server.py"
+start "" /min "%PY%" -u "src\edu_agent\web_server.py"
 echo.
 echo 浏览器打开:  http://127.0.0.1:5174
 timeout /t 5 >nul

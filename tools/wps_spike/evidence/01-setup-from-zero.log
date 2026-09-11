@@ -1,0 +1,35 @@
+﻿============================================================
+ WPS Office MCP 依赖安装（第三方 wps-skills，装在仓库外）
+============================================================
+ 仓库里只放本项目的适配层；第三方源码与 node_modules 一律不入库。
+
+ 仓库      : F:\edu-agent3
+ 安装位置  : C:\Users\15000\AppData\Local\edu-agent\deps\wps-skills
+
+[1/4] 克隆 wps-skills 到仓库外 ...
+Cloning into 'C:\Users\15000\AppData\Local\edu-agent\deps\wps-skills'...
+[2/4] 安装依赖 npm ci ...
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+
+added 434 packages in 10s
+
+79 packages are looking for funding
+  run `npm fund` for details
+[3/4] 构建 npm run build ...
+
+> wps-office-mcp@1.0.0 build
+> tsc
+
+[4/4] 写运行时配置 F:\edu-agent3\data\wps_mcp.json ...
+{
+    "dir":  "C:\\Users\\15000\\AppData\\Local\\edu-agent\\deps\\wps-skills",
+    "entry":  "C:\\Users\\15000\\AppData\\Local\\edu-agent\\deps\\wps-skills\\wps-office-mcp\\dist\\index.js",
+    "skills_dir":  "C:\\Users\\15000\\AppData\\Local\\edu-agent\\deps\\wps-skills\\skills",
+    "commit":  "a82533662268b3245f93d8685bc45dffede048b6",
+    "installed_at":  "2026-09-11T21:14:03"
+}
+完成。路径解析优先级：环境变量 WPS_MCP_DIR > data\wps_mcp.json > 默认 C:\Users\15000\AppData\Local\edu-agent\deps\wps-skills
+注：Windows 走 PowerShell COM 桥（scripts\wps-com.ps1），**无需安装 WPS 加载项**（那是 macOS/Linux 轮询模式才要）。
+启动服务后到「MCP 服务」页可看到 WPS Office 服务的状态与工具数（正常约 250 个）。
+请按任意键继续. . . 

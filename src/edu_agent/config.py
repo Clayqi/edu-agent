@@ -54,6 +54,9 @@ class Settings:
     rerank_on: bool
     rerank_provider: str             # local | siliconflow
     rerank_model_dir: Path           # local CrossEncoder 模型目录
+    # WPS MCP（第三方 wps-skills，装在仓库外；见 deploy/setup_wps_mcp.cmd）
+    wps_mcp_dir: Path | None = None      # 环境变量 WPS_MCP_DIR：wps-skills 克隆目录
+    wps_mcp_entry: Path | None = None    # 环境变量 WPS_MCP_ENTRY：直接指定 dist/index.js
 
     # 「新建项目 / 文件浏览」的默认根目录（EDU_FS_ROOT 可覆盖；不写死盘符）
     fs_root: Path
@@ -74,6 +77,8 @@ def load_settings() -> Settings:
 
     pdf = os.getenv("TEXTBOOK_PDF", "")
     data_dir = _path(os.getenv("EDU_DATA_DIR", "./data"))
+    wps_dir = os.getenv("WPS_MCP_DIR", "").strip()
+    wps_entry = os.getenv("WPS_MCP_ENTRY", "").strip()
     return Settings(
         deepseek_api_key=os.getenv("DEEPSEEK_API_KEY", ""),
         deepseek_base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
@@ -94,6 +99,8 @@ def load_settings() -> Settings:
         rerank_provider=os.getenv("RERANK_PROVIDER", "local").strip().lower(),
         rerank_model_dir=_path(os.getenv("RERANK_MODEL_DIR", "./model_cache/bge-reranker-v2-m3")),
         fs_root=_path(os.getenv("EDU_FS_ROOT", str(Path.home()))),
+        wps_mcp_dir=Path(wps_dir) if wps_dir else None,
+        wps_mcp_entry=Path(wps_entry) if wps_entry else None,
     )
 
 

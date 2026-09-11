@@ -54,12 +54,12 @@ class Settings:
     rerank_on: bool
     rerank_provider: str             # local | siliconflow
     rerank_model_dir: Path           # local CrossEncoder 模型目录
+    # 「新建项目 / 文件浏览」的默认根目录（EDU_FS_ROOT 可覆盖；不写死盘符）
+    # 注意：必填字段必须排在带默认值的字段之前，否则 dataclass 报 TypeError
+    fs_root: Path
     # WPS MCP（第三方 wps-skills，装在仓库外；见 deploy/setup_wps_mcp.cmd）
     wps_mcp_dir: Path | None = None      # 环境变量 WPS_MCP_DIR：wps-skills 克隆目录
     wps_mcp_entry: Path | None = None    # 环境变量 WPS_MCP_ENTRY：直接指定 dist/index.js
-
-    # 「新建项目 / 文件浏览」的默认根目录（EDU_FS_ROOT 可覆盖；不写死盘符）
-    fs_root: Path
 
     @property
     def deepseek_ready(self) -> bool:

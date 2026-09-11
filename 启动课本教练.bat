@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-cd /d "D:\教育agent"
+cd /d "%~dp0"
 echo [1/2] 检查 Ollama (bge-m3 embedding, localhost:11434) ...
 powershell -NoProfile -Command "try { (Invoke-WebRequest -Uri http://localhost:11434/api/tags -UseBasicParsing -TimeoutSec 3).StatusCode } catch { 'DOWN' }" > "%TEMP%\ollama_check.txt"
 set /p OLLAMA=<"%TEMP%\ollama_check.txt"

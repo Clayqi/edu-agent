@@ -1,10 +1,27 @@
 @echo off
+rem ============================================================
+rem start_ui.cmd —— 启动课本教练 Web UI（端口 5174，启用本地 rerank 精排）
+rem 用法：双击本文件，或在终端执行 deploy\start_ui.cmd
+rem 停止：deploy\stop_ui.cmd（或查杀 5174 端口）
+rem 便携性：用 %~dp0 定位脚本自身目录，所以仓库放在哪个盘/哪个目录都能跑
+rem        （不要写死盘符路径，团队每人的 clone 位置都不一样）
+rem ============================================================
 chcp 65001 >nul
-cd /d D:\教育agent
-echo 正在启动 课本教练 x 教案 Agent Web UI（Agent S/A/B，http://127.0.0.1:5174，local rerank 已启用）...
-set RERANK_ON=1
-set RERANK_PROVIDER=local
-set RERANK_MODEL_DIR=D:\教育agent\model_cache\bge-reranker-v2-m3
+cd /d "%~dp0.."
+
+rem rerank 需要本地模型（model_cache 未入库，新人 clone 后一般没有）：
+rem 有模型才开精排，没有就自动降级为纯向量检索，避免启动即失败
+if exist "%~dp0..\model_cache\bge-reranker-v2-m3" (
+  set RERANK_ON=1
+  set RERANK_PROVIDER=local
+  set RERANK_MODEL_DIR=%~dp0..\model_cache\bge-reranker-v2-m3
+  echo [rerank] 找到本地精排模型，已启用
+) else (
+  set RERANK_ON=0
+  echo [rerank] 未找到 model_cache\bge-reranker-v2-m3，按纯向量检索启动（不影响答疑）
+)
+
+echo 正在启动 课本教练 x 教案 Agent Web UI（http://127.0.0.1:5174）...
 start "" /min ".venv\Scripts\python.exe" "src\edu_agent\web_server.py"
 echo.
 echo 浏览器打开:  http://127.0.0.1:5174

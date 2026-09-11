@@ -5,7 +5,7 @@
   ② 前端引用卡「看原页」直接贴原书页图
 本脚本负责喂给①的元数据：不改文本、不改向量，只 add 三个键。
 
-用法（在 D:\\教育agent 下）：
+用法（在仓库根目录下执行）：
     .venv\\Scripts\\python.exe scripts\\backfill_chunk_meta.py            # 备份 + 回填
     .venv\\Scripts\\python.exe scripts\\backfill_chunk_meta.py --dry-run  # 只看统计不写库
 

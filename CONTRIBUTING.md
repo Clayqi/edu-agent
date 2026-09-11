@@ -25,6 +25,25 @@
 
 热点共享文件（改动前先 `git pull --rebase origin main`）：`README.md`、`static/index.html`、`web_server.py`、`prompts.py`。
 
+## 二之二、路径写法（硬规则：跨机器必须能跑）
+
+仓库里**禁止出现盘符绝对路径**（如 `D:\教育agent\...`、`C:/xxx`）—— 每个组员的 clone 位置都不同，写死一处就废掉一个功能（2026-09-11 修过一批：启动脚本、清洗脚本、Web 默认目录）。
+
+| 场景 | 正确写法 |
+|---|---|
+| Windows 启动脚本 `.cmd` | `cd /d "%~dp0.."`（`%~dp0` = 脚本自身所在目录，`..` 回仓库根） |
+| PowerShell `.ps1` | `$root = Split-Path -Parent $PSScriptRoot` |
+| Python 脚本 | `Path(__file__).resolve().parents[N]` 再拼相对路径 |
+| 可配置目录（数据/模型/工作区） | 环境变量 + `config.py` 的 `load_settings()`（如 `EDU_DATA_DIR`、`EDU_FS_ROOT`） |
+| 前端默认目录 | 从后端接口拿（如不带 `path` 调 `GET /api/fs/list`），不要在前端写死 |
+
+PR 前自查（应无输出）：
+
+```bash
+grep -rn "[A-Z]:[\\/]" --include='*.py' --include='*.cmd' --include='*.ps1' --include='*.html' src scripts deploy static
+```
+
+
 ## 三、提交前清单
 
 ```bash

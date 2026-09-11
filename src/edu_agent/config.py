@@ -55,6 +55,9 @@ class Settings:
     rerank_provider: str             # local | siliconflow
     rerank_model_dir: Path           # local CrossEncoder 模型目录
 
+    # 「新建项目 / 文件浏览」的默认根目录（EDU_FS_ROOT 可覆盖；不写死盘符）
+    fs_root: Path
+
     @property
     def deepseek_ready(self) -> bool:
         return is_key_ready(self.deepseek_api_key)
@@ -90,6 +93,7 @@ def load_settings() -> Settings:
         rerank_on=os.getenv("RERANK_ON", "") == "1",
         rerank_provider=os.getenv("RERANK_PROVIDER", "local").strip().lower(),
         rerank_model_dir=_path(os.getenv("RERANK_MODEL_DIR", "./model_cache/bge-reranker-v2-m3")),
+        fs_root=_path(os.getenv("EDU_FS_ROOT", str(Path.home()))),
     )
 
 

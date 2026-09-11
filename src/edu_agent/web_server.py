@@ -128,12 +128,12 @@ def api_sess_branch(body: dict):
 
 @app.post("/api/project/new")
 def api_project_new(body: dict):
-    """新建项目文件夹（限 D 盘；防路径穿越）。name=目录名, base=父目录(默认 D:/hermes)"""
+    """新建项目文件夹（防路径穿越）。name=目录名, base=父目录（默认取 settings.fs_root）"""
     name = (body.get("name") or "").strip()
     if not name:
         return {"ok": False, "error": "项目名不能为空"}
     name = re.sub(r'[\\/:*?"<>|]', "_", name)
-    base = _fs_safe((body.get("base") or "D:/hermes"))
+    base = _fs_safe((body.get("base") or _FS_ROOT))
     if base is None:
         return {"ok": False, "error": "位置不在允许范围（仅本机 C/D/E 盘）"}
     target = (base / name).resolve()
@@ -163,6 +163,12 @@ def _drives() -> list[Path]:
 _FS_BAD = ("$RECYCLE", "System Volume", "Windows", "$WinRE", "Recovery",
            "Program Files", "Program Files (x86)", "ProgramData")
 
+# 「新建项目 / 文件浏览」的默认根目录：来自 settings.fs_root（.env 的 EDU_FS_ROOT 可覆盖）
+# 原先写死 "D:/hermes"，团队每人机器目录不同 → 现在默认 = 用户主目录；
+# 若显式配置的目录不存在，退回用户主目录，保证前端一定能拿到一个可读的位置
+_cfg_fs_root = _settings.fs_root
+_FS_ROOT = str(_cfg_fs_root if _cfg_fs_root.exists() else Path.home())
+
 
 def _fs_safe(p: str) -> Path | None:
     """解析路径并校验在已探测盘根内；过滤系统目录；非法返回 None。"""
@@ -183,9 +189,9 @@ def api_fs_drives():
 
 
 @app.get("/api/fs/list")
-def api_fs_list(path: str = "D:/hermes"):
+def api_fs_list(path: str = ""):
     """列出目录（只读；限本机 C/D/E 盘，系统目录过滤）。"""
-    cur = _fs_safe(path or "D:/hermes")
+    cur = _fs_safe(path or _FS_ROOT)
     if cur is None:
         return {"ok": False, "error": "路径不在允许范围"}
     try:
@@ -207,7 +213,7 @@ def api_fs_list(path: str = "D:/hermes"):
 @app.post("/api/fs/mkdir")
 def api_fs_mkdir(body: dict):
     """在指定目录下新建子文件夹。"""
-    base = _fs_safe((body.get("path") or "D:/hermes"))
+    base = _fs_safe((body.get("path") or _FS_ROOT))
     name = (body.get("name") or "").strip()
     if base is None:
         return {"ok": False, "error": "路径不在允许范围"}

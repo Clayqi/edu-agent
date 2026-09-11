@@ -49,7 +49,7 @@
 - `src/edu_agent/api.py` → `legacy/api_gradio.py`（Gradio 版：语音/反馈/修正/日志面板留档）。
 - `tmp_p7/p9/v2.py` → `legacy/scratch/`；`ui_server.log`、`web_server.log` → `legacy/logs/`；
   `data/sessions.json` → `legacy/data_sessions_gradio.json`。
-- `start_ui.cmd / start_web.cmd / stop_ui.cmd / run_ui.ps1 / 启动课本教练.bat` 全部收敛到 5174。
+- `deploy/start_ui.cmd / deploy/start_web.cmd / deploy/stop_ui.cmd / deploy/run_ui.ps1 / 启动课本教练.bat`（顶层唯一入口）全部收敛到 5174。
 - `requirements.txt`：gradio 移出必装（注释说明需回迁时的安装方式）。
 
 ## 3. 途中修掉的实现缺陷

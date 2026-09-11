@@ -2,7 +2,7 @@
 
 以教材为**唯一事实来源**的高中数学多 Agent 项目（施工版）：
 **Agent A 课本教练**（学生答疑）、**Agent B 教案 Agent**（老师备课）与 **Agent S 总指挥**
-（监督派单）是相互独立、各自完整的 Agent（独立性红线见 [多Agent协作计划书.md](./多Agent协作计划书.md) §0），
+（监督派单）是相互独立、各自完整的 Agent（独立性红线见 [docs/05-多Agent协作计划书.md](./docs/05-多Agent协作计划书.md) §0），
 共用同一只读教材向量库与检索/生成底座；web 网关（5174，唯一 UI）负责意图路由与会话编排。
 
 ## 双 Agent 现状（2026-09-07）
@@ -62,14 +62,15 @@
 ## 结构
 ```
 ./  (.env 不入库；.venv 已建，Python 3.11 via uv)
-├─ requirements.txt / smoke_test.py      # S1 验收：A.DeepSeek B.bge-m3(1024) 全绿 PASS
+├─ requirements.txt                        # S1 验收：A.DeepSeek B.bge-m3(1024) 全绿 PASS
 ├─ content/README.md                     # v3 契约（chunk 头行格式/坐标/边界）
 │  └─ templates/                          # Agent B 模板存档（orig/ 原件备份 + 认定 .json + _current.json）
 ├─ data/                                  # 运行数据（会话库/上传/日志；可经 EDU_DATA_DIR 整体外移）
 │  ├─ edu_sessions.db                     # 统一会话存储（web_sessions.json 已自动迁移并入）
 │  └─ logs/edu_agent.log                  # 滚动事件日志（logsetup）
 ├─ legacy/                                # 归档（Gradio UI api.py / 临时脚本 / 旧日志），不参与运行
-├─ docs/                                  # 架构对标与设计记录
+├─ deploy/                                # 启动/停止脚本（start_ui / start_web / stop_ui / run_ui.ps1）
+├─ docs/                                  # 文档（00 索引 / 01 架构 / 02 演示剧本 / 03 协作 / 04 部署 / 05 计划书）
 ├─ eval/                                 # 评测集与存档（golden_questions / s9_results / demo 兜底）
 └─ src/edu_agent/
    ├─ config.py            # 读 .env；运行参数收口（rerank/数据目录/日志）；LLM + 双 embedding
@@ -108,7 +109,7 @@
 - [x] S8 越界题走降级分支（实测「不定积分」→ 低置信降级，不硬编）
 - [x] S9 全量 15 题质检 **15/15 合格**（eval/s9_results.json）
 - [x] S10(初) Gradio 问答界面 → 已随一期收口退役（归档 legacy/api_gradio.py，唯一 UI 迁移至 5174）
-- [x] S10 演示剧本 DEMO_SCRIPT.md + 裸 GPT 对照存档（eval/s10_naked_compare.md）+ 排练第 1 遍（计时）
+- [x] S10 演示剧本 docs/02-演示剧本.md + 裸 GPT 对照存档（eval/s10_naked_compare.md）+ 排练第 1 遍（计时）
 - [x] 工程补强（2026-09-07）：#2 会话 / #3 日志 / #4 查询预处理 + 重试 + 引用规整；**tests/ 97 例全绿**
 - [x] M0 模板认定（代码 + 样例）：content/templates/高中数学_函数的概念_教案.json（源自样例 .docx）
 - [x] M2 编排层 graph.py：LangGraph Router + 节点故障隔离 + P1 学情拼接（tests/test_graph.py 全绿）
@@ -119,10 +120,10 @@
 - [x] 一期架构收口（对齐 DSH，见下节）：**tests/ 112 例全绿**
 
 ## 乱码优化与检索调优记录（2026-09-06 下午）
-- **语料乱码清洗**（scripts_clean_corpus.py + scripts_repair_fm.py）：全角归一、人教字形替换字母映射（狓→x 犃→A…）、私用区/矢量垃圾行剔除。**注意**：pdf_import.py 重跑后需先跑 repair_fm（补 front-matter）再 clean。
+- **语料乱码清洗**（scripts/clean_corpus.py + scripts/repair_fm.py）：全角归一、人教字形替换字母映射（狓→x 犃→A…）、私用区/矢量垃圾行剔除。**注意**：pdf_import.py 重跑后需先跑 repair_fm（补 front-matter）再 clean。
 - **检索主节优先**（retrieve.py prefer_main）：编号节硬优先于旁栏（阅读与思考/小结/信息技术应用），S6 由 13/15 → **14/15**。
 - **已知弱点**：第四章 4.2 指数函数所在页含表格/图形，抽取文本受污染致向量偏差，检索该节问仍可能落到旁栏（黄金题 Q11 未命中，属公式/表格边界，未死磕）。
-- **慢题波动**：DeepSeek 偶发 60~113s（非代码问题），演示只选已验证快题（见 DEMO_SCRIPT.md）。
+- **慢题波动**：DeepSeek 偶发 60~113s（非代码问题），演示只选已验证快题（见 docs/02-演示剧本.md）。
 
 ## 一期架构收口（2026-10，对照 DSH DeepSeek Harness 架构）
 
@@ -176,13 +177,13 @@
 学生角色下同一入口仍是「AI 答疑」（对话视图）。
 
 ## 运行
-- **UI（唯一入口，Harness 风格聊天页）**：`start_web.cmd` / `启动课本教练.bat` / `run_ui.ps1` → http://127.0.0.1:5174（先确保 Ollama bge-m3 在 localhost:11434 运行）；顶部切 Agent A（答疑多轮）/ B（教案）/ S（总指挥派单）/ 自动；B 按当前模板出教案（默认=已认定《函数的概念》模板），含 PDF 上传问答与模板认定；日志滚到 `data/logs/edu_agent.log`
+- **UI（唯一入口，Harness 风格聊天页）**：`deploy/start_web.cmd` / `启动课本教练.bat`（顶层） / `deploy/run_ui.ps1` → http://127.0.0.1:5174（先确保 Ollama bge-m3 在 localhost:11434 运行）；顶部切 Agent A（答疑多轮）/ B（教案）/ S（总指挥派单）/ 自动；B 按当前模板出教案（默认=已认定《函数的概念》模板），含 PDF 上传问答与模板认定；日志滚到 `data/logs/edu_agent.log`
 - **Agent A CLI**：`.venv/Scripts/python.exe src/edu_agent/generate.py "怎么判断函数单调性？"`；多轮：`... generate.py --chat`
 - **Agent B CLI（出教案）**：`.venv/Scripts/python.exe src/edu_agent/planner.py "函数的单调性" "重点班45分钟"`
 - **编排层 CLI**：`.venv/Scripts/python.exe src/edu_agent/graph.py "帮我写一份函数的单调性的教案"`（普通问自动走 A）
 - **总指挥 CLI**：`.venv/Scripts/python.exe src/edu_agent/supervisor.py "帮我备一节 对数函数 的教案"`
 - **单测**：`.venv/Scripts/python.exe -m unittest discover -s tests -p "test_*.py"`（当前 **112 例全绿**，零网络/零 Chroma/零 LLM）
-- 停止：`stop_ui.cmd`（查杀 5174）或 `netstat -ano | findstr :5174` 后 Stop-Process
+- 停止：`deploy/stop_ui.cmd`（查杀 5174）或 `netstat -ano | findstr :5174` 后 Stop-Process
 - 注意：会话数据现在落 `data/edu_sessions.db`（SQLite），重启不丢；想整体搬数据根设 `EDU_DATA_DIR` 即可
 - 已知：个别题端到端偶发 60~113s（DeepSeek 波动），演示选已验证的快题；越界题自动降级
 - 公式策略：生成后统一 plainify（generate.plainify_math），输出纯文本/Unicode（⊆ ∈ √ x^2），不再输出 $…$/反斜杠命令——任何环境零乱码；复杂公式给页码翻书兜底

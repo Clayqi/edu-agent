@@ -411,7 +411,7 @@ svg{display:block}
     <aside class="sidebar">
       <div class="side-brand">
         <div class="name">教育 Agent</div>
-        <div class="ver">v1.4.0</div>
+        <div class="ver">v1.7.0</div>
         <button class="side-toggle" id="btnSideToggle" title="收起侧边栏">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M3 4h6v16H3z" fill="currentColor" stroke="none" opacity=".18"/></svg>
         </button>
@@ -586,6 +586,14 @@ svg{display:block}
               <button class="pill-btn" id="dzSave">保存</button>
               <button class="pill-btn" id="dzExport">导出 HTML</button>
               <button class="pill-btn" id="dzPreview">预览 PPT</button>
+              <button class="pill-btn" id="dzExportWps" title="经 WPS 文字导出 .docx">导出 Word · WPS</button>
+              <button class="pill-btn dark" id="dzExportPpt" title="本地生成 .pptx 并用 WPS 演示打开">生成 PPT · WPS</button>
+            </div>
+            <div class="row-card" style="margin-top:8px;padding:10px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <span style="font-size:12.5px;color:var(--ink-500);flex:none">导出位置</span>
+              <input class="text-input" id="dzOutDir" placeholder="留空 = content/plans（项目内）" style="flex:1;min-width:240px;height:32px;font-family:ui-monospace,Consolas,monospace;font-size:12px">
+              <button class="pill-btn" id="dzPickDir" style="flex:none">选择…</button>
+              <span id="dzExportResult" style="font-size:12px;color:var(--ink-500);flex:none"></span>
             </div>
           </div>
           <div class="dz-grid">
@@ -623,14 +631,13 @@ svg{display:block}
         <div class="view" id="view-services">
           <div class="view-sec">
             <div class="view-h1">MCP 服务</div>
-            <div class="view-sub">连接与管理外部能力服务（教材 / 文件 / 用户服务）。</div>
+            <div class="view-sub">连接与管理外部能力服务。开关即时生效、持久化保存，默认全部开启。</div>
           </div>
           <div class="view-sec" style="padding-top:18px">
-            <div class="row-card">
-              <div class="lrow"><div class="li"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg></div><div class="lm"><div class="t">教材服务</div><div class="s">教材章节 / 知识块 / 向量化检索</div></div><span class="st-pill green"><span class="dot"></span>已连接</span><div class="side"><button class="pill-btn">配置</button></div></div>
-              <div class="lrow"><div class="li"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5v13z"/></svg></div><div class="lm"><div class="t">文件服务</div><div class="s">PDF 上传 / 解析 / 分发</div></div><span class="st-pill green"><span class="dot"></span>已连接</span><div class="side"><button class="pill-btn">配置</button></div></div>
-              <div class="lrow"><div class="li"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg></div><div class="lm"><div class="t">用户服务</div><div class="s">角色 / 权限 / 授权管理</div></div><span class="st-pill"><span class="dot"></span>未连接</span><div class="side"><button class="pill-btn dark">连接</button></div></div>
+            <div class="row-card" id="svcList">
+              <div class="lrow"><div class="lm"><div class="t">正在读取能力清单…</div><div class="s">MCP 服务 / Skill 运行状态</div></div></div>
             </div>
+            <div class="mk-cat-desc" id="svcFoot" style="margin-top:12px"></div>
           </div>
         </div>
 
@@ -691,6 +698,8 @@ svg{display:block}
     if(v==='chat'){ updateGreeting(); }
     if(v==='library'){ libRender(); }
     if(v==='design'){ dzRender(); }
+    if(v==='services'){ svcRender(); }
+    if(v==='market'){ if(!(CAP.skills||[]).length){ capLoad().then(function(){ buildMarket(marketFilter); }); } }
   }
 
   document.querySelectorAll('.snav[data-view]').forEach(function(n){
@@ -764,7 +773,8 @@ svg{display:block}
   var checkSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4"><path d="M20 6L9 17l-5-5"/></svg>';
 
   function buildMarket(filter){
-    var html = '';
+    marketFilter = filter || '';
+    var html = capSkillCards(marketFilter);
     marketData.forEach(function(cat){
       var skills = cat.skills.filter(function(s){ return !filter || s.title.indexOf(filter)>-1; });
       if(!skills.length) return;
@@ -780,7 +790,10 @@ svg{display:block}
     });
     document.getElementById('marketBody').innerHTML = html || '<div class="mk-cat"><div class="mk-cat-desc">没有匹配的 Skill。</div></div>';
     document.querySelectorAll('.skill-card').forEach(function(c){
-      c.addEventListener('click', function(){ openSkill(c.dataset.skill); });
+      c.addEventListener('click', function(){
+        if(c.dataset.liveSkill){ openLiveSkill(c.dataset.liveSkill); return; }
+        openSkill(c.dataset.skill);
+      });
     });
   }
 
@@ -808,6 +821,134 @@ svg{display:block}
     html += '</div></div>';
     document.getElementById('skillDetail').innerHTML = html;
     document.querySelector('.sd-back').addEventListener('click', function(){ switchView('market'); });
+    switchView('skill');
+  }
+
+  /* ==== 能力：MCP 服务 / Skill 开关与运行状态（WPS 集成 2026-09-10） ====
+     与后端 edu_agent.capabilities 同源：enabled=开关（默认全开，落 data/capabilities.json），
+     running/detail=运行状态，wps_export_ready=教案中心能否经 WPS 导出。 */
+  var CAP = {mcp:[], skills:[], wps_export_ready:false, state_file:''};
+  var marketFilter = '';
+  function capLoad(deep){
+    var url = '/api/capabilities' + (deep ? '?deep=1' : '');
+    return spJson(url).then(function(d){ if(d && d.mcp) CAP = d; return CAP; })
+                      .catch(function(){ return CAP; });
+  }
+  function capToggle(kind, id, enabled){
+    return spJson('/api/capabilities/toggle','POST',{kind:kind,id:id,enabled:enabled});
+  }
+  function capWps(){ var w=null; (CAP.mcp||[]).forEach(function(m){ if(m.id==='wps-office') w=m; }); return w; }
+  function capStatus(row){
+    if(!row.enabled) return {cls:'', text:'已关闭'};
+    if(row.running) return {cls:'green', text:'运行中'};
+    return {cls:'', text:'不可用'};
+  }
+  function capSyncDesignBtn(){
+    var w = document.getElementById('dzExportWps');
+    if(!w) return;
+    var off = !CAP.wps_export_ready;
+    w.style.opacity = off ? '.55' : '';
+    w.title = off ? 'WPS Office 服务未就绪（可到「MCP 服务」开启）' : '经 WPS 文字导出 .docx';
+  }
+  var svcSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>';
+  function capSwitchHtml(kind, id, on, tip){
+    return '<button class="switch'+(on?' on':'')+'" data-cap-kind="'+kind+'" data-cap-id="'+escHtml(id)+'" title="'+escHtml(tip||'开启 / 关闭')+'"></button>';
+  }
+  function capWireSwitches(box, after){
+    box.querySelectorAll('.switch[data-cap-id]').forEach(function(sw){
+      sw.addEventListener('click', function(){
+        var next = !sw.classList.contains('on');
+        sw.classList.toggle('on', next);
+        capToggle(sw.dataset.capKind, sw.dataset.capId, next).then(function(r){
+          if(r && r.ok === false){ sw.classList.toggle('on', !next); showToast(r.error || '切换失败', false); return; }
+          showToast((next ? '已开启　' : '已关闭　') + sw.dataset.capId);
+          capLoad().then(function(){ if(after) after(); });
+        }).catch(function(){ sw.classList.toggle('on', !next); showToast('切换失败', false); });
+      });
+    });
+  }
+  /* MCP 服务视图：真实服务 + Skill 开关 */
+  function svcRender(){
+    var box = document.getElementById('svcList');
+    if(!box) return;
+    box.innerHTML = '<div class="lrow"><div class="lm"><div class="t">正在探测服务状态…</div><div class="s">MCP 服务 / Skill</div></div></div>';
+    capLoad(true).then(function(){
+      var h = '';
+      (CAP.mcp || []).forEach(function(m){
+        var st = capStatus(m), meta = m.enabled ? (m.detail || '—') : '开关已关闭，调用会被短路';
+        if(m.tools) meta += '　·　' + m.tools + ' 个工具';
+        h += '<div class="lrow"><div class="li">'+svcSvg+'</div>'+
+             '<div class="lm"><div class="t">'+escHtml(m.name)+'</div><div class="s">'+escHtml(m.desc)+'</div>'+
+             '<div class="s" style="font-size:11.5px;color:var(--ink-400);margin-top:3px">'+escHtml(meta)+'</div></div>'+
+             '<span class="st-pill '+st.cls+'"><span class="dot"></span>'+st.text+'</span>'+
+             '<div class="side">'+capSwitchHtml('mcp', m.id, m.enabled)+'</div></div>';
+      });
+      var mcpOn = {};
+      (CAP.mcp || []).forEach(function(m){ mcpOn[m.id] = m.enabled; });
+      (CAP.skills || []).forEach(function(s){
+        var depOff = s.mcp && mcpOn[s.mcp] === false;
+        var st = !s.enabled ? {cls:'',text:'已关闭'} : (depOff ? {cls:'',text:'依赖已关'} : {cls:'green',text:'已启用'});
+        h += '<div class="lrow"><div class="li">'+svcSvg+'</div>'+
+             '<div class="lm"><div class="t">'+escHtml(s.name)+' <span style="font-weight:400;color:var(--ink-400);font-size:11.5px">Skill</span></div>'+
+             '<div class="s">'+escHtml(s.desc || '')+'</div>'+
+             '<div class="s" style="font-size:11.5px;color:var(--ink-400);margin-top:3px">'+escHtml('依赖 MCP：'+(s.mcp||'—')+(s.installed?('　·　'+s.size+' B'):'　·　文件缺失'))+'</div></div>'+
+             '<span class="st-pill '+st.cls+'"><span class="dot"></span>'+st.text+'</span>'+
+             '<div class="side">'+capSwitchHtml('skill', s.id, s.enabled)+'</div></div>';
+      });
+      box.innerHTML = h || '<div class="lrow"><div class="lm"><div class="t">（未注册任何能力）</div></div></div>';
+      var foot = document.getElementById('svcFoot');
+      if(foot){ foot.innerHTML = '状态持久化于 ' + escHtml(CAP.state_file || 'data/capabilities.json') +
+        '　·　WPS 导出：' + (CAP.wps_export_ready ? '就绪' : '不可用') + '　·　开关即时生效，无需重启'; }
+      capWireSwitches(box, function(){ svcRender(); capSyncDesignBtn(); });
+      capSyncDesignBtn();
+    });
+  }
+  /* Skill 市场：把真实 Skill（WPS 系列）插到最前面 */
+  function capSkillCards(filter){
+    var list = (CAP.skills || []).filter(function(s){
+      return !filter || ((s.name||'') + (s.desc||'') + (s.id||'')).indexOf(filter) > -1;
+    });
+    if(!list.length) return '';
+    var h = '<div class="mk-cat"><div class="mk-cat-name">WPS Office</div>'+
+      '<div class="mk-cat-desc">由 wps-office MCP 服务提供 · 与「MCP 服务」同一套开关状态。</div><div class="mk-grid">';
+    list.forEach(function(s){
+      h += '<button class="skill-card" data-live-skill="'+escHtml(s.name)+'">'+
+        '<span class="check-orb">'+checkSvg+'</span>'+
+        '<div class="sc-top"><div class="skill-icon">'+escHtml(s.icon||'W')+'</div><div class="sc-title">'+escHtml(s.name)+'</div></div>'+
+        '<div class="sc-desc">'+escHtml(s.desc||'')+'</div>'+
+        '<div class="sc-desc" style="margin-top:8px;color:'+(s.active?'#16a34a':'var(--ink-400)')+'">'+
+          (s.active ? '已启用' : (s.enabled ? '依赖 MCP 未开启' : '已关闭'))+'</div></button>';
+    });
+    return h + '</div></div>';
+  }
+  function openLiveSkill(name){
+    var s = null;
+    (CAP.skills || []).forEach(function(x){ if(x.name === name) s = x; });
+    if(!s){ showToast('该 Skill 未注册', false); return; }
+    var act = s.active;
+    var html = '<button class="sd-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>返回 Skill 市场</button>';
+    html += '<div class="sd-hero"><div class="sd-hero-icon"><svg viewBox="0 0 52 52" fill="none"><rect x="6" y="6" width="40" height="40" rx="14" fill="#3b82f6"/><path d="M18 20h16M18 28h16M18 36h10" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg></div>'+
+      '<div><div class="sd-tags"><span class="tag">'+escHtml(s.category||'WPS Office')+'</span>'+
+      '<span class="tag installed">'+(s.installed?'已安装':'文件缺失')+'</span>'+
+      (act?'<span class="tag installed">已启用</span>':'<span class="tag">已关闭</span>')+'</div>'+
+      '<div class="sd-title">'+escHtml(s.name)+'</div>'+
+      '<div class="sd-desc">'+escHtml(s.desc||'')+'</div>'+
+      '<div class="sd-author">wps-skills · MIT · 由 wps-office MCP 驱动</div></div></div>';
+    html += '<div class="sd-sec"><div class="sd-sec-title">开关</div>'+
+      '<div class="sd-sec-desc">与「MCP 服务」页同一状态；关闭后该 Skill 不再注入 Agent 上下文。</div>'+
+      '<div class="sd-row"><div class="r-icon">'+(s.icon||'W')+'</div><div class="r-main">'+
+      '<div class="r-name">'+escHtml(s.name)+'</div><div class="r-desc">'+escHtml(s.desc||'')+'</div></div>'+
+      capSwitchHtml('skill', s.id, s.enabled)+'</div></div>';
+    html += '<div class="sd-sec"><div class="sd-sec-title">文件</div><div class="sd-list">'+
+      '<div class="sd-row"><div class="r-main"><div class="r-name">SKILL.md</div>'+
+      '<div class="r-desc" style="font-size:11.5px;word-break:break-all">'+escHtml(s.path||'')+'</div>'+
+      '<div class="s" style="font-size:11.5px;color:var(--ink-400);margin-top:2px">'+escHtml(String(s.size||0))+' 字节</div></div></div>'+
+      '<div class="sd-row"><div class="r-main"><div class="r-name">依赖 MCP</div>'+
+      '<div class="r-desc">'+escHtml(s.mcp||'—')+'</div></div><span class="r-tag">'+(capWps() && capWps().running ? '运行中' : '未就绪')+'</span></div>'+
+      '</div></div>';
+    document.getElementById('skillDetail').innerHTML = html;
+    document.querySelector('.sd-back').addEventListener('click', function(){ switchView('market'); });
+    capWireSwitches(document.getElementById('skillDetail'), function(){ openLiveSkill(name); });
     switchView('skill');
   }
 
@@ -867,6 +1008,20 @@ svg{display:block}
       rows += spRow('模板', tpl && tpl.templates ? tpl.templates.length : '—');
       spBody.insertAdjacentHTML('beforeend', '<div class="sp-card">' + rows + '</div>');
     });
+    /* MCP 服务 / Skill 运行状态（WPS 集成） */
+    spJson('/api/mcp/status').then(function(d){
+      if(!d) return;
+      var rows = '';
+      (d.mcp || []).forEach(function(m){
+        var st = m.enabled ? (m.running ? '运行中' : '不可用') : '已关闭';
+        rows += spRow(m.name, st + (m.enabled && m.detail ? '　' + m.detail : ''));
+      });
+      var on = 0, tot = (d.skills || []).length;
+      (d.skills || []).forEach(function(s){ if(s.active) on++; });
+      rows += spRow('Skill', on + ' / ' + tot + ' 已启用');
+      rows += spRow('WPS 导出', d.wps_export_ready ? '就绪' : '不可用');
+      spBody.insertAdjacentHTML('beforeend', '<div class="sp-card"><div class="t">MCP / Skill</div>' + rows + '</div>');
+    }).catch(function(){});
   }
   function spRenderDocs(){
     if(!lastCites.length){
@@ -1491,11 +1646,12 @@ svg{display:block}
     if(ok) ok.onclick = doCreate;
     if(cn) cn.onclick = closeModal;
   }
-  function openDirPicker(cb){
+  function openDirPicker(cb, opts){
+    opts = opts || {};
     var ov = document.createElement('div');
     ov.className = 'overlay';
     ov.style.zIndex = '300';
-    var cur = '';   // 空 = 由服务端给默认根（GET /api/fs/list 不带 path）
+    var cur = opts.start || '';                 // 空 = 服务端回落到 settings.fs_root（EDU_FS_ROOT 可配置）
     var closeSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>';
     var folderSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:15px;height:15px"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>';
     var m = document.createElement('div');
@@ -1517,8 +1673,8 @@ svg{display:block}
       }
       m.innerHTML =
         '<button class="m-close wctl" style="position:static;float:right;width:30px;height:30px">' + closeSvg + '</button>' +
-        '<div style="font-size:16px;font-weight:600;margin-bottom:2px">选择项目位置</div>' +
-        '<div style="font-size:12.5px;color:var(--ink-500)">浏览本机磁盘目录，项目文件夹将创建在你选中的目录下</div>' +
+        '<div style="font-size:16px;font-weight:600;margin-bottom:2px">' + escHtml(opts.title || '选择项目位置') + '</div>' +
+        '<div style="font-size:12.5px;color:var(--ink-500)">' + escHtml(opts.sub || '浏览本机磁盘目录，项目文件夹将创建在你选中的目录下') + '</div>' +
         '<div style="margin-top:12px">' + roots + '</div>' +
         '<div style="display:flex;align-items:center;gap:6px;margin:10px 0;font-family:var(--mono,ui-monospace,Consolas,monospace);font-size:12px;color:var(--ink-700);background:var(--bg-soft);border:.5px solid var(--line);border-radius:8px;padding:8px 10px;word-break:break-all">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:15px;height:15px;flex:none;color:var(--ink-400)"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>' +
@@ -1967,6 +2123,7 @@ svg{display:block}
   /* init */
   applyRoleTag();
   buildMarket('');
+  capLoad().then(function(){ buildMarket(marketFilter); capSyncDesignBtn(); });
   buildChips();
   updateGreeting();
   /* 载入后端当前会话（真实数据；空则留在欢迎态） */
@@ -2114,6 +2271,47 @@ svg{display:block}
       showToast('已导出 HTML（下载里找）');
     }catch(e){ showToast('导出失败：' + e.message, false); }
   }
+  /* 教案 -> WPS 文字 .docx / 本地生成 .pptx（开关与「MCP 服务」同源：关掉即拒绝）
+     注意：syncInputs 是 dzBind() 内的局部函数，这里不能调；由点击包装负责同步输入框。 */
+  var DZ_OUT_KEY = 'edu_dz_outdir';
+  function dzOutDirGet(){ try{ return localStorage.getItem(DZ_OUT_KEY) || ''; }catch(e){ return ''; } }
+  function dzOutDirSet(v){ try{ if(v) localStorage.setItem(DZ_OUT_KEY, v); else localStorage.removeItem(DZ_OUT_KEY); }catch(e){} syncOutDirInput(); }
+  function syncOutDirInput(){ var el = document.getElementById('dzOutDir'); if(el) el.value = dzOutDirGet(); }
+  function dzResult(html){ var el = document.getElementById('dzExportResult'); if(el) el.innerHTML = html; }
+  function dzPayload(){
+    return { title: DZ.title || '未命名课题', grade: DZ.grade || '',
+             steps: (DZ.steps || []).map(function(s){
+               return { name: s.name, minutes: s.minutes, bullets: dzBullets(s) };
+             }) };
+  }
+  function dzExportRun(kind, btn){
+    try{
+      var w = capWps();
+      if(w && !w.enabled){ showToast('WPS Office 服务已关闭，请到「MCP 服务」开启', false); return; }
+      var p = dzPayload();
+      if(!p.steps.length){ showToast('先在教案中心生成骨架或添加环节', false); return; }
+      var label = btn ? btn.textContent : '';
+      var done = function(){ if(btn){ btn.disabled = false; btn.textContent = label; } };
+      if(btn){ btn.disabled = true; btn.textContent = (kind === 'pptx' ? '正在生成 PPT…' : '正在导出…（约 1 分钟）'); }
+      dzResult('处理中…');
+      showToast(kind === 'pptx' ? '正在生成 PPT，请稍候…' : '正在经 WPS 导出 Word，请稍候…');
+      spJson('/api/wps/export','POST',{payload:p, kind:kind, outDir: dzOutDirGet()}).then(function(r){
+        done();
+        if(r && r.ok){
+          dzResult('<span style="color:#16a34a">✓ ' + escHtml(r.filename) + '</span>' +
+                   '<span style="color:var(--ink-400)">　' + escHtml(r.outDir || '') + '</span>　' +
+                   '<a class="pill-btn" style="text-decoration:none" href="' + escHtml(r.download_url || '#') + '">下载到本机</a>');
+          showToast(r.detail || ('已导出 ' + r.filename));
+        } else {
+          var msg = (r && r.error) || '未知错误';
+          dzResult('<span style="color:#dc2626">✗ ' + escHtml(msg) + '</span>');
+          showToast((kind === 'pptx' ? '生成失败：' : '导出失败：') + msg, false);
+        }
+      }).catch(function(e){ done(); dzResult(''); showToast('请求失败：' + (e && e.message ? e.message : e), false); });
+    }catch(err){ showToast('异常：' + (err && err.message ? err.message : err), false); }
+  }
+  function dzExportWps(){ dzExportRun('docx', document.getElementById('dzExportWps')); }
+  function dzExportPpt(){ dzExportRun('pptx', document.getElementById('dzExportPpt')); }
   function dzPreviewPPT(){
     var w = window.open('', '_blank');
     if(!w){ showToast('浏览器拦截了新窗口', false); return; }
@@ -2201,6 +2399,18 @@ svg{display:block}
     if(sv) sv.addEventListener('click', function(){ syncInputs(); dzPersist(); showToast('已保存（本机浏览器）'); });
     var ex = document.getElementById('dzExport');
     if(ex) ex.addEventListener('click', function(){ syncInputs(); dzExportHTML(); });
+    var exw = document.getElementById('dzExportWps');
+    if(exw) exw.addEventListener('click', function(){ syncInputs(); dzExportWps(); });
+    var exp = document.getElementById('dzExportPpt');
+    if(exp) exp.addEventListener('click', function(){ syncInputs(); dzExportPpt(); });
+    var pk = document.getElementById('dzPickDir');
+    if(pk) pk.addEventListener('click', function(){
+      openDirPicker(function(dir){ dzOutDirSet(dir); showToast('导出位置：' + dir); },
+                    { title:'选择导出位置',
+                      sub:'Word / PPT 将保存到该目录（不存在会自动创建）；留空则存到项目内 content/plans',
+                      start: dzOutDirGet() || undefined });
+    });
+    syncOutDirInput();
     var pv = document.getElementById('dzPreview');
     if(pv) pv.addEventListener('click', function(){ syncInputs(); dzPreviewPPT(); });
     dzRender();

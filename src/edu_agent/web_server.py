@@ -31,11 +31,12 @@ sys.path.insert(0, str(ROOT / "src"))
 STATIC = ROOT / "static"
 
 from fastapi import FastAPI, UploadFile, File, Query  # noqa: E402
-from fastapi.responses import StreamingResponse, HTMLResponse, Response, JSONResponse  # noqa: E402
+from fastapi.responses import StreamingResponse, HTMLResponse, Response, JSONResponse, FileResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
 from edu_agent import logsetup, pdf_upload, plan_html, planner, routing  # noqa: E402
+from edu_agent import capabilities, wps_export  # noqa: E402  能力开关 + WPS 导出
 from edu_agent.config import load_settings  # noqa: E402
 from edu_agent.host.store import SessionStore  # noqa: E402
 from edu_agent.template_spec import (  # noqa: E402
@@ -148,13 +149,17 @@ def api_project_new(body: dict):
 
 
 def _drives() -> list[Path]:
-    """探测本机存在的固定盘（C/D/E…），作为可浏览根。"""
+    """探测本机存在的盘（C-Z），作为可浏览根。
+
+    2026-09-10 修正：原写死 "CDEF"，项目迁到 F: 之后其它盘（如移动硬盘 / 网络盘）
+    在选择器里根本看不到；改为全盘探测。
+    """
     out = []
-    for letter in "CDEF":
+    for letter in "CDEFGHIJKLMNOPQRSTUVWXYZ":
         try:
-            p = Path(f"{letter}:/").resolve()
+            p = Path(f"{letter}:/")
             if p.exists():
-                out.append(p)
+                out.append(p.resolve())
         except Exception:
             continue
     return out
@@ -188,9 +193,13 @@ def api_fs_drives():
     return {"ok": True, "drives": [str(d) for d in _drives()]}
 
 
+
+
+
+
 @app.get("/api/fs/list")
 def api_fs_list(path: str = ""):
-    """列出目录（只读；限本机 C/D/E 盘，系统目录过滤）。"""
+    """列出目录（只读；限本机盘，系统目录过滤）。path 为空回落到 settings.fs_root。"""
     cur = _fs_safe(path or _FS_ROOT)
     if cur is None:
         return {"ok": False, "error": "路径不在允许范围"}
@@ -594,6 +603,58 @@ async def api_pdf_ingest(file: UploadFile = File(...)):
         return {"ok": True, **info}
     except Exception as e:
         return {"ok": False, "error": type(e).__name__ + ": " + str(e)}
+
+
+# ---------- 能力（MCP 服务 / Skill）：开关 + 运行状态 ----------
+@app.get("/api/capabilities")
+def api_capabilities(deep: int = 0):
+    """能力清单：enabled=开关（默认全开），running/detail=运行状态，tools=工具数（deep=1）。"""
+    return capabilities.snapshot(deep=bool(deep))
+
+
+@app.post("/api/capabilities/toggle")
+def api_capabilities_toggle(body: dict):
+    """开 / 关一个 MCP 服务或 Skill（落 data/capabilities.json 持久化）。"""
+    return capabilities.set_enabled(str(body.get("kind") or ""),
+                                    str(body.get("id") or ""),
+                                    bool(body.get("enabled")))
+
+
+@app.get("/api/mcp/status")
+def api_mcp_status():
+    """右栏「运行状态」面板用的轻量快照（不做工具握手）。"""
+    snap = capabilities.snapshot(deep=False)
+    return {"mcp": snap["mcp"], "skills": snap["skills"],
+            "wps_export_ready": capabilities.wps_available()[0]}
+
+
+# ---------- WPS 导出（教案中心 -> .docx / .pptx） ----------
+@app.post("/api/wps/export")
+def api_wps_export(body: dict):
+    """教案 -> WPS 文件。payload=教案中心 DZ 模型；markdown=Agent B 教案时改用。
+
+    body: {"payload": {...}, "markdown": "...", "kind": "docx"|"pptx", "outDir": "F:\\导出目录"}
+    能力关闭时返回 {ok:false, gate:'capability'}，与 MCP/skill 开关状态一致。
+    """
+    try:
+        return wps_export.export(body.get("payload") or {},
+                                 markdown=str(body.get("markdown") or ""),
+                                 kind=str(body.get("kind") or "docx").lower(),
+                                 out_dir=(body.get("outDir") or "").strip() or None)
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": type(e).__name__ + ": " + str(e)}
+
+
+@app.get("/api/wps/download")
+def api_wps_download(path: str = ""):
+    """把导出的 Office 文件回传浏览器（前端「下载到本机」按钮用）。"""
+    try:
+        p = Path(path).resolve()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "非法路径"}, status_code=400)
+    if not p.is_file() or p.suffix.lower() not in (".docx", ".pptx", ".doc", ".ppt", ".pdf"):
+        return JSONResponse({"ok": False, "error": "仅支持回传导出的 Office 文件"}, status_code=404)
+    return FileResponse(str(p), filename=p.name)
 
 
 # ---------- 启动预热（自 api.py 移植：embedding + rerank 常驻） ----------

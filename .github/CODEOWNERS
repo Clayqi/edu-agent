@@ -1,0 +1,91 @@
+# ============================================================
+# edu-agent 文件归属（CODEOWNERS）
+# 制定：2026-09-11 ｜ 配套文档：docs/06-团队人员分层方案.md
+#
+# 作用：谁改哪块，GitHub 自动把该块的负责人拉进 PR 审查。
+# 语法：<路径模式>   <@负责人>（负责人必须写真实 GitHub 用户名）
+# 生效前提：仓库 Settings → Branches → main 保护里勾上
+#           "Require review from Code Owners"
+#
+# 现阶段状态：所有车道由仓库所有者 @Clayqi 把关。
+# 分工确定后，把对应车道下面的 @Clayqi 换成该车道负责人的用户名即可
+# （团队 5 人：@Lunar-ear @VectorAccept @Qianye-11 @bawkppy @sailingonspace）。
+#
+# 车道一览（与 docs/06 分层方案一致）：
+#   L1 底座/契约   —— 7 个共享模块 + web_server（被 4+ 文件引用，改动波及全仓库）
+#   L2-A 教材/RAG  —— 抽文本/切块/向量化/检索/原页图（含 chroma_db 二进制，单人锁）
+#   L2-B 生成/编排 —— 答疑/教案/总指挥、Prompt、编排
+#   L2-C 教案模板  —— 教案 × PPT 编排台
+#   L2-D 前端      —— static/ 与启动脚本（热点文件，单人独占）
+#   L2-E 测试/发布 —— tests/ docs/ CHANGELOG .github
+# ============================================================
+
+# --- 兜底：任何未单独列出的文件由仓库所有者把关 ---
+*                                       @Clayqi
+
+# ------------------------------------------------------------
+# L1 底座 / 契约（改任一处都要底座 Owner 过目）
+# ------------------------------------------------------------
+/src/edu_agent/config.py                @Clayqi
+/src/edu_agent/logsetup.py              @Clayqi
+/src/edu_agent/session.py               @Clayqi
+/src/edu_agent/prompts.py               @Clayqi
+/src/edu_agent/graph.py                 @Clayqi
+/src/edu_agent/generate.py              @Clayqi
+/src/edu_agent/host/                    @Clayqi
+/src/edu_agent/web_server.py            @Clayqi
+
+# ------------------------------------------------------------
+# L2-A 教材 / RAG 车道（含二进制教材库，单人提交）
+# ------------------------------------------------------------
+/src/edu_agent/ingest.py                @Clayqi
+/src/edu_agent/pdf_import.py            @Clayqi
+/src/edu_agent/pdf_upload.py            @Clayqi
+/src/edu_agent/retrieve.py              @Clayqi
+/src/edu_agent/bm25_index.py            @Clayqi
+/src/edu_agent/ollama_embeddings.py     @Clayqi
+/src/edu_agent/figdetect.py             @Clayqi
+/src/edu_agent/page_image.py            @Clayqi
+/src/edu_agent/preprocess.py            @Clayqi
+/scripts/                               @Clayqi
+/content/                               @Clayqi
+/chroma_db/                             @Clayqi
+
+# ------------------------------------------------------------
+# L2-B 生成 / 编排车道
+# ------------------------------------------------------------
+/src/edu_agent/planner.py               @Clayqi
+/src/edu_agent/supervisor.py            @Clayqi
+/src/edu_agent/routing.py               @Clayqi
+/src/edu_agent/memory.py                @Clayqi
+/src/edu_agent/math_verify.py           @Clayqi
+/src/edu_agent/grounded.py              @Clayqi
+/src/edu_agent/mcp_tools.py             @Clayqi
+/src/edu_agent/chat.py                  @Clayqi
+
+# ------------------------------------------------------------
+# L2-C 教案模板 / PPT 车道
+# ------------------------------------------------------------
+/src/edu_agent/template_spec.py         @Clayqi
+/src/edu_agent/plan_html.py             @Clayqi
+
+# ------------------------------------------------------------
+# L2-D 前端车道（热点文件，单人独占：static/index.html 一次只让一个会话动）
+# ------------------------------------------------------------
+/static/                                @Clayqi
+/deploy/                                @Clayqi
+*.cmd                                   @Clayqi
+*.bat                                   @Clayqi
+*.ps1                                   @Clayqi
+
+# ------------------------------------------------------------
+# L2-E 测试 / 发布 / 文档
+# ------------------------------------------------------------
+/tests/                                 @Clayqi
+/docs/                                  @Clayqi
+/CHANGELOG.md                           @Clayqi
+/CONTRIBUTING.md                        @Clayqi
+/.github/                               @Clayqi
+/mcp_servers/                           @Clayqi
+/eval/                                  @Clayqi
+/legacy/                                @Clayqi

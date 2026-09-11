@@ -14,7 +14,7 @@
   /api/chat              流式（A 逐字 / S 总指挥派单 / B 整份教案 + HTML 落盘）
   另：/api/textbook、/api/pdfs、/api/pdf/ingest、/files、/static、/uploads、/textbook
 
-运行：.venv\\Scripts\\python.exe src/edu_agent/web_server.py（或 start_web.cmd）
+运行：.venv\\Scripts\\python.exe src/edu_agent/web_server.py（或 deploy/start_web.cmd）
 """
 from __future__ import annotations
 

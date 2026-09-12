@@ -431,7 +431,7 @@ svg{display:block}
     <aside class="sidebar">
       <div class="side-brand">
         <div class="name">教育 Agent</div>
-        <div class="ver">v1.11.0</div>
+        <div class="ver">v1.12.0</div>
         <button class="side-toggle" id="btnSideToggle" title="收起侧边栏">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M3 4h6v16H3z" fill="currentColor" stroke="none" opacity=".18"/></svg>
         </button>
@@ -604,6 +604,7 @@ svg{display:block}
               <select class="text-input" id="tplPick" style="height:32px;min-width:190px;font-size:12.5px"></select>
               <button class="pill-btn" id="tplLoad">载入编辑</button>
               <button class="pill-btn" id="tplNew">新建空白</button>
+              <button class="pill-btn" id="tplDel" title="删除已保存的模板（移到回收站，可手工找回）">删除</button>
               <span style="flex:1"></span>
               <span id="tplStat" style="font-size:12px;color:var(--ink-500)"></span>
               <button class="pill-btn" id="tplSave" title="存进 content/templates，可同时供 Agent B 生成教案时套用">保存为模板</button>
@@ -3035,6 +3036,33 @@ svg{display:block}
       } else { showToast('保存失败：' + ((d && d.error) || ''), false); }
     }).catch(function(e){ showToast('保存失败：' + e.message, false); });
   }
+  function tplDeleteById(){
+    var sel = tplGet('tplPick');
+    var id = sel && sel.value;
+    if(!id){ showToast('先在上面的下拉里选一个模板', false); return; }
+    var opt = sel.options[sel.selectedIndex];
+    /* 下拉里带「（N 板块 · 可编辑）」后缀，确认框里只要名字 */
+    var label = opt ? opt.textContent.trim().split('（')[0] : id;
+    if(id === 'default' && !/可编辑/.test(label)){
+      showToast('「default」是内置模板，删不了（它是保底的那份）', false); return;
+    }
+    var msg = '删除模板《' + label + '》？\n\n' +
+              '· 会移到 content/templates/_trash/（带时间戳），需要时能手工找回\n' +
+              '· 原件备份 orig/' + id + '.docx 一并移走\n' +
+              '· 如果它是当前模板，当前会切回内置 default';
+    if(!window.confirm(msg)) return;
+    spJson('/api/template/delete', 'POST', { template_id: id }).then(function(d){
+      if(!d || !d.ok){ showToast('删除失败：' + ((d && d.error) || '未知错误'), false); return; }
+      /* 正在编辑的就是它 -> 退出模板模式，免得对着已删的模板继续改 */
+      if(TPL && TPL.template_id === id){ TPL = null; tplSetMode(false); try{ localStorage.removeItem(TPL_KEY); }catch(e){} }
+      tplRefreshPick();
+      showToast('已删除《' + (d.name || id) + '》' +
+                (d.was_current ? '　当前模板已切回 default' : '') +
+                (d.builtin_now ? '　已恢复内置 default 骨架' : ''), true);
+      var st = tplGet('tplStat');
+      if(st) st.innerHTML = '<span style="color:var(--ink-500)">已删除，可在 ' + escHtml(d.trash || '') + ' 找回</span>';
+    }).catch(function(e){ showToast('删除失败：' + (e && e.message ? e.message : e), false); });
+  }
   function tplExport(kind, btn){
     if(!TPL){ showToast('先导入或新建一个模板', false); return; }
     var payload = tplSerializeSafe(); if(!payload) return;
@@ -3056,6 +3084,7 @@ svg{display:block}
       }).catch(function(){ showToast('新建失败', false); });
     });
     var sv = tplGet('tplSave'); if(sv) sv.addEventListener('click', tplSaveTemplate);
+    var dl = tplGet('tplDel'); if(dl) dl.addEventListener('click', tplDeleteById);
     var ex = tplGet('tplExit'); if(ex) ex.addEventListener('click', function(){ tplSetMode(false); });
     var ew = tplGet('tplExportWord'); if(ew) ew.addEventListener('click', function(){ tplExport('docx', ew); });
     var ep = tplGet('tplExportPpt'); if(ep) ep.addEventListener('click', function(){ tplExport('pptx', ep); });

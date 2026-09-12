@@ -206,6 +206,20 @@ def api_tpl_rich_save(body: TplRichSave):
             "stats": template_rich.stats(saved), "current": get_current().template_id}
 
 
+@app.post("/api/template/delete")
+def api_tpl_delete(body: dict):
+    """删除一个已保存的模板（**软删**：移到 content/templates/_trash/，可手工找回）。
+
+    删的正是当前模板时，当前会自动切回内置 `default`——否则 Agent B 会指向一个不存在的模板。
+    """
+    from edu_agent import template_rich
+
+    try:
+        return template_rich.delete_template(str(body.get("template_id") or ""))
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
 @app.get("/api/template/blank")
 def api_tpl_blank(name: str = "新模板"):
     """空白富模板（编辑器「新建」用）。"""

@@ -315,5 +315,71 @@ class TestBuiltinDefaultCanBeOverridden(unittest.TestCase):
         self.assertTrue(tr.is_rich(spec.template_id))
 
 
+class TestDeleteTemplate(unittest.TestCase):
+    """删除已保存的模板：软删到 _trash，当前模板删了要切回 default。"""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.dir = Path(self._tmp.name)
+        self._old = (tr.TEMPLATES_DIR, tr.ORIG_DIR, ts.TEMPLATES_DIR, ts.CURRENT_FILE)
+        tr.TEMPLATES_DIR = ts.TEMPLATES_DIR = self.dir
+        tr.ORIG_DIR = self.dir / "orig"
+        # CURRENT_FILE 是模块级常量，测试里必须一起指走，否则会写进真实仓库
+        ts.CURRENT_FILE = self.dir / "_current.json"
+        self.orig = tr.ORIG_DIR / "我的模板.docx"
+        tr.ORIG_DIR.mkdir(parents=True, exist_ok=True)
+        _make_docx(self.orig)
+        self.rich = tr.docx_to_rich(self.orig, template_id="我的模板", name="我的模板")
+        tr.save_rich(self.rich, docx_source=str(self.orig))
+
+    def tearDown(self):
+        tr.TEMPLATES_DIR, tr.ORIG_DIR, ts.TEMPLATES_DIR, ts.CURRENT_FILE = self._old
+
+    def test_delete_moves_json_and_orig(self):
+        res = tr.delete_template("我的模板")
+        self.assertTrue(res["ok"], res.get("error"))
+        self.assertEqual(sorted(res["moved"]), ["我的模板.docx", "我的模板.json"])
+        self.assertIsNone(tr.load_rich("我的模板"), "删完就不该再读到")
+        self.assertFalse(self.orig.exists())
+        self.assertGreaterEqual(len(list(Path(res["trash"]).glob("*"))), 2, "回收站里应有原件与 json")
+        self.assertNotIn("我的模板", [t["template_id"] for t in ts.list_templates()])
+
+    def test_delete_current_falls_back_to_default(self):
+        ts.set_current("我的模板")
+        self.assertEqual(ts.get_current().template_id, "我的模板")
+        res = tr.delete_template("我的模板")
+        self.assertTrue(res["ok"], res.get("error"))
+        self.assertTrue(res["was_current"])
+        self.assertEqual(res["current"], "default")
+        self.assertEqual(ts.get_current().template_id, "default", "当前模板必须切回 default")
+
+    def test_delete_missing_is_reported(self):
+        res = tr.delete_template("并不存在")
+        self.assertFalse(res["ok"])
+        self.assertIn("没有模板", res["error"])
+
+    def test_builtin_default_cannot_be_deleted(self):
+        res = tr.delete_template("default")
+        self.assertFalse(res["ok"])
+        self.assertIn("内置模板", res["error"])
+
+    def test_default_override_can_be_deleted(self):
+        """给 default 存过覆盖版：删掉它 = 恢复内置骨架。"""
+        tr.save_rich(tr.normalize({"template_id": "default", "name": "我改过的默认",
+                                   "blocks": [{"title": "一、教学目标", "elements": []}]}))
+        self.assertEqual(ts.get_template("default").name, "我改过的默认")
+        res = tr.delete_template("default")
+        self.assertTrue(res["ok"], res.get("error"))
+        self.assertTrue(res["builtin_now"])
+        self.assertEqual(ts.get_template("default").source, "builtin", "应恢复成内置骨架")
+
+    def test_endpoint_wraps_it(self):
+        res = ws.api_tpl_delete({"template_id": "我的模板"})
+        self.assertTrue(res["ok"], res.get("error"))
+        self.assertFalse(ws.api_tpl_delete({"template_id": "我的模板"})["ok"], "再删一次应报不存在")
+        self.assertFalse(ws.api_tpl_delete({})["ok"], "缺 id 应报错")
+
+
 if __name__ == "__main__":
     unittest.main()

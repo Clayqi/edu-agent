@@ -427,6 +427,59 @@ def is_rich(template_id: str) -> bool:
     return load_rich(template_id) is not None
 
 
+def delete_template(template_id: str) -> dict:
+    """删除已保存的模板（**软删**：移到 `content/templates/_trash/<时间戳>_<id>/`）。
+
+    为什么软删：模板是老师自己导入/整理出来的资产，误点一下不该就没了。
+    真要彻底清除，去 `_trash/` 把对应目录删掉即可（目录名带时间戳）。
+
+    一起处理三件事：
+      - `<id>.json`（模板本体）与 `orig/<id>.docx`（原件备份）都移走；
+      - 如果删的正是「当前模板」，把当前切回内置 `default`（否则 Agent B 会指向一个不存在的模板）；
+      - 删 `default` 时它只是「存档覆盖了内置骨架」，删掉即恢复内置版。
+    """
+    tid = (template_id or "").strip()
+    if not tid:
+        return {"ok": False, "error": "缺少 template_id"}
+    p = TEMPLATES_DIR / f"{tid}.json"
+    orig = ORIG_DIR / f"{tid}.docx"
+    if not p.exists() and not orig.exists():
+        if tid == "default":
+            return {"ok": False, "error": "「default」是内置模板，没有存档可删"}
+        return {"ok": False, "error": f"没有模板「{tid}」（可能已被删除）"}
+
+    was_current = False
+    try:
+        was_current = ts.get_current().template_id == tid
+    except Exception:
+        was_current = False
+    name = ""
+    try:
+        d = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        name = str(d.get("name") or "")
+    except Exception:
+        name = ""
+
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    trash = TEMPLATES_DIR / "_trash" / f"{stamp}_{_slug(tid)}"
+    trash.mkdir(parents=True, exist_ok=True)
+    moved: list[str] = []
+    for f in (p, orig):
+        try:
+            if f.exists():
+                shutil.move(str(f), str(trash / f.name))
+                moved.append(f.name)
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": f"删除失败（已移走 {moved or '无'}）：{type(e).__name__}: {e}",
+                    "trash": str(trash), "moved": moved}
+    if was_current:
+        ts.set_current("default")
+    return {"ok": True, "template_id": tid, "name": name, "moved": moved,
+            "trash": str(trash), "was_current": was_current,
+            "builtin_now": tid == "default",
+            "current": ts.get_current().template_id}
+
+
 def stats(rich: dict) -> dict:
     blocks = rich.get("blocks") or []
     els = [e for b in blocks for e in (b.get("elements") or [])]

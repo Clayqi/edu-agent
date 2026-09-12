@@ -219,6 +219,7 @@ class TestTemplateSpecBridge(unittest.TestCase):
         self.assertTrue(tr.is_rich("桥接"))
         lst = {t["template_id"]: t for t in ts.list_templates()}
         self.assertTrue(lst["桥接"]["rich"], "列表应标记为富模板")
+        self.assertGreaterEqual(lst["桥接"]["tables"], 1, "列表要带表格数（生成前预检用）")
         spec = ts.get_template("桥接")           # Agent B 的读法
         self.assertEqual(len(spec.blocks), len(rich["blocks"]))
         self.assertIn("一、教学目标", ts.template_sketch(spec))

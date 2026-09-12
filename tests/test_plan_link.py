@@ -169,5 +169,37 @@ class TestOptionsEvent(unittest.TestCase):
         self.assertEqual([e["t"] for e in evs], ["done"])
 
 
+class TestPreviewEndpoint(unittest.TestCase):
+    """三期：PPT 预览接口（不写文件、不查 WPS 能力开关）。"""
+
+    MD = """# 3.3 幂函数
+
+### 情境导入（约 5 分钟）
+投影实例。
+### 课堂小结（约 3 分钟）
+回顾路径。
+"""
+
+    def test_preview_from_markdown(self):
+        d = ws.api_plan_preview({"markdown": self.MD})
+        self.assertTrue(d["ok"], d.get("error"))
+        self.assertEqual(d["title"], "3.3 幂函数")
+        self.assertEqual([s["name"] for s in d["slides"]], ["情境导入", "课堂小结"])
+
+    def test_preview_needs_content(self):
+        with mock.patch.object(ws, "_last_plan_markdown", return_value=""):
+            with mock.patch.object(ws._store, "current_id", return_value=""):
+                d = ws.api_plan_preview({})
+        self.assertFalse(d["ok"])
+        self.assertIn("没有可预览的教案内容", d["error"])
+
+    def test_preview_ignores_capability_gate(self):
+        """能力关掉也不该挡预览：它不落盘、不碰 WPS（导出仍受开关约束）。"""
+        with mock.patch.object(ws.capabilities, "wps_available", return_value=(False, "已关闭")):
+            d = ws.api_plan_preview({"markdown": self.MD})
+        self.assertTrue(d["ok"], d.get("error"))
+        self.assertEqual(len(d["slides"]), 2)
+
+
 if __name__ == "__main__":
     unittest.main()

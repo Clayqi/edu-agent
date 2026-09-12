@@ -431,7 +431,7 @@ svg{display:block}
     <aside class="sidebar">
       <div class="side-brand">
         <div class="name">教育 Agent</div>
-        <div class="ver">v1.10.1</div>
+        <div class="ver">v1.11.0</div>
         <button class="side-toggle" id="btnSideToggle" title="收起侧边栏">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M3 4h6v16H3z" fill="currentColor" stroke="none" opacity=".18"/></svg>
         </button>
@@ -1492,11 +1492,25 @@ svg{display:block}
   }
   /* ==== 教案/PPT 联动：两个选项（① 生成教案模板 ② 按模板生成）（2026-09-12 一期） ==== */
   var CHAT_TPL_KEY = 'edu_chat_tpl';
+  var PLAN_AUTO_KEY = 'edu_plan_auto';
   var PLAN_FILL_PENDING = null;      // ②「按模板生成」完成后要自动填入教案中心的模板
+  function planAutoOn(){ try{ return localStorage.getItem(PLAN_AUTO_KEY) !== '0'; }catch(e){ return true; } }
+  function planAutoSet(on){ try{ if(on) localStorage.removeItem(PLAN_AUTO_KEY); else localStorage.setItem(PLAN_AUTO_KEY, '0'); }catch(e){} }
   function planOptsInit(){ try{ var v = localStorage.getItem(CHAT_TPL_KEY); if(v) CHAT_TPL = v; }catch(e){} }
   function planOptsRemember(id){ try{ if(id) localStorage.setItem(CHAT_TPL_KEY, id); }catch(e){} }
+  /* 生成前预检：选中的模板有几个板块 / 表格，以及大概要等多久 */
+  function planPickTip(card, use, tid){
+    var t = (use && (use.templates || []).filter(function(x){ return x.template_id === tid; })[0]) || null;
+    if(!t){ planTip(card, escHtml((use && use.hint) || '')); return; }
+    planTip(card, '已选《' + escHtml(t.name || t.template_id) + '》：<b>' + t.blocks + '</b> 个板块' +
+                  (t.tables ? ('（含 ' + t.tables + ' 个表格）') : '') +
+                  ' · ' + (t.rich ? '可编辑模板' : '骨架模板') +
+                  ' · 生成约 <b>1~4 分钟</b>，点②开始');
+  }
 
   function renderPlanOptions(el, ev){
+    /* 设置里可以关掉自动提示（localStorage: edu_plan_auto，默认开） */
+    if(!planAutoOn()) return;
     var opts = ev.options || [], gen = null, use = null, fill = null;
     opts.forEach(function(o){
       if(o.id === 'gen_template') gen = o;
@@ -1536,6 +1550,12 @@ svg{display:block}
     card.querySelectorAll('[data-plan="gen"]').forEach(function(b){ b.onclick = function(){ planGenTemplate(topic, b, card); }; });
     card.querySelectorAll('[data-plan="use"]').forEach(function(b){ b.onclick = function(){ planUseTemplate(topic, card); }; });
     card.querySelectorAll('[data-plan="fill"]').forEach(function(b){ b.onclick = function(){ planFillCenter(topic, card, '', '', b); }; });
+    /* 生成前预检：换模板就把「几个板块 / 几个表格 / 大概多久」写进提示 */
+    var pickEl = card.querySelector('[data-plan="pick"]');
+    if(pickEl){
+      planPickTip(card, use, pickEl.value);
+      pickEl.addEventListener('change', function(){ planOptsRemember(pickEl.value); planPickTip(card, use, pickEl.value); });
+    }
     el.appendChild(card);
   }
 
@@ -1632,6 +1652,68 @@ svg{display:block}
                   '　<a href="#" data-plan="go" style="color:var(--blue)">去教案中心编辑</a>');
   }
 
+  /* ---- 三期：对话里的导出条（教案类回答才有；与教案中心同一套导出/预览实现） ---- */
+  function chatExportBar(el, md, htmlName){
+    var bar = document.createElement('div');
+    bar.className = 'chat-export';
+    bar.style.cssText = 'margin-top:10px;border:.5px solid var(--line);border-radius:12px;padding:9px 12px;background:var(--bg-soft);display:flex;gap:8px;align-items:center;flex-wrap:wrap';
+    var tip = document.createElement('div');
+    tip.style.cssText = 'font-size:11.5px;color:var(--ink-400);margin-top:6px;flex-basis:100%';
+    tip.textContent = '导出这份教案：Word 走 WPS（未落盘自动本地兜底）· PPT 本地生成 · 位置在教案中心同源';
+    function btn(text, title, fn, dark){
+      var b = document.createElement('button');
+      b.className = 'pill-btn' + (dark ? ' dark' : '');
+      b.textContent = text; b.title = title || '';
+      b.onclick = fn;
+      bar.appendChild(b);
+      return b;
+    }
+    var res = document.createElement('span');
+    res.style.cssText = 'font-size:12px;color:var(--ink-500)';
+    function show(html){ res.innerHTML = html || ''; }
+
+    btn('Word', '经 WPS 导成 .docx', function(){
+      show('处理中…');
+      expViaServer({ markdown: md, kind: 'docx', btn: this, onResult: show });
+    }, true);
+    btn('PPT', '本地生成 .pptx（每环节一页）', function(){
+      show('处理中…');
+      expViaServer({ markdown: md, kind: 'pptx', btn: this, onResult: show });
+    });
+    btn('预览 PPT', '先看会生成哪几页（不写文件、不用 WPS）', function(){
+      expPreviewFromMarkdown(md, this);
+    });
+    btn('HTML', '下载这份教案的网页版', function(){
+      /* 教案 Agent 回答时服务端已落了一份 HTML（content/plans），有就直接用 */
+      if(htmlName){
+        var a = document.createElement('a');
+        a.href = '/files/' + encodeURIComponent(htmlName);
+        a.download = htmlName; a.target = '_blank';
+        document.body.appendChild(a); a.click(); a.remove();
+        show('<span style="color:#16a34a">✓ ' + escHtml(htmlName) + '</span>　' +
+             '<a href="/files/' + encodeURIComponent(htmlName) + '" target="_blank" style="color:var(--blue)">在新标签打开</a>');
+        return;
+      }
+      show('<span style="color:#dc2626">这份回答没有服务端 HTML，可先点 Word/PPT</span>');
+    });
+    /* 导出位置：与教案中心同一个记忆（edu_dz_outdir） */
+    var pos = document.createElement('button');
+    pos.className = 'pill-btn';
+    function posText(){ var d = dzOutDirGet(); pos.textContent = '位置：' + (d ? (d.length > 22 ? '…' + d.slice(-20) : d) : '项目内 content/plans'); }
+    posText();
+    pos.title = '选择导出到哪个目录（与教案中心共用）';
+    pos.onclick = function(){
+      openDirPicker(function(dir){
+        if(dir){ dzOutDirSet(dir); showToast('导出位置已设为 ' + dir); }
+        posText();
+      }, { title: '选择教案导出位置', sub: '导出到哪个文件夹（与教案中心共用）' });
+    };
+    bar.appendChild(pos);
+    bar.appendChild(res);
+    bar.appendChild(tip);
+    el.appendChild(bar);
+  }
+
   function addActions(el, raw, q){
     var row = document.createElement('div');
     row.style.cssText='margin-top:10px;display:flex;gap:6px;flex-wrap:wrap';
@@ -1660,7 +1742,7 @@ svg{display:block}
         enterConversation();
         msgBox.innerHTML='';
         lastCites = [];
-        var prevQ = '';
+        var prevQ = '', planBodies = [];
         msgs.forEach(function(m){
           var c = (m.content||'').replace(/^【\*{2}.*?\*{2}】\s*/,'');
           if(!c) return;
@@ -1672,7 +1754,13 @@ svg{display:block}
             var cs = (m.meta && m.meta.citations) || [];
             if(cs.length){ lastCites = cs; addCites(b, cs); }
             addActions(b, c, prevQ);
+            /* 教案类回答恢复时也挂导出条；服务端 HTML 只按会话存了一份（last_html），
+               所以只把它挂到最近一条教案上，避免张冠李戴。 */
+            if((m.meta && m.meta.mode) === 'B' || /Agent\s*B/.test(c.slice(0, 60))) planBodies.push({ el: b, md: c });
           }
+        });
+        planBodies.forEach(function(p, i){
+          chatExportBar(p.el, p.md, i === planBodies.length - 1 ? (d.last_html || '') : '');
         });
         scrollChat();
         if(spView==='docs') spRenderDocs();
@@ -2065,6 +2153,8 @@ svg{display:block}
         lastCites = ev.citations || [];
         addCites(bodyEl, lastCites);
         addActions(bodyEl, raw);
+        /* 三期：教案类回答挂导出条（Word / PPT / 预览 / HTML + 位置） */
+        if(ev.mode === 'B' || /Agent\s*B/.test(raw.slice(0, 80))) chatExportBar(bodyEl, raw, ev.html || '');
         /* ② 按模板生成完成后：自动把这份教案按板块填进模板并载入教案中心（不抢视图） */
         if(PLAN_FILL_PENDING){
           var pf = PLAN_FILL_PENDING; PLAN_FILL_PENDING = null;
@@ -2218,6 +2308,13 @@ svg{display:block}
         '<div class="set-row"><div class="sl"><div class="t">主题</div><div class="s">选择教育 Agent 的界面外观</div></div><button class="switch blue on"></button></div>'+
         '<div class="set-row"><div class="sl"><div class="t">语言</div><div class="s">选择教育 Agent 的界面语言</div></div><div class="seg"><button class="active">中文</button><button>English</button></div></div>'+
       '</div>'+
+      '<div class="sec-h" style="margin-top:26px"><h3>教案</h3></div>'+
+      '<div class="set-card">'+
+        '<div class="set-row"><div class="sl"><div class="t">教案选项自动提示</div><div class="s">对话涉及教案 / 课件 / PPT 时，给出「生成模板 · 按模板生成 · 填入教案中心」选项卡</div></div>'+
+        '<button class="switch blue'+(planAutoOn()?' on':'')+'" data-set="plan_auto"></button></div>'+
+        '<div class="set-row"><div class="sl"><div class="t">导出位置</div><div class="s">对话与教案中心共用；留空 = 项目内 content/plans</div></div>'+
+        '<span style="font-size:12px;color:var(--ink-500)">'+(dzOutDirGet() ? escHtml(dzOutDirGet()) : 'content/plans')+'</span></div>'+
+      '</div>'+
       '<div class="sec-h" style="margin-top:26px"><h3>用户</h3></div>'+
       '<div class="set-card"><div class="set-row"><div class="sl"><div class="t">用户名</div><div class="s">让教育 Agent 记住你的名字</div></div><input class="text-input" value="王老师"></div></div>'+
       '<div class="sec-h" style="margin-top:26px"><h3>权限</h3></div>'+
@@ -2234,6 +2331,14 @@ svg{display:block}
   function wireToggles(){
     modal.querySelectorAll('.switch').forEach(function(t){
       t.addEventListener('click', function(){ t.classList.toggle('on'); });
+    });
+    /* 真正生效的开关：教案选项自动提示（存 localStorage） */
+    modal.querySelectorAll('.switch[data-set="plan_auto"]').forEach(function(t){
+      t.addEventListener('click', function(){
+        var on = t.classList.contains('on');
+        planAutoSet(on);
+        showToast(on ? '已开启：对话涉及教案/PPT 时会给选项卡' : '已关闭：不再自动弹选项卡（可在设置里重新开启）', on);
+      });
     });
     modal.querySelectorAll('.seg button').forEach(function(b){
       b.addEventListener('click', function(){ b.parentElement.querySelectorAll('button').forEach(function(x){x.classList.toggle('active',x===b);}); });
@@ -2454,13 +2559,102 @@ svg{display:block}
     dzRenderSlides();
     dzPersist();
   }
+  /* ==== 导出/预览共用层：教案中心（编排台 · 模板工作台）与对话导出条都走这里 ==== */
+  /* 结果条：文件名 + 目录 + 「下载到本机」 */
+  function expResultHtml(r){
+    return '<span style="color:#16a34a">✓ ' + escHtml(r.filename) + '</span>' +
+           '<span style="color:var(--ink-400)">　' + escHtml(r.outDir || '') + '</span>　' +
+           '<a class="pill-btn" style="text-decoration:none" href="' + escHtml(r.download_url || '#') + '">下载到本机</a>';
+  }
+  /* 前置校验：能力开关（与「MCP 服务」同源）与目录可写由服务端把关，这里先说清楚为什么不给导 */
+  function expGate(kind){
+    var w = capWps();
+    if(w && !w.enabled){
+      showToast('WPS Office 服务已关闭，请到「MCP 服务」开启后再导出', false);
+      return 'WPS Office 服务已关闭，请到「MCP 服务」开启';
+    }
+    return '';
+  }
+  /* 统一出口：{payload|template|markdown, kind, btn, onResult, onFail} */
+  function expViaServer(o){
+    var gate = expGate(o.kind);
+    if(gate){ if(o.onResult) o.onResult('<span style="color:#dc2626">✗ ' + escHtml(gate) + '</span>'); return; }
+    var body = { kind: o.kind, outDir: dzOutDirGet() };
+    if(o.payload) body.payload = o.payload;
+    if(o.template) body.template = o.template;
+    if(o.markdown) body.markdown = o.markdown;
+    var label = o.btn ? o.btn.textContent : '';
+    var done = function(){ if(o.btn){ o.btn.disabled = false; o.btn.textContent = label; } };
+    if(o.btn){ o.btn.disabled = true; o.btn.textContent = (o.kind === 'pptx' ? '正在生成 PPT…' : '正在导出…（约 1 分钟）'); }
+    spJson('/api/wps/export', 'POST', body).then(function(r){
+      done();
+      if(r && r.ok){
+        if(o.onResult) o.onResult(expResultHtml(r));
+        showToast(r.detail || ('已导出 ' + r.filename));
+        return;
+      }
+      var msg = (r && r.gate === 'capability') ? 'WPS Office 服务已关闭，请到「MCP 服务」开启'
+                                              : ((r && r.error) || '未知错误');
+      if(o.onResult) o.onResult('<span style="color:#dc2626">✗ ' + escHtml(msg) + '</span>');
+      showToast((o.kind === 'pptx' ? '生成失败：' : '导出失败：') + msg, false);
+    }).catch(function(e){
+      done();
+      var m = (e && e.message ? e.message : e);
+      if(o.onResult) o.onResult('');
+      showToast('请求失败：' + m, false);
+    });
+  }
+  /* HTML 下载（纯前端，不依赖服务端） */
+  function expDownloadHtml(html, filename){
+    try{
+      var url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+      var a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      return true;
+    }catch(e){ showToast('导出 HTML 失败：' + (e && e.message ? e.message : e), false); return false; }
+  }
+  /* PPT 预览渲染（对话与教案中心共用同一个渲染） */
+  function expPreviewSlides(slides, title, sub){
+    var w = window.open('', '_blank');
+    if(!w){ showToast('浏览器拦截了新窗口', false); return; }
+    var css = 'body{margin:0;background:#0f172a;font-family:"Microsoft YaHei",system-ui,sans-serif}' +
+      '.slide{width:88vw;max-width:900px;aspect-ratio:16/9;margin:26px auto;background:#fff;border-radius:16px;padding:40px 48px;box-sizing:border-box;display:flex;flex-direction:column}' +
+      '.st{font-size:34px;font-weight:700;color:#1e293b}.n{font-size:14px;color:#94a3b8;margin-bottom:6px}' +
+      'ul{margin:22px 0 0 26px;padding:0;font-size:22px;line-height:1.85;color:#334155}';
+    var body = (slides || []).map(function(s, i){
+      var b = (s.bullets || []).slice(0, 6);
+      return '<div class="slide"><div class="n">第 ' + (i+1) + ' / ' + slides.length + ' 页　' +
+        (s.minutes ? (escHtml(String(s.minutes)) + ' 分钟') : escHtml(sub || '')) + '</div>' +
+        '<div class="st">' + escHtml(s.name || '') + '</div>' +
+        (b.length ? '<ul>' + b.map(function(x){ return '<li>' + escHtml(x) + '</li>'; }).join('') + '</ul>' : '') +
+        '</div>';
+    }).join('');
+    w.document.write('<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>' +
+      escHtml(title || 'PPT 预览') + '</title><style>' + css + '</style></head><body>' + body + '</body></html>');
+    w.document.close();
+  }
+  /* 对话里的 PPT 预览：走服务端同一个解析（所以预览＝将生成的） */
+  function expPreviewFromMarkdown(md, btn){
+    var label = btn ? btn.textContent : '';
+    if(btn){ btn.disabled = true; btn.textContent = '解析中…'; }
+    spJson('/api/plan/preview', 'POST', { markdown: md || '', session_id: CUR || '' }).then(function(d){
+      if(btn){ btn.disabled = false; btn.textContent = label; }
+      if(!d || !d.ok){ showToast('预览失败：' + ((d && d.error) || '未知错误'), false); return; }
+      expPreviewSlides(d.slides, d.title, '');
+      showToast('共 ' + d.slides.length + ' 页（' + (d.note || '') + '）');
+    }).catch(function(e){
+      if(btn){ btn.disabled = false; btn.textContent = label; }
+      showToast('预览失败：' + (e && e.message ? e.message : e), false);
+    });
+  }
   function dzExportHTML(){
     var steps = DZ.steps.map(function(s, i){
       var b = dzBullets(s);
       return '<section class="s"><h3>'+(i+1)+'. '+escHtml(s.name)+'　<span class="m">'+(parseInt(s.minutes, 10) || 0)+' 分钟</span></h3>' +
         (b.length ? '<ul>'+b.map(function(x){ return '<li>'+escHtml(x)+'</li>'; }).join('')+'</ul>' : '<p class="m">（未填要点）</p>') + '</section>';
-    }).join('');
-    var slides = DZ.steps.map(function(s, i){
+    }).join('');    var slides = DZ.steps.map(function(s, i){
       var b = dzBullets(s);
       return '<div class="slide"><div class="num">'+(i+1)+'</div><div class="st">'+escHtml(s.name)+'</div>' +
         (b.length ? '<ul>'+b.slice(0,5).map(function(x){ return '<li>'+escHtml(x)+'</li>'; }).join('')+'</ul>' : '') + '</div>';
@@ -2480,15 +2674,7 @@ svg{display:block}
       '<h2>一、教案</h2>' + steps +
       '<h2>二、PPT 大纲（每页对应一个环节）</h2><div class="deck">' + slides + '</div>' +
       '<p class="m" style="margin-top:28px">导出自 edu-agent 教案 × PPT 编排台</p></body></html>';
-    try{
-      var blob = new Blob([html], { type:'text/html;charset=utf-8' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url; a.download = (DZ.title || '教案') + '-教案与PPT大纲.html';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
-      showToast('已导出 HTML（下载里找）');
-    }catch(e){ showToast('导出失败：' + e.message, false); }
+    if(expDownloadHtml(html, (DZ.title || '教案') + '-教案与PPT大纲.html')) showToast('已导出 HTML（下载里找）');
   }
   /* 教案 -> WPS 文字 .docx / 本地生成 .pptx（开关与「MCP 服务」同源：关掉即拒绝）
      注意：syncInputs 是 dzBind() 内的局部函数，这里不能调；由点击包装负责同步输入框。 */
@@ -2505,28 +2691,11 @@ svg{display:block}
   }
   function dzExportRun(kind, btn){
     try{
-      var w = capWps();
-      if(w && !w.enabled){ showToast('WPS Office 服务已关闭，请到「MCP 服务」开启', false); return; }
       var p = dzPayload();
       if(!p.steps.length){ showToast('先在教案中心生成骨架或添加环节', false); return; }
-      var label = btn ? btn.textContent : '';
-      var done = function(){ if(btn){ btn.disabled = false; btn.textContent = label; } };
-      if(btn){ btn.disabled = true; btn.textContent = (kind === 'pptx' ? '正在生成 PPT…' : '正在导出…（约 1 分钟）'); }
       dzResult('处理中…');
       showToast(kind === 'pptx' ? '正在生成 PPT，请稍候…' : '正在经 WPS 导出 Word，请稍候…');
-      spJson('/api/wps/export','POST',{payload:p, kind:kind, outDir: dzOutDirGet()}).then(function(r){
-        done();
-        if(r && r.ok){
-          dzResult('<span style="color:#16a34a">✓ ' + escHtml(r.filename) + '</span>' +
-                   '<span style="color:var(--ink-400)">　' + escHtml(r.outDir || '') + '</span>　' +
-                   '<a class="pill-btn" style="text-decoration:none" href="' + escHtml(r.download_url || '#') + '">下载到本机</a>');
-          showToast(r.detail || ('已导出 ' + r.filename));
-        } else {
-          var msg = (r && r.error) || '未知错误';
-          dzResult('<span style="color:#dc2626">✗ ' + escHtml(msg) + '</span>');
-          showToast((kind === 'pptx' ? '生成失败：' : '导出失败：') + msg, false);
-        }
-      }).catch(function(e){ done(); dzResult(''); showToast('请求失败：' + (e && e.message ? e.message : e), false); });
+      expViaServer({ payload: p, kind: kind, btn: btn, onResult: dzResult });
     }catch(err){ showToast('异常：' + (err && err.message ? err.message : err), false); }
   }
   function dzExportWps(){ dzExportRun('docx', document.getElementById('dzExportWps')); }
@@ -2869,19 +3038,11 @@ svg{display:block}
   function tplExport(kind, btn){
     if(!TPL){ showToast('先导入或新建一个模板', false); return; }
     var payload = tplSerializeSafe(); if(!payload) return;
-    var label = btn ? btn.textContent : '';
-    var done = function(){ if(btn){ btn.disabled = false; btn.textContent = label; } };
-    if(btn){ btn.disabled = true; btn.textContent = kind === 'pptx' ? '生成中…' : '导出中…'; }
     tplGet('tplStat').textContent = '正在按模板导出…';
-    spJson('/api/wps/export', 'POST', { template: payload, kind: kind, outDir: dzOutDirGet() }).then(function(r){
-      done();
-      if(r && r.ok){
-        tplGet('tplStat').innerHTML = '<span style="color:#16a34a">✓ ' + escHtml(r.filename) + '</span>' +
-          '<span style="color:var(--ink-400)">　' + escHtml(r.outDir || '') + '</span>　' +
-          '<a class="pill-btn" style="text-decoration:none" href="' + escHtml(r.download_url || '#') + '">下载到本机</a>';
-        showToast(r.detail || ('已导出 ' + r.filename));
-      } else { tplSync(); showToast('导出失败：' + ((r && r.error) || '未知错误'), false); }
-    }).catch(function(e){ done(); tplSync(); showToast('导出失败：' + e.message, false); });
+    expViaServer({ template: payload, kind: kind, btn: btn,
+                   onResult: function(html){
+                     if(html){ tplGet('tplStat').innerHTML = html; } else { tplSync(); }
+                   } });
   }
 
   function tplBind(){
@@ -2939,22 +3100,9 @@ svg{display:block}
     tplRefreshPick();
   }
   function dzExportPpt(){ dzExportRun('pptx', document.getElementById('dzExportPpt')); }
-  function dzPreviewPPT(){
-    var w = window.open('', '_blank');
-    if(!w){ showToast('浏览器拦截了新窗口', false); return; }
-    var css = 'body{margin:0;background:#0f172a;font-family:"Microsoft YaHei",system-ui,sans-serif}' +
-      '.slide{width:88vw;max-width:900px;aspect-ratio:16/9;margin:26px auto;background:#fff;border-radius:16px;padding:40px 48px;box-sizing:border-box;display:flex;flex-direction:column}' +
-      '.st{font-size:34px;font-weight:700;color:#1e293b}.n{font-size:14px;color:#94a3b8;margin-bottom:6px}' +
-      'ul{margin:22px 0 0 26px;padding:0;font-size:22px;line-height:1.85;color:#334155}';
-    var body = DZ.steps.map(function(s, i){
-      var b = dzBullets(s);
-      return '<div class="slide"><div class="n">第 '+(i+1)+' / '+DZ.steps.length+' 页　'+(parseInt(s.minutes,10)||0)+' 分钟</div><div class="st">'+escHtml(s.name)+'</div>' +
-        (b.length ? '<ul>'+b.map(function(x){ return '<li>'+escHtml(x)+'</li>'; }).join('')+'</ul>' : '') + '</div>';
-    }).join('');
-    w.document.write('<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>' +
-      escHtml(DZ.title || 'PPT 预览') + '</title><style>'+css+'</style></head><body>'+body+'</body></html>');
-    w.document.close();
-  }
+  function dzPreviewPPT(){ expPreviewSlides(DZ.steps.map(function(s){
+      return { name: s.name, minutes: parseInt(s.minutes, 10) || 0, bullets: dzBullets(s) };
+    }), DZ.title || 'PPT 预览', ''); }
   (function dzBind(){
     var box = document.getElementById('dzSteps'),
         sl = document.getElementById('dzSlides'),

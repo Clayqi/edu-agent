@@ -2,6 +2,42 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；版本号跟界面显示对齐。
 
+## [v1.11.0] - 2026-09-12
+
+### 新增
+- **对话里的导出条（三期）**：教案类回答（Agent B / 总指挥出的教案）下方多一条导出条，
+  与教案中心**同一套实现**——新增共用层 `expViaServer` / `expResultHtml` / `expGate` / `expDownloadHtml` /
+  `expPreviewSlides`，`dzExportRun`（编排台）与 `tplExport`（模板工作台）已改为调用它，**不是复制粘贴**
+  （详见 `docs/07-教案PPT意图联动.md` §6）：
+  - **Word**：经 WPS 导 `.docx`（未落盘自动 python-docx 兜底）；**PPT**：本地生成真 `.pptx`，每环节一页；
+  - **预览 PPT**：先看会生成哪几页，**不写文件、不用 WPS**（新接口 `POST /api/plan/preview`）；
+  - **HTML**：教案 Agent 回答时服务端已落了一份网页版（`content/plans/<课题>.html`），直接给下载/新标签打开
+    （此前那份 HTML 生成了却从没露过面）；
+  - **位置**：选导出目录，与教案中心**共用**同一个记忆（`edu_dz_outdir`）。
+  - 历史恢复的教案回答也会挂导出条；服务端 HTML 按会话只存一份（`last_html`），只挂到最近一条教案上，避免张冠李戴。
+- **生成前预检**：选模板/换模板时卡片提示立刻给出「N 个板块（含 M 个表格）· 可编辑/骨架 · 生成约 1~4 分钟」；
+  `/api/templates` 每项新增 `tables` 字段。
+- **设置开关**：设置 → 教案 → 「教案选项自动提示」可关掉选项卡（`localStorage: edu_plan_auto`，默认开），
+  同处显示当前导出位置。
+
+### 修复
+- **对话里导出 PPT 几乎空白**：`pptx_native` 的 markdown 分支**只认 `## ` 标题**，而 Agent B 的教案用的是
+  `**板块名**` + `### 环节（约 X 分钟）`——两者都对不上，于是只出封面。改为抽出
+  `wps_export.slides_from_markdown()`（`###` 环节 > `**板块**` > `## ` 标题 > 整篇一页，三级回退），
+  并在幻灯片上去掉 `[1]` 引用角标（投影给学生看，角标是噪音）、表格内容不进 PPT（留给 Word）。
+  **预览与实际生成共用这一个解析**，所以预览看到的就是会生成的。
+- **导出失败可能被静默**：能力开关被关时，服务端返回 `{ok:false, gate:"capability"}`，前端现在把它翻译成
+  「WPS Office 服务已关闭，请到「MCP 服务」开启」写进结果行——而不是只弹一个模糊的 toast。
+  客户端已知关闭时更是在**发请求前**就拦下（实测 0 个请求）。
+
+### 兼容性
+- `POST /api/plan/preview` 刻意**不查能力开关**（不落盘、不碰 WPS）；导出接口仍受开关约束。
+- `/api/templates` 每项新增 `tables` 字段（旧字段不变）。
+- 附件：`tests/test_wps_tools.py` 25 例（新增 7 例锁住 Markdown→PPT 页的形状）、`tests/test_plan_link.py` 22 例；
+  全量 **202 例通过**（skipped=2 为需真 WPS 的用例）。
+- jsdom 真 DOM 回归扩到六个场景，新增：导出条五种按钮 + 预览 4 页 + 能力关闭时前置校验直接拦下不发请求 +
+  设置关掉后不再弹卡片（打开即恢复）；全程零运行时错误。
+
 ## [v1.10.1] - 2026-09-12
 
 ### 修复

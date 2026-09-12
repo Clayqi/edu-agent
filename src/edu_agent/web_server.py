@@ -343,6 +343,29 @@ def api_plan_from_template(body: PlanFromTemplateReq):
     return res
 
 
+# ---------- 三期：教案 PPT 预览（与真正生成共用同一解析，不写文件、不需要 WPS 能力） ----------
+@app.post("/api/plan/preview")
+def api_plan_preview(body: dict):
+    """教案 Markdown -> PPT 页结构（预览用）。
+
+    刻意**不查能力开关**：这只是看一眼会生成什么，不落盘、不碰 WPS。
+    导出（`/api/wps/export`）仍然受开关约束。
+    """
+    md = str(body.get("markdown") or "").strip() or _last_plan_markdown(
+        str(body.get("session_id") or "").strip() or (_store.current_id() or ""))
+    if not md:
+        return {"ok": False, "error": "没有可预览的教案内容：先让教案 Agent 生成一份教案"}
+    try:
+        data = wps_export.slides_from_markdown(md)
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    if not data.get("slides"):
+        return {"ok": False, "error": "这份内容里没有解析出可成页的环节/板块"}
+    return {"ok": True, "title": data.get("title") or "教案",
+            "slides": data["slides"], "source": data.get("source"),
+            "note": "每页 6 条要点；表格内容不进 PPT（留给 Word）"}
+
+
 # ---------- 会话 ----------
 @app.post("/api/session/new")
 def api_sess_new():

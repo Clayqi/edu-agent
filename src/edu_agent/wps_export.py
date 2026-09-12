@@ -207,6 +207,93 @@ def _payload_title(payload: dict, markdown: str = "") -> str:
 
 
 # ---------- PPT（WPS 演示 .pptx） ----------
+# Agent B 教案 Markdown 的真实形状（planner.to_markdown 产出）：
+#     # 课题
+#     **教学目标**              <- 板块（粗体独立成行）
+#     - 目标一 [1]
+#     **教学过程**
+#     ### 情境导入（约 5 分钟）   <- 环节
+#     - 要点
+_PLAN_TITLE_RE = re.compile(r"^#\s+(.+?)\s*$")
+_PLAN_H_RE = re.compile(r"^#{2,4}\s+(.+?)\s*$")
+_PLAN_SEC_RE = re.compile(r"^\*\*(.+?)\*\*\s*$")
+_PLAN_MINS_RE = re.compile(r"[（(]\s*约?\s*(\d+)\s*分钟\s*[）)]")
+_CITE_RE = re.compile(r"\s*\[\d+\]")
+_TABLE_ROW_RE = re.compile(r"^\|.*\|$")
+
+
+def slides_from_markdown(md: str) -> dict:
+    """教案 Markdown -> PPT 页结构：`{title, slides:[{name, minutes, bullets}], source}`。
+
+    **预览与实际生成共用这一个解析**，所以「预览看到的就是会生成的」。
+    取页优先级：`###` 环节 > `**板块**` > `## ` 标题 > 整篇一页。
+    一节教案里 `###` 通常就是「导入/建构/例题/小结」这些环节，一环节一页最合老师习惯。
+    """
+    text = (md or "").replace("\r\n", "\n").replace("\r", "\n")
+    lines = text.split("\n")
+
+    title = ""
+    for raw in lines:
+        m = _PLAN_TITLE_RE.match(raw.strip())
+        if m:
+            title = m.group(1).strip()
+            break
+
+    def _clean(s: str) -> str:
+        return _CITE_RE.sub("", str(s or "")).strip()
+
+    def _mins(s: str) -> str:
+        m = _PLAN_MINS_RE.search(s or "")
+        return m.group(1) if m else ""
+
+    h3: list[dict] = []       # ### 环节
+    sec: list[dict] = []      # **板块**
+    h2: list[dict] = []       # ## 标题
+    plain: list[dict] = []
+    cur: dict | None = None
+
+    for raw in lines:
+        st = raw.strip()
+        if not st:
+            continue
+        if _PLAN_TITLE_RE.match(st):
+            continue                                   # 课题行已单独取
+        if _TABLE_ROW_RE.match(st):                    # 表格留给 Word，不进 PPT 要点
+            continue
+        m = _PLAN_H_RE.match(st)
+        if m:
+            nm = _clean(m.group(1))
+            mins = _mins(nm)
+            if mins:                                 # 时长单独进 minutes，标题里就不再重复
+                nm = _PLAN_MINS_RE.sub("", nm).strip(" 　（）()·-—")
+            cur = {"name": nm, "minutes": mins, "bullets": []}
+            (h2 if st.startswith("## ") else h3).append(cur)
+            continue
+        m = _PLAN_SEC_RE.match(st)
+        if m:
+            cur = {"name": _clean(m.group(1)), "minutes": "", "bullets": []}
+            sec.append(cur)
+            continue
+        if cur is None:
+            cur = {"name": title or "教案", "minutes": "", "bullets": []}
+            plain.append(cur)
+        li = _LI_RE.match(st)
+        item = _clean(li.group(1) if li else st)
+        if item:
+            cur["bullets"].append(item)
+
+    if h3:
+        slides, source = h3, "h3"
+    elif sec:
+        slides, source = sec, "section"
+    elif h2:
+        slides, source = h2, "h2"
+    else:
+        slides, source = plain, "plain"
+    slides = [s for s in slides if s["bullets"] or s["name"]]
+    return {"title": title, "slides": slides, "source": source}
+
+
 def pptx_native(title: str, grade: str, steps: list[dict], out_path: Path,
                 markdown: str = "") -> dict:
     """用 python-pptx 本地生成 .pptx（不依赖 WPS COM）。
@@ -278,25 +365,21 @@ def pptx_native(title: str, grade: str, steps: list[dict], out_path: Path,
 
     # Markdown 源的要点页（Agent B 教案）
     if markdown.strip() and not steps:
-        cur = None
-        for raw in markdown.splitlines():
-            m = _H_RE.match(raw.rstrip())
-            if m and len(m.group(1)) == 2:
-                cur = m.group(2).strip()
-                slide = prs.slides.add_slide(prs.slide_layouts[1])
-                if slide.shapes.title is not None:
-                    slide.shapes.title.text = cur
-                ph = _body_ph(slide)
-                if ph is not None:
-                    ph.text_frame.clear()
-            elif cur:
-                li = _LI_RE.match(raw)
-                slide = prs.slides[-1]
-                ph = _body_ph(slide)
-                if li and ph is not None:
-                    tf = ph.text_frame
-                    para = tf.paragraphs[0] if not tf.text.strip() else tf.add_paragraph()
-                    para.text = li.group(1).strip()
+        data = slides_from_markdown(markdown)
+        for i, s in enumerate(data["slides"], 1):
+            name = str(s.get("name") or f"环节 {i}").strip()
+            mins = str(s.get("minutes") or "").strip()
+            bullets = [str(b).strip() for b in (s.get("bullets") or []) if str(b).strip()]
+            slide = prs.slides.add_slide(prs.slide_layouts[1])
+            if slide.shapes.title is not None:
+                slide.shapes.title.text = f"{i}. {name}" + (f"（{mins} 分钟）" if mins else "")
+            ph = _body_ph(slide)
+            if ph is not None:
+                tf = ph.text_frame
+                tf.clear()
+                for j, b in enumerate(bullets[:6] or ["（未填要点）"]):
+                    para = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
+                    para.text = b
                     for r in para.runs:
                         r.font.size = Pt(20)
 

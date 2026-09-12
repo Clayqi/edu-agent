@@ -173,6 +173,7 @@ def list_templates() -> list[dict]:
     """列出可用模板（内置 default + content/templates/*.json，排除 _current）。
 
     富模板（spec_version>=2，见 template_rich.py）会带 rich=True，UI 可据此进富编辑器。
+    `tables` 给「生成前预检」用：告诉老师这个模板里有几个表格板块。
     """
     out = []
     if TEMPLATES_DIR.exists():
@@ -181,15 +182,21 @@ def list_templates() -> list[dict]:
                 continue
             try:
                 d = json.loads(f.read_text(encoding="utf-8"))
+                blocks = d.get("blocks") or []
+                if int(d.get("spec_version") or 1) >= 2:
+                    tables = sum(1 for b in blocks
+                                 for e in (b.get("elements") or []) if e.get("type") == "table")
+                else:
+                    tables = sum(1 for b in blocks if b.get("type") == "table")
                 out.append({"template_id": d.get("template_id"), "name": d.get("name"),
-                            "blocks": len(d.get("blocks", [])),
+                            "blocks": len(blocks), "tables": tables,
                             "rich": int(d.get("spec_version") or 1) >= 2})
             except Exception:
                 continue
     if not any(o["template_id"] == "default" for o in out):
         dt = default_template()
         out.insert(0, {"template_id": "default", "name": dt.name, "blocks": len(dt.blocks),
-                       "rich": False})
+                       "tables": sum(1 for b in dt.blocks if b.type == "table"), "rich": False})
     return out
 
 

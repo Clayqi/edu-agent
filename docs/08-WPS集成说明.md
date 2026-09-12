@@ -3,7 +3,7 @@
 把 [lc2panda/wps-skills](https://github.com/lc2panda/wps-skills)（MIT）的 WPS MCP 服务接进 edu-agent，
 纳入项目统一的「能力开关」，教案中心可一键导出 Word / 生成 PPT。
 
-> **交付边界（见 `edu-agent-WPS接入交接要求.md`）**：仓库里**只有本项目的适配层 + 安装脚本**。
+> **交付边界（见 `docs/09-WPS接入交接要求.md`）**：仓库里**只有本项目的适配层 + 安装脚本**。
 > 第三方源码与 `node_modules` 一律不入库，由 `deploy/setup_wps_mcp.cmd` 装到仓库外。
 > 环境版本、从零复现步骤、踩坑清单与证据见 **[`tools/wps_spike/README.md`](../tools/wps_spike/README.md)**。
 

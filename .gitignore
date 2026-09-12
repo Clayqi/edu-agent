@@ -28,7 +28,7 @@ static/*.bak-*
 *.bak-*
 
 # ============ 第三方 WPS MCP（wps-skills）：绝不入库 ============
-# 交接约定见 edu-agent-WPS接入交接要求.md：第三方源码/node_modules 会让仓库爆掉，
+# 交接约定见 docs/09-WPS接入交接要求.md：第三方源码/node_modules 会让仓库爆掉，
 # 一律由 deploy/setup_wps_mcp.cmd 克隆到仓库外（默认 %LOCALAPPDATA%\edu-agent\deps\wps-skills），
 # 应用侧按 WPS_MCP_DIR / data/wps_mcp.json 解析路径。下面两行是防回流护栏，别删。
 mcp_servers/wps-office-mcp/

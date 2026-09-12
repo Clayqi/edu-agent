@@ -1,6 +1,6 @@
-﻿# 给第三方 wps-skills 的 COM 桥打本地补丁（幂等；由 deploy/setup_wps_mcp.cmd 调用）
+# 给第三方 wps-skills 的 COM 桥打本地补丁（幂等；由 deploy/setup_wps_mcp.cmd 调用）
 #
-# 为什么不把补丁后的文件放仓库：交接约定（edu-agent-WPS接入交接要求.md）要求第三方源码不入库。
+# 为什么不把补丁后的文件放仓库：交接约定（docs/09-WPS接入交接要求.md）要求第三方源码不入库。
 # 所以补丁以「脚本 + 可核对替换」的形式留在仓库里，安装时自动施加，换台机器结果一致。
 #
 # 打完后 scripts/wps-com.ps1 必须仍是 **UTF-8 带 BOM**（PowerShell 5.1 无 BOM 时按 GBK 解析中文注释会语法报错）。

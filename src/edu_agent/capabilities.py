@@ -31,7 +31,7 @@ _TOOLS_CACHE_TTL = 300.0  # MCP 工具清单缓存（要起子进程，慢）
 
 
 # ---------- 第三方 WPS MCP（wps-skills）安装位置解析 ----------
-# 交接约定（edu-agent-WPS接入交接要求.md）：第三方源码/node_modules **不入库**，
+# 交接约定（docs/09-WPS接入交接要求.md）：第三方源码/node_modules **不入库**，
 # 由 deploy/setup_wps_mcp.cmd 克隆到仓库外的固定位置。解析优先级：
 #   1) 环境变量 WPS_MCP_ENTRY（直接指向 dist/index.js）
 #   2) 环境变量 WPS_MCP_DIR（wps-skills 克隆目录）

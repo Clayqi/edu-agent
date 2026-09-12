@@ -174,7 +174,7 @@
 
 ### 新增
 - **WPS Office 能力集成**（源自 [lc2panda/wps-skills](https://github.com/lc2panda/wps-skills)，MIT）：
-  **第三方源码不入库**（交接要求见 `edu-agent-WPS接入交接要求.md`）——由 `deploy/setup_wps_mcp.cmd`
+  **第三方源码不入库**（交接要求见 `docs/09-WPS接入交接要求.md`）——由 `deploy/setup_wps_mcp.cmd`
   克隆到仓库外（默认 `%LOCALAPPDATA%\edu-agent\deps\wps-skills`）并 `npm ci && npm run build`，
   再用 `deploy/patch_wps_mcp.ps1` 打 11 处本地补丁，最后写 `data/wps_mcp.json`（含上游 commit 版本锁）。
   实测 **250 个工具**；Windows 走 `scripts/wps-com.ps1` 的 PowerShell COM 桥，**无需安装 WPS 加载项**。

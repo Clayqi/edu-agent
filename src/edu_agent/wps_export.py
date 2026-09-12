@@ -430,13 +430,234 @@ def export_docx(payload: dict, markdown: str = "", out_dir: str | None = None) -
     return export(payload, markdown=markdown, kind="docx", out_dir=out_dir)
 
 
+# ---------- 富模板（用户导入并编辑过的教案模板）直出 ----------
+def _set_run_east_asian(run, font: str) -> None:
+    """给单个 run 设中文字体（eastAsia 属性，python-docx 不直接暴露）。"""
+    from docx.oxml.ns import qn
+
+    run.font.name = "Times New Roman"
+    rpr = run._element.get_or_add_rPr()
+    rfonts = rpr.find(qn("w:rFonts"))
+    if rfonts is None:
+        rfonts = rpr.makeelement(qn("w:rFonts"), {})
+        rpr.append(rfonts)
+    rfonts.set(qn("w:eastAsia"), font)
+
+
+def _apply_runs(par, runs: list[dict], fallback_text: str = "") -> None:
+    from docx.shared import Pt, RGBColor
+
+    items = runs or [{"text": fallback_text}]
+    if not any((r.get("text") or "").strip() for r in items):
+        items = [{"text": fallback_text}]
+    for r in items:
+        run = par.add_run(str(r.get("text") or ""))
+        if r.get("b"):
+            run.bold = True
+        if r.get("i"):
+            run.italic = True
+        if r.get("u"):
+            run.underline = True
+        if r.get("font"):
+            _set_run_east_asian(run, str(r["font"]))
+        if r.get("size"):
+            try:
+                run.font.size = Pt(float(r["size"]))
+            except Exception:
+                pass
+        col = str(r.get("color") or "").lstrip("#")
+        if len(col) == 6:
+            try:
+                run.font.color.rgb = RGBColor.from_string(col.upper())
+            except Exception:
+                pass
+
+
+def _apply_align(par, align: str) -> None:
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+    m = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER,
+         "right": WD_ALIGN_PARAGRAPH.RIGHT, "justify": WD_ALIGN_PARAGRAPH.JUSTIFY}
+    if align in m:
+        par.alignment = m[align]
+
+
+def docx_from_rich(rich: dict, out_path: Path) -> dict:
+    """富模板 -> .docx（逐 run 还原字体/字号/加粗/斜体/下划线/颜色 + 段落对齐 + 表格）。"""
+    from docx import Document
+    from docx.shared import Pt
+
+    doc = Document()
+    _set_east_asian(doc.styles["Normal"], "Times New Roman", "宋体", 12)
+    blocks = [b for b in (rich.get("blocks") or []) if isinstance(b, dict)]
+    skipped_images = 0
+    tables = 0
+    paras = 0
+
+    for bi, b in enumerate(blocks):
+        title = str(b.get("title") or "").strip()
+        if title:
+            par = doc.add_paragraph()
+            _apply_align(par, b.get("title_align") or "")
+            runs = b.get("title_runs") or []
+            if runs:
+                _apply_runs(par, runs, title)
+            else:                       # 新建板块：给个体面的默认标题样式
+                run = par.add_run(title)
+                run.bold = True
+                run.font.size = Pt(15)
+                _set_run_east_asian(run, "黑体")
+            if bi > 0:
+                par.paragraph_format.space_before = Pt(10)
+        for el in (b.get("elements") or []):
+            et = el.get("type")
+            if et == "para":
+                par = doc.add_paragraph()
+                _apply_align(par, el.get("align") or "")
+                ls = el.get("line_spacing")
+                if ls:
+                    try:
+                        if float(ls) > 3:            # 固定值（磅）
+                            par.paragraph_format.line_spacing = Pt(float(ls))
+                        else:
+                            par.paragraph_format.line_spacing = float(ls)
+                    except Exception:
+                        pass
+                _apply_runs(par, el.get("runs") or [], str(el.get("text") or ""))
+                paras += 1
+            elif et == "table":
+                cells = el.get("cells") or []
+                if not cells:
+                    continue
+                cols = max(len(r) for r in cells)
+                t = doc.add_table(rows=len(cells), cols=cols)
+                try:
+                    t.style = "Table Grid"
+                except KeyError:
+                    pass
+                for ri, row in enumerate(cells):
+                    for ci in range(cols):
+                        cell = t.cell(ri, ci)
+                        cell.text = ""
+                        p = cell.paragraphs[0]
+                        data = row[ci] if ci < len(row) else {}
+                        if isinstance(data, dict):
+                            txt = str(data.get("text") or "")
+                            if data.get("b") or (el.get("header", True) and ri == 0):
+                                run = p.add_run(txt)
+                                run.bold = True
+                            else:
+                                p.add_run(txt)
+                            _apply_align(p, data.get("align") or ("center" if ri == 0 else ""))
+                        else:
+                            p.add_run(str(data))
+                tables += 1
+            elif et == "image":
+                skipped_images += 1
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(str(out_path))
+    return {"paragraphs": paras, "tables": tables, "images_skipped": skipped_images}
+
+
+def pptx_from_rich(rich: dict, out_path: Path) -> dict:
+    """富模板 -> .pptx：一个板块一页（标题=板块名，正文=该板块前几段文字）。"""
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+
+    def body_ph(slide):
+        for ph in slide.placeholders:
+            if ph.placeholder_format.idx == 1:
+                return ph
+        return None
+
+    def add(title: str, lines: list[str]):
+        slide = prs.slides.add_slide(prs.slide_layouts[1])
+        if slide.shapes.title is not None:
+            slide.shapes.title.text = title[:80]
+        ph = body_ph(slide)
+        if ph is not None:
+            tf = ph.text_frame
+            tf.clear()
+            for i, ln in enumerate(lines[:8] or ["（本板块暂无内容）"]):
+                para = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+                para.text = ln[:120]
+                for r in para.runs:
+                    r.font.size = Pt(18)
+
+    # 封面
+    slide = prs.slides.add_slide(prs.slide_layouts[0])
+    if slide.shapes.title is not None:
+        slide.shapes.title.text = str(rich.get("name") or "教案")
+    sub = body_ph(slide)
+    if sub is not None:
+        sub.text = "依据导入模板生成 · edu-agent 教案中心"
+
+    n = 1
+    for b in (rich.get("blocks") or []):
+        if b.get("kind") == "preamble":
+            continue
+        lines = [str(e.get("text") or "") for e in (b.get("elements") or [])
+                 if e.get("type") == "para" and (e.get("text") or "").strip()]
+        for e in (b.get("elements") or []):
+            if e.get("type") == "table":
+                rows = e.get("cells") or []
+                if rows:
+                    lines.append("表格：" + " / ".join(str(c.get("text") or "") for c in rows[0])[:80])
+                break
+        add(str(b.get("title") or f"板块{n}"), lines)
+        n += 1
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    prs.save(str(out_path))
+    return {"slides": n}
+
+
+def _export_from_template(template: dict, title: str, out: Path, kind: str,
+                          open_file: bool = True) -> dict:
+    """富模板直出（docx / pptx），返回结构与 export() 一致。"""
+    import time
+
+    from edu_agent import template_rich
+
+    tpl = template_rich.normalize(template)
+    out_path = out / (_safe_name(title or tpl.get("name") or "教案") + "." + kind)
+    t0 = time.time()
+    try:
+        info = (pptx_from_rich(tpl, out_path) if kind == "pptx" else docx_from_rich(tpl, out_path))
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": f"模板导出失败：{type(e).__name__}: {e}", "gate": "local"}
+
+    if not out_path.exists():
+        return {"ok": False, "error": "模板导出未生成文件", "gate": "local"}
+
+    try:
+        fmt_ok: bool | None = out_path.read_bytes()[:2] == b"PK"
+    except OSError:
+        fmt_ok = None
+    opened = open_with_wps(out_path) if open_file else "none"
+    eng = "python-pptx（模板直出）" if kind == "pptx" else "python-docx（模板直出）"
+    skipped = info.get("images_skipped", 0)
+    warn = f"（跳过 {skipped} 张图片：导入时不保留图片）" if skipped else ""
+    return {"ok": True, "path": str(out_path), "filename": out_path.name, "kind": kind,
+            "outDir": str(out), "engine": eng, "opened": opened, "format_ok": fmt_ok,
+            "template_id": tpl.get("template_id"), "stats": template_rich.stats(tpl),
+            "elapsed": round(time.time() - t0, 1),
+            "url": "/files/" + out_path.name,
+            "download_url": "/api/wps/download?path=" + str(out_path).replace("\\", "/"),
+            "detail": f"已按模板「{tpl.get('name')}」导出 {out_path.name}（{eng}）{warn}"}
+
+
 def export_pptx(payload: dict, markdown: str = "", out_dir: str | None = None) -> dict:
     """PPT 导出。"""
     return export(payload, markdown=markdown, kind="pptx", out_dir=out_dir)
 
 
 def export(payload: dict, markdown: str = "", kind: str = "docx",
-           out_dir: str | None = None) -> dict:
+           out_dir: str | None = None, template: dict | None = None) -> dict:
     """统一导出入口。
 
     kind: docx（WPS 文字，走 WPS COM）| pptx（python-pptx 本地生成 + 尽力用 WPS 打开）
@@ -447,10 +668,18 @@ def export(payload: dict, markdown: str = "", kind: str = "docx",
     if not ok:
         return {"ok": False, "error": why, "gate": "capability"}
 
-    title = _payload_title(payload, markdown)
+    kind = "pptx" if str(kind).lower() in ("pptx", "ppt") else "docx"
     out = resolve_out_dir(out_dir)
 
-    if str(kind).lower() in ("pptx", "ppt"):
+    # ---------- 富模板直出（用户导入并编辑过的教案模板） ----------
+    if template:
+        tpl_title = str(payload.get("title") or "").strip() or str(template.get("name") or "")
+        return _export_from_template(template, tpl_title, out, kind,
+                                     open_file=payload.get("open", True) is not False)
+
+    title = _payload_title(payload, markdown)
+
+    if kind == "pptx":
         return _export_pptx(payload, markdown, title, out)
 
     # ---------- Word：WPS COM 优先（真·集成路径），未落盘则 python-docx 本地兜底 ----------

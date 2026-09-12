@@ -40,7 +40,8 @@ from edu_agent import capabilities, wps_export  # noqa: E402  能力开关 + WPS
 from edu_agent.config import load_settings  # noqa: E402
 from edu_agent.host.store import SessionStore  # noqa: E402
 from edu_agent.template_spec import (  # noqa: E402
-    get_template, list_templates, recognize_docx, save_template, set_current, template_sketch,
+    get_current, get_template, list_templates, recognize_docx, save_template, set_current,
+    template_sketch,
 )
 
 log = logsetup.get_logger("web_server")
@@ -76,7 +77,8 @@ def index():
 # ---------- 模板 ----------
 @app.get("/api/templates")
 def api_templates():
-    cur = get_template("").template_id
+    # 注意：current 必须走 get_current()（读 _current.json）；get_template("") 会直接回默认模板
+    cur = get_current().template_id
     return {"templates": list_templates(), "current": cur}
 
 
@@ -101,6 +103,99 @@ async def api_tpl_upload(file: UploadFile = File(...)):
         return {"ok": True, "current": spec.template_id, "name": spec.name, "preview": template_sketch(spec)}
     finally:
         tmp.unlink(missing_ok=True)
+
+
+# ---------- 富模板（教案中心：导入 -> 全量编辑 -> 保存 -> 导出） ----------
+class TplRichSave(BaseModel):
+    template: dict
+    set_current: bool = True
+
+
+@app.post("/api/template/import")
+async def api_tpl_rich_import(file: UploadFile = File(...)):
+    """导入自有 .docx 教案模板 -> 富模型（板块/段落/表格 + 格式），**先不落盘**供用户编辑。"""
+    from edu_agent import template_rich
+
+    if not (file.filename or "").lower().endswith(".docx"):
+        return {"ok": False, "error": "仅支持 .docx（Word 教案模板）"}
+    tmp = ROOT / "data" / ("tpl_" + uuid.uuid4().hex + ".docx")
+    tmp.write_bytes(await file.read())
+    try:
+        from edu_agent import template_spec as _ts
+
+        stem = (file.filename or "").rsplit(".", 1)[0] or "模板"
+        rich = template_rich.docx_to_rich(tmp, template_id=_ts._slugify(stem), name=stem)
+        rich["_upload_path"] = str(tmp)          # 保存时用它把原件备份到 orig/
+        return {"ok": True, "template": rich, "stats": template_rich.stats(rich)}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": type(e).__name__ + ": " + str(e)}
+    finally:
+        pass          # 原件要留到「保存」时备份，故不在此删除
+
+
+@app.post("/api/template/upgrade")
+def api_tpl_upgrade(body: dict):
+    """把已有模板「升级」为可编辑富模板：解析它在 orig/ 里备份的原件 .docx。"""
+    from edu_agent import template_rich
+
+    tid = str(body.get("template_id") or "").strip()
+    if not tid:
+        return {"ok": False, "error": "缺少 template_id"}
+    src = template_rich.ORIG_DIR / f"{tid}.docx"
+    if not src.exists():
+        return {"ok": False, "error": "没找到该模板的原件（content/templates/orig/），请直接「导入 .docx」"}
+    try:
+        rich = template_rich.docx_to_rich(src, template_id=tid, name=tid)
+        rich["_upload_path"] = str(src)
+        return {"ok": True, "template": rich, "stats": template_rich.stats(rich)}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": type(e).__name__ + ": " + str(e)}
+
+
+@app.get("/api/template/rich")
+def api_tpl_rich_get(id: str = ""):
+    """读富模板（供编辑器加载）；非富模板返回 ok=False 并附简单骨架预览。"""
+    from edu_agent import template_rich
+
+    if not id:
+        return {"ok": False, "error": "缺少 id"}
+    rich = template_rich.load_rich(id)
+    if rich is None:
+        spec = get_template(id)
+        return {"ok": False, "error": "该模板不是富模板（只有板块骨架）",
+                "preview": template_sketch(spec)}
+    return {"ok": True, "template": rich, "stats": template_rich.stats(rich)}
+
+
+@app.post("/api/template/rich/save")
+def api_tpl_rich_save(body: TplRichSave):
+    """保存编辑后的富模板（落 content/templates/<id>.json，可同时设为 Agent B 的当前模板）。"""
+    from edu_agent import template_rich
+
+    rich = dict(body.template or {})
+    src = rich.pop("_upload_path", None)
+    try:
+        path = template_rich.save_rich(rich, docx_source=src, set_current=body.set_current)
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": type(e).__name__ + ": " + str(e)}
+    if src:
+        try:
+            Path(src).unlink(missing_ok=True)
+        except Exception:
+            pass
+    saved = template_rich.load_rich(rich.get("template_id", "")) or {}
+    return {"ok": True, "path": str(path), "template_id": saved.get("template_id"),
+            "name": saved.get("name"), "spec_version": saved.get("spec_version"),
+            "stats": template_rich.stats(saved), "current": get_current().template_id}
+
+
+@app.get("/api/template/blank")
+def api_tpl_blank(name: str = "新模板"):
+    """空白富模板（编辑器「新建」用）。"""
+    from edu_agent import template_rich
+
+    rich = template_rich.blank_rich(name)
+    return {"ok": True, "template": rich, "stats": template_rich.stats(rich)}
 
 
 # ---------- 会话 ----------
@@ -640,7 +735,8 @@ def api_wps_export(body: dict):
         return wps_export.export(body.get("payload") or {},
                                  markdown=str(body.get("markdown") or ""),
                                  kind=str(body.get("kind") or "docx").lower(),
-                                 out_dir=(body.get("outDir") or "").strip() or None)
+                                 out_dir=(body.get("outDir") or "").strip() or None,
+                                 template=body.get("template") or None)
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": type(e).__name__ + ": " + str(e)}
 

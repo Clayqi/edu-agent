@@ -2,6 +2,29 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；版本号跟界面显示对齐。
 
+## [v1.8.0] - 2026-09-11
+
+### 新增
+- **教案中心：导入自有教案模板 + 全量编辑**（`src/edu_agent/template_rich.py` + 教案中心模板工作台，
+  详见 `docs/05-教案模板导入与编辑.md`）：
+  - **导入 .docx**：按正文顺序解析成「板块 / 段落 / 表格」结构，**逐 run 保住字符格式**
+    （加粗/斜体/下划线/中文字体/字号/颜色）与段落格式（对齐/行距），板块标题连自身格式一起存；
+    标题判定比旧骨架更严格，不再把「教学重点：理解函数的概念，掌握…」这类整句正文当成板块名。
+  - **全量编辑**：板块改标题/层级/上下移/增删；段落改文字/增删/上下移；表格改单元格/增删行列/删表；
+    格式工具栏（B/I/U、字体、字号、颜色）+ 段落对齐。所见即所得，草稿自动存浏览器。
+  - **两处去向**：① 按模板**导出 Word / PPT**（走既有导出链，含自选目录与「下载到本机」）；
+    ② **保存为模板**并设为 Agent B 当前模板——落 `content/templates/<id>.json`（`spec_version: 2`），
+    `template_spec.get_template()` 读到 v2 自动派生骨架，模板列表只有一个。
+  - 老式「骨架模板」（v1）可用 `content/templates/orig/` 里的原件**一键升级**成可编辑版。
+  - 新接口：`POST /api/template/import`、`POST /api/template/upgrade`、`GET /api/template/rich`、
+    `POST /api/template/rich/save`、`GET /api/template/blank`；`POST /api/wps/export` 增加 `template` 直出。
+  - 附件：`tests/test_template_rich.py`（13 例，全离线）。**边界**：图片不保留（导入为占位、导出跳过并报数）、
+    不解析页眉页脚/分页符/复杂版式。
+
+### 修复
+- `/api/templates` 的 `current` 恒为 `default`：原实现用 `get_template("")`，而它遇到空 id 会直接返回默认模板；
+  改为 `get_current()`（读 `content/templates/_current.json`）。模板下拉的选中态与「当前模板」由此才准。
+
 ## [v1.7.0] - 2026-09-10
 
 ### 新增

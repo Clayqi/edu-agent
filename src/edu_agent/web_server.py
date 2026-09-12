@@ -198,6 +198,58 @@ def api_tpl_blank(name: str = "新模板"):
     return {"ok": True, "template": rich, "stats": template_rich.stats(rich)}
 
 
+# ---------- 选项①：让教案 Agent 依据课题产出「教案模板」（2026-09-12 一期） ----------
+class PlanTemplateReq(BaseModel):
+    topic: str = ""             # 课题；不传则取会话里最近一份教案的课题
+    goal: str = ""
+    session_id: str = ""
+    save: bool = True
+    set_current: bool = False
+
+
+def _last_plan_topic(sid: str) -> str:
+    """取会话里最近一条教案回答的课题（`# 标题`）。"""
+    sess = _store.get(sid) if sid else None
+    if not sess:
+        return ""
+    for m in reversed(sess.get("messages") or []):
+        if m.get("role") != "assistant":
+            continue
+        c = m.get("content") or ""
+        if (m.get("meta") or {}).get("mode") == "B" or "Agent B" in c[:60]:
+            mm = re.search(r"^#\s+(.+)$", c, re.M)
+            if mm:
+                return mm.group(1).strip()
+    return ""
+
+
+@app.post("/api/plan/template")
+def api_plan_template(body: PlanTemplateReq):
+    """产出一份可复用的教案模板：板块骨架 + 每板块填写提示 + 表格板块表头。"""
+    from edu_agent import planner, template_rich
+
+    topic = (body.topic or "").strip() or _last_plan_topic(body.session_id.strip())
+    if not topic:
+        return {"ok": False, "error": "缺少课题：先问一句或让教案 Agent 生成一份教案，再点「生成教案模板」"}
+    try:
+        rich = planner.make_template(topic, goal=(body.goal or "").strip())
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": f"模板生成失败：{type(e).__name__}: {e}"}
+    if not (rich.get("blocks") or []):
+        return {"ok": False, "error": "模型没有产出板块，请再点一次重试"}
+
+    path = None
+    if body.save:
+        try:
+            path = template_rich.save_rich(rich, set_current=body.set_current)
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": f"模板保存失败：{type(e).__name__}: {e}"}
+    return {"ok": True, "template": rich, "template_id": rich["template_id"],
+            "name": rich["name"], "stats": template_rich.stats(rich),
+            "skeleton": planner.template_to_markdown(rich),
+            "path": str(path) if path else None}
+
+
 # ---------- 会话 ----------
 @app.post("/api/session/new")
 def api_sess_new():
@@ -409,12 +461,52 @@ def _chat_gen(req: ChatReq):
         code = routing.decide(text)
 
     if code == "A":
-        yield from _stream_coach(sid, req, text)
+        yield from _with_plan_options(_stream_coach(sid, req, text), req, text, code)
         return
     if code == "S":
-        yield from _stream_supervisor(sid, req, text)
+        yield from _with_plan_options(_stream_supervisor(sid, req, text), req, text, code)
         return
-    yield from _stream_planner(sid, req, text)
+    yield from _with_plan_options(_stream_planner(sid, req, text), req, text, code)
+
+
+# ---------- 教案/PPT 联动：生成「生成教案模板 / 按模板生成」两个选项（2026-09-12 一期） ----------
+def _plan_options_event(req: ChatReq, text: str, code: str, last: dict | None) -> dict | None:
+    """是否需要给用户那两个选项。B（教案 Agent）恒给；A/S 看生成层带回的信号。"""
+    if code == "B":
+        reason = "plan_mode"
+    else:
+        po = (last or {}).get("plan_options") or {}
+        if not po.get("suggest"):
+            return None
+        reason = po.get("reason") or "intent"
+    try:
+        templates = list_templates()
+        current = get_current().template_id
+    except Exception:
+        templates, current = [], "default"
+    return {
+        "t": "options", "kind": "plan", "reason": reason,
+        "topic": (text or "").strip()[:40],
+        "options": [
+            {"id": "gen_template", "label": "生成教案模板",
+             "hint": "把这节课抽成板块骨架（含填写提示与表格表头），存进模板库可反复套用"},
+            {"id": "use_template", "label": "按模板生成",
+             "hint": "选一个模板，教案 Agent 会严格按它的板块名称与顺序产出",
+             "templates": templates, "current": current},
+        ],
+    }
+
+
+def _with_plan_options(gen, req: ChatReq, text: str, code: str):
+    """把 Agent 流原样透传，收尾时按需补一个 options 事件。"""
+    last = None
+    for ev in gen:
+        if isinstance(ev, dict) and ev.get("t") == "done":
+            last = ev
+        yield ev
+    opt = _plan_options_event(req, text, code, last)
+    if opt:
+        yield opt
 
 
 def _stream_coach(sid: str, req: ChatReq, text: str):
@@ -438,6 +530,7 @@ def _stream_coach(sid: str, req: ChatReq, text: str):
     acc = ""
     final_answer = ""
     citations = []
+    plan_opt: dict = {}
     try:
         for ev in ask_stream(text, history=history, memory_prefix=prefix, source=src,
                              persist_dir=pdir, collection=pcol):
@@ -448,6 +541,7 @@ def _stream_coach(sid: str, req: ChatReq, text: str):
             elif ty == "done":
                 final_answer = ev.get("answer_md") or acc
                 citations = ev.get("citations") or []
+                plan_opt = ev.get("plan_options") or {}
                 record_sections("default", citations)
     except Exception as e:
         yield {"t": "error", "text": "A 出错：" + type(e).__name__ + ": " + str(e)}
@@ -455,7 +549,10 @@ def _stream_coach(sid: str, req: ChatReq, text: str):
     _store.append(sid, "assistant", _tag("A") + final_answer,
                   meta={"mode": "A", "citations": citations,
                         "pages": sorted({c.get("page") for c in citations if c.get("page")})})
-    yield {"t": "done", "mode": "A", "text": final_answer, "citations": citations}
+    done = {"t": "done", "mode": "A", "text": final_answer, "citations": citations}
+    if plan_opt.get("suggest"):
+        done["plan_options"] = plan_opt
+    yield done
 
 
 def _stream_supervisor(sid: str, req: ChatReq, text: str):

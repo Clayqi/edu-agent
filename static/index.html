@@ -431,7 +431,7 @@ svg{display:block}
     <aside class="sidebar">
       <div class="side-brand">
         <div class="name">教育 Agent</div>
-        <div class="ver">v1.8.0</div>
+        <div class="ver">v1.9.0</div>
         <button class="side-toggle" id="btnSideToggle" title="收起侧边栏">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M3 4h6v16H3z" fill="currentColor" stroke="none" opacity=".18"/></svg>
         </button>
@@ -1490,6 +1490,77 @@ svg{display:block}
     });
     el.appendChild(row);
   }
+  /* ==== 教案/PPT 联动：两个选项（① 生成教案模板 ② 按模板生成）（2026-09-12 一期） ==== */
+  var CHAT_TPL_KEY = 'edu_chat_tpl';
+  function planOptsInit(){ try{ var v = localStorage.getItem(CHAT_TPL_KEY); if(v) CHAT_TPL = v; }catch(e){} }
+  function planOptsRemember(id){ try{ if(id) localStorage.setItem(CHAT_TPL_KEY, id); }catch(e){} }
+
+  function renderPlanOptions(el, ev){
+    var opts = ev.options || [], gen = null, use = null;
+    opts.forEach(function(o){ if(o.id === 'gen_template') gen = o; if(o.id === 'use_template') use = o; });
+    if(!gen && !use) return;
+    var topic = ev.topic || lastQ || '';
+    var card = document.createElement('div');
+    card.className = 'plan-choice';
+    card.style.cssText = 'margin-top:10px;border:.5px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--bg-soft)';
+    var h = '<div style="font-size:12.5px;font-weight:600;color:var(--ink-700);margin-bottom:8px">下一步' +
+            (ev.reason === 'retrieval' ? '（检索到教案/课件相关内容）' : (ev.reason === 'plan_mode' ? '（教案 Agent）' : '')) +
+            '</div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
+    if(gen) h += '<button class="pill-btn" data-plan="gen">① ' + escHtml(gen.label) + '</button>';
+    if(use){
+      var tpls = use.templates || [];
+      h += '<button class="pill-btn dark" data-plan="use">② ' + escHtml(use.label) + '</button>';
+      if(tpls.length > 1){
+        var cur = CHAT_TPL || use.current || '';
+        h += '<select class="text-input" data-plan="pick" style="height:30px;min-width:180px;font-size:12px">' +
+             tpls.map(function(t){
+               return '<option value="' + escHtml(t.template_id) + '"' + (t.template_id === cur ? ' selected' : '') + '>' +
+                      escHtml(t.name || t.template_id) + '（' + t.blocks + ' 板块' + (t.rich ? ' · 可编辑' : '') + '）</option>';
+             }).join('') + '</select>';
+      } else if(tpls.length === 1){
+        h += '<span style="font-size:12px;color:var(--ink-500)">模板：' + escHtml(tpls[0].name || tpls[0].template_id) + '</span>';
+      }
+    }
+    h += '</div><div style="font-size:11.5px;color:var(--ink-400);margin-top:6px" data-plan="tip">' +
+         escHtml((use && use.hint) || (gen && gen.hint) || '') + '</div>';
+    card.innerHTML = h;
+    card.querySelectorAll('[data-plan="gen"]').forEach(function(b){ b.onclick = function(){ planGenTemplate(topic, b, card); }; });
+    card.querySelectorAll('[data-plan="use"]').forEach(function(b){ b.onclick = function(){ planUseTemplate(topic, card); }; });
+    el.appendChild(card);
+  }
+
+  function planGenTemplate(topic, btn, card){
+    var label = btn.textContent;
+    btn.disabled = true; btn.textContent = '正在生成模板…（约 1 分钟）';
+    showToast('教案 Agent 正在归纳模板骨架…');
+    spJson('/api/plan/template', 'POST', { topic: topic, session_id: CUR || '' }).then(function(d){
+      btn.disabled = false; btn.textContent = label;
+      if(!d || !d.ok){ showToast('生成模板失败：' + ((d && d.error) || '未知错误'), false); return; }
+      var tip = card.querySelector('[data-plan="tip"]');
+      if(tip){
+        tip.innerHTML = '已生成《' + escHtml(d.name) + '》：' + d.stats.blocks + ' 板块 · ' + (d.stats.tables || 0) +
+                        ' 表　<a href="#" data-plan="open" style="color:var(--blue)">去教案中心编辑</a>';
+        var a = tip.querySelector('[data-plan="open"]');
+        if(a) a.onclick = function(e2){ e2.preventDefault(); tplLoadById(d.template_id); };
+      }
+      showToast('已生成教案模板《' + d.name + '》，可在教案中心继续编辑');
+      tplRefreshPick();
+    }).catch(function(e){
+      btn.disabled = false; btn.textContent = label;
+      showToast('生成模板失败：' + (e && e.message ? e.message : e), false);
+    });
+  }
+
+  function planUseTemplate(topic, card){
+    var pick = card.querySelector('[data-plan="pick"]');
+    var tid = (pick && pick.value) || CHAT_TPL || 'default';
+    planOptsRemember(tid);
+    var tip = card.querySelector('[data-plan="tip"]');
+    if(tip) tip.innerHTML = '已选用模板 <b>' + escHtml(tid) + '</b>，正按它生成教案…';
+    showToast('按模板《' + tid + '》生成教案中…');
+    sendText(topic || lastQ || '帮我生成教案', { preset: 'B', templateId: tid });
+  }
+
   function addActions(el, raw, q){
     var row = document.createElement('div');
     row.style.cssText='margin-top:10px;display:flex;gap:6px;flex-wrap:wrap';
@@ -1856,7 +1927,13 @@ svg{display:block}
   }
   var projAddBtn = document.getElementById('projAdd');
   if(projAddBtn) projAddBtn.addEventListener('click', addProject);
-  function sendText(val){
+  /* 会话使用的教案模板：默认 default；选项②「按模板生成」会把它设成用户选的模板。
+     以前这里写死 'default'，所以教案中心选了模板、对话里也永远用不到（2026-09-12 修）。 */
+  var CHAT_TPL = 'default';
+  function sendText(val, opts){
+    opts = opts || {};
+    var preset = opts.preset || curPreset;
+    var tpl = opts.templateId || CHAT_TPL || 'default';
     enterConversation();
     bubbleUser(val);
     document.getElementById('chatInput').value='';
@@ -1865,7 +1942,7 @@ svg{display:block}
     setBusy(true);
     var doFetch = function(sid){
       return fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({text:val,session_id:sid||CUR||'',preset:curPreset,template_id:'default',corpus:curCorpus})})
+        body:JSON.stringify({text:val,session_id:sid||CUR||'',preset:preset,template_id:tpl,corpus:curCorpus})})
         .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.body.getReader(); })
         .then(function(reader){ return streamRead(reader); });
     };
@@ -1920,6 +1997,7 @@ svg{display:block}
         buildTree();
         if(spView==='docs') spRenderDocs();
       }
+      else if(t==='options'){ hideThink(); renderPlanOptions(bodyEl, ev); scrollChat(); }
       else if(t==='error'){ hideThink(); showErr(ev.text||'请求出错'); }
     }
     return pump();
@@ -2863,7 +2941,8 @@ svg{display:block}
                       start: dzOutDirGet() || undefined });
     });
     syncOutDirInput();
-    /* 模板工作台：绑事件 + 恢复上次未保存的草稿 */
+    /* 模板工作台：绑事件 + 恢复上次未保存的草稿 + 恢复会话模板选择 */
+    planOptsInit();
     tplBind();
     if(tplRestore()){
       tplSetMode(true);

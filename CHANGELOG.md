@@ -2,6 +2,38 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；版本号跟界面显示对齐。
 
+## [v1.9.0] - 2026-09-12
+
+### 新增
+- **教案 / PPT 意图联动（一期）**：对话里问到教案、课件、PPT 时，回答下方多一张「下一步」选项卡，
+  给老师两条路（详见 `docs/07-教案PPT意图联动.md`，规划见 `docs/06-教案PPT意图联动计划书.md`）：
+  - **① 生成教案模板**：教案 Agent 把课题归纳成**板块骨架 + 每板块填写提示 + 表格板块表头**，
+    转成可编辑富模板存入 `content/templates/<id>.json`（`spec_version: 2`，与「导入 .docx / 全量编辑」同一模型），
+    卡片上直接给「去教案中心编辑」入口。实测 14 秒产出《新授课通用教案模板》9 板块 / 3 表。
+  - **② 按模板生成**：模板多于 1 个时给**下拉选择**（显示板块数与是否可编辑），选中后按该模板的板块名称与顺序
+    重新生成教案；**选择被记住**（`localStorage: edu_chat_tpl`）。
+  - 新接口 `POST /api/plan/template`（`topic` 留空时取会话里最近一份教案的课题）。
+- **触发判定** `routing.involves_plan_topic()`：两类信号任一命中即给选项——问题里有教案/PPT 词（`intent`），
+  或**检索命中片段**的来源/标题/正文含这些词（`retrieval`）；派单结果为 B 时恒给（`plan_mode`）。
+  **普通答疑零打扰**（有专门回归用例）。
+- 提示词：`prompts.PLAN_TEMPLATE_GUARD`（骨架约束从 planner 收口到 prompts，并补「本板块教材依据不足，请补充」规则）。
+
+### 修复
+- **教案类口语/PPT 说法被误判成答疑（A）**：`routing.PLAN_HINTS` 原先只有「课件」没有「ppt」，
+  且不含口语「备一节…课」，导致「要 ppt」「帮我备一节 3.3 幂函数的课」都走 A。
+  已补 `ppt`、`幻灯片`、`演示文稿`、`slides`、`课件制作`、`说课`、`备一节`、`备一课`、`备这节课`。
+- **对话里的「按模板生成」实际没生效**：前端发 `/api/chat` 时 `template_id` **恒为 `'default'`**，
+  「选模板」传不到后端。改为 `CHAT_TPL` + `sendText(val,{preset,templateId})`；后端链路一行未改
+  （`/api/chat` → `_stream_planner` → `planner.make_plan(template=...)`）。
+- **Agent A 越界写教案**：`SYSTEM_PROMPT` 增第 8 条——A 不产出教案，改为引导用户点那两个选项。
+- `prompts.JSON_INSTRUCTION` 里 `\subseteq` / `\frac` / `\log` 的无效转义（历史遗留 `SyntaxWarning`）改为 raw string，行为不变。
+
+### 兼容性
+- SSE 事件类型新增 `options`（`kind: "plan"`），**老客户端会忽略不认识的 `t`**，属加法变更；
+  `done` 事件新增可选字段 `plan_options`（不涉及教案时为 `null`）。
+- 附件：`tests/test_plan_link.py`（18 例，全离线）——派单补词、三类触发路径、事件形状、模板生成结构、约束文案。
+  全量测试 **161 例通过**。
+
 ## [v1.8.0] - 2026-09-11
 
 ### 新增

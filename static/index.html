@@ -431,7 +431,7 @@ svg{display:block}
     <aside class="sidebar">
       <div class="side-brand">
         <div class="name">教育 Agent</div>
-        <div class="ver">v1.10.0</div>
+        <div class="ver">v1.10.1</div>
         <button class="side-toggle" id="btnSideToggle" title="收起侧边栏">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M3 4h6v16H3z" fill="currentColor" stroke="none" opacity=".18"/></svg>
         </button>
@@ -1516,7 +1516,10 @@ svg{display:block}
       var tpls = use.templates || [];
       h += '<button class="pill-btn dark" data-plan="use">② ' + escHtml(use.label) + '</button>';
       if(tpls.length > 1){
+        var ids = tpls.map(function(t){ return t.template_id; });
         var cur = CHAT_TPL || use.current || '';
+        /* 记忆里的模板可能已被删除：别静默落到第一项（那会变成 default），回到服务端的 current */
+        if(ids.indexOf(cur) < 0) cur = ids.indexOf(use.current) >= 0 ? use.current : (ids[0] || '');
         h += '<select class="text-input" data-plan="pick" style="height:30px;min-width:180px;font-size:12px">' +
              tpls.map(function(t){
                return '<option value="' + escHtml(t.template_id) + '"' + (t.template_id === cur ? ' selected' : '') + '>' +
@@ -1995,9 +1998,10 @@ svg{display:block}
   }
   var projAddBtn = document.getElementById('projAdd');
   if(projAddBtn) projAddBtn.addEventListener('click', addProject);
-  /* 会话使用的教案模板：默认 default；选项②「按模板生成」会把它设成用户选的模板。
-     以前这里写死 'default'，所以教案中心选了模板、对话里也永远用不到（2026-09-12 修）。 */
-  var CHAT_TPL = 'default';
+  /* 会话使用的教案模板：由「选项②按模板生成」写入（并记忆在 localStorage）。
+     以前这里写死 'default'，所以教案中心选了模板、对话里也永远用不到（2026-09-12 修）；
+     也不能写成 'default'——那样卡片下拉会永远预选 default，而不是服务端给的当前模板。 */
+  var CHAT_TPL = '';
   function sendText(val, opts){
     opts = opts || {};
     var preset = opts.preset || curPreset;

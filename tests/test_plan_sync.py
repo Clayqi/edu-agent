@@ -242,7 +242,18 @@ class TestFromTemplateEndpoint(unittest.TestCase):
         res = ws.api_plan_from_template(
             ws.PlanFromTemplateReq(markdown=SAMPLE_MD, template_id="不存在的模板"))
         self.assertFalse(res["ok"])
-        self.assertIn("不是可编辑模板", res["error"])
+        self.assertIn("没有模板", res["error"])
+
+    def test_skeleton_template_can_be_filled(self):
+        """内置 default 这种「只有板块名、没有原件」的骨架模板也要能填（原先直接报错）。"""
+        res = ws.api_plan_from_template(
+            ws.PlanFromTemplateReq(markdown=SAMPLE_MD, template_id="default"))
+        self.assertTrue(res["ok"], res.get("error"))
+        self.assertEqual(res["template_source"], "skeleton")
+        self.assertEqual(res["stats"]["blocks"], 7, "内置 default 的 7 个板块应都在")
+        matched = [m["block"] for m in res["report"]["matched"]]
+        self.assertIn("教学目标", matched)
+        self.assertIn("作业布置", matched)
 
     def test_save_flag_writes_template(self):
         res = ws.api_plan_from_template(
@@ -250,6 +261,43 @@ class TestFromTemplateEndpoint(unittest.TestCase):
         self.assertTrue(res["ok"], res.get("error"))
         saved = tr.load_rich("tpl")
         self.assertEqual(saved["plan_title"], "函数的单调性（新授课）")
+
+
+class TestRichFromSkeleton(unittest.TestCase):
+    """骨架模板（v1）-> 可填充的富模板。"""
+
+    def test_builtin_default(self):
+        spec = ts.default_template()
+        rich = ps.rich_from_skeleton(spec)
+        titles = [b["title"] for b in rich["blocks"]]
+        self.assertEqual(titles, ["教材与学情分析", "教学目标", "教学重难点",
+                                  "教学过程", "板书设计", "作业布置", "教学反思"])
+        self.assertEqual(ps.blank_blocks(rich), titles, "刚搭出来时全都空着")
+        self.assertEqual(tr.normalize(rich)["blocks"][0]["kind"], "section")
+
+    def test_table_header_restored_from_note(self):
+        from edu_agent.template_spec import Block, TemplateSpec
+
+        spec = TemplateSpec(template_id="sk", name="骨架", blocks=[
+            Block(order=1, type="heading", title="教学目标"),
+            Block(order=2, type="table", title="表格(4列)",
+                  note="表头: 教学环节 / 教师活动 / 学生活动 / 设计意图; 6 行内容"),
+        ])
+        rich = ps.rich_from_skeleton(spec)
+        tbl = rich["blocks"][1]["elements"][0]
+        self.assertEqual(tbl["type"], "table")
+        self.assertTrue(tbl["header"])
+        self.assertEqual([c["text"] for c in tbl["cells"][0]],
+                         ["教学环节", "教师活动", "学生活动", "设计意图"])
+
+    def test_preamble_skipped(self):
+        from edu_agent.template_spec import Block, TemplateSpec
+
+        spec = TemplateSpec(template_id="sk", name="骨架", blocks=[
+            Block(order=1, type="preamble", title="（模板开头）", note="随便写点"),
+            Block(order=2, type="heading", title="教学目标"),
+        ])
+        self.assertEqual([b["title"] for b in ps.rich_from_skeleton(spec)["blocks"]], ["教学目标"])
 
 
 if __name__ == "__main__":

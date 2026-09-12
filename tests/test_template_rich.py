@@ -281,5 +281,38 @@ class TestUpgradeDoesNotDeleteOriginal(unittest.TestCase):
         self.assertFalse(tmp.exists(), "data/ 下的上传临时件应被清理")
 
 
+class TestBuiltinDefaultCanBeOverridden(unittest.TestCase):
+    """把内置 default 填好并「保存为模板」后，Agent B 必须用到那一份。
+
+    原先 `get_template("default")` 无条件返回内置骨架，会出现「教案中心显示的是填好的那份、
+    Agent B 却还在用内置骨架」的错位。
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.dir = Path(self._tmp.name)
+        self._old = (ts.TEMPLATES_DIR, tr.TEMPLATES_DIR, tr.ORIG_DIR)
+        ts.TEMPLATES_DIR = tr.TEMPLATES_DIR = self.dir
+        tr.ORIG_DIR = self.dir / "orig"
+
+    def tearDown(self):
+        ts.TEMPLATES_DIR, tr.TEMPLATES_DIR, tr.ORIG_DIR = self._old
+
+    def test_builtin_used_when_no_file(self):
+        spec = ts.get_template("default")
+        self.assertEqual(spec.source, "builtin")
+        self.assertEqual(len(spec.blocks), 7)
+
+    def test_file_wins_over_builtin(self):
+        rich = tr.normalize({"template_id": "default", "name": "我改过的默认模板", "blocks": [
+            {"title": "一、教学目标", "elements": [{"type": "para", "text": "已填内容"}]}]})
+        tr.save_rich(rich)
+        spec = ts.get_template("default")
+        self.assertEqual(spec.name, "我改过的默认模板")
+        self.assertEqual([b.title for b in spec.blocks], ["一、教学目标"])
+        self.assertTrue(tr.is_rich(spec.template_id))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -435,6 +435,45 @@ def blank_blocks(rich: dict) -> list[str]:
             if b.get("kind") != "preamble" and _is_blank_block(b)]
 
 
+# ---------- 骨架模板（v1）也要能填 ----------
+_NOTE_HEAD_RE = re.compile(r"表头\s*[:：]\s*([^;；\n]+)")
+
+
+def _header_from_note(note: str) -> list[str]:
+    """从骨架模板的 note 里还原表头：`表头: 环节 / 教师活动 / 学生活动; 6 行内容`。"""
+    m = _NOTE_HEAD_RE.search(note or "")
+    if not m:
+        return []
+    parts = [p.strip() for p in re.split(r"[/／|｜]", m.group(1))]
+    return [p for p in parts if p][:6]
+
+
+def rich_from_skeleton(spec) -> dict:
+    """把「只有板块名」的骨架模板（v1，含内置 default）搭成可填充的富模板。
+
+    为什么要这样：老师选中 `default` 这类内置模板时，它既不是 v2 富模板、`orig/` 里也没有原件，
+    原先直接报「不是可编辑模板」——可老师要的只是「把教案按这套板块排好」，
+    而起填充只需要**板块标题**，骨架里正好有。表格板块的 note 里若留着表头，也一并还原。
+    """
+    blocks: list[dict] = []
+    for b in (getattr(spec, "blocks", None) or []):
+        btype = getattr(b, "type", "") or ""
+        if btype == "preamble":
+            continue
+        els: list[dict] = []
+        if btype == "table":
+            head = _header_from_note(getattr(b, "note", "") or "")
+            cells = [[{"text": h, "b": True, "align": "center"} for h in head]] if head else []
+            if not cells:
+                cells = [[{"text": "", "b": False, "align": ""}]]
+            els.append({"id": tr._uid("e"), "type": "table", "header": bool(head), "cells": cells})
+        blocks.append({"id": tr._uid("b"), "kind": "section", "level": 1,
+                       "title": getattr(b, "title", "") or "", "elements": els})
+    return tr.normalize({"template_id": getattr(spec, "template_id", "") or "skeleton",
+                         "name": getattr(spec, "name", "") or "骨架模板",
+                         "source": "skeleton", "blocks": blocks})
+
+
 def sync(session_markdown: str, rich: dict, threshold: float = MATCH_THRESHOLD) -> dict:
     """一步到位：Markdown + 富模板 -> 填充后的富模板 + 报告。"""
     parsed = parse_plan_markdown(session_markdown)

@@ -198,10 +198,15 @@ def get_template(template_id: str) -> TemplateSpec:
 
     富模板（template_rich 写的 spec_version>=2）在这里**派生**成简单骨架，
     因此 Agent B 的模板列表与教案中心的富编辑器共用同一批模板文件。
+
+    注：`default` 只有**在没有同名存档文件时**才用内置骨架。否则「按内置 default 填好教案 →
+    保存为模板」会出现「教案中心显示的是填好的那份、Agent B 却还在用内置骨架」的错位。
     """
-    if template_id == "default" or not template_id:
+    if not template_id:
         return default_template()
     p = TEMPLATES_DIR / f"{template_id}.json"
+    if template_id == "default" and not p.exists():
+        return default_template()
     if p.exists():
         try:
             d = json.loads(p.read_text(encoding="utf-8"))

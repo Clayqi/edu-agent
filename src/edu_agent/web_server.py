@@ -311,16 +311,20 @@ def api_plan_from_template(body: PlanFromTemplateReq):
         return {"ok": False, "error": "没拿到教案内容：请先在会话里让教案 Agent 生成一份教案"}
 
     tid = (body.template_id or "").strip() or get_current().template_id
+    known = {t.get("template_id") for t in list_templates()}
+    if tid not in known:
+        return {"ok": False, "error": f"没有模板「{tid}」：它可能已被删除，请重新选一个"}
     rich = template_rich.load_rich(tid)
-    upgraded = False
-    if rich is None:                     # 骨架模板：有原件就现场升级成富模板再填
+    source_kind = "rich"
+    if rich is None:                     # 不是 v2 富模板
         src = template_rich.ORIG_DIR / f"{tid}.docx"
-        if not src.exists():
-            return {"ok": False, "error": f"模板「{tid}」不是可编辑模板（也没有原件可升级）；"
-                                          f"请先在教案中心「导入 .docx」或「新建空白」"}
-        rich = template_rich.docx_to_rich(src, template_id=tid, name=tid)
-        rich["_keep_source"] = True      # 原件不可删（见 api_tpl_rich_save）
-        upgraded = True
+        if src.exists():                 # 有原件 -> 现场升级成富模板再填
+            rich = template_rich.docx_to_rich(src, template_id=tid, name=tid)
+            rich["_keep_source"] = True  # 原件不可删（见 api_tpl_rich_save）
+            source_kind = "upgraded"
+        else:                            # 骨架模板（含内置 default）-> 用板块名现搭结构
+            rich = plan_sync.rich_from_skeleton(get_template(tid))
+            source_kind = "skeleton"
 
     res = plan_sync.sync(md, rich)
     if not res.get("ok"):
@@ -332,7 +336,8 @@ def api_plan_from_template(body: PlanFromTemplateReq):
             return {"ok": False, "error": f"填充结果保存失败：{type(e).__name__}: {e}"}
     res["template_id"] = tid
     res["template_name"] = rich.get("name")
-    res["template_upgraded"] = upgraded
+    res["template_source"] = source_kind
+    res["template_upgraded"] = source_kind == "upgraded"
     res["stats"] = template_rich.stats(res["template"])
     res["blank_blocks"] = plan_sync.blank_blocks(res["template"])
     return res

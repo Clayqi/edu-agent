@@ -146,7 +146,10 @@ def api_tpl_upgrade(body: dict):
         return {"ok": False, "error": "没找到该模板的原件（content/templates/orig/），请直接「导入 .docx」"}
     try:
         rich = template_rich.docx_to_rich(src, template_id=tid, name=tid)
-        rich["_upload_path"] = str(src)
+        # 注意：这里**绝不能**写 _upload_path —— 保存时会 unlink 该路径，
+        # 而 src 是模板自己的原件（content/templates/orig/），删了就丢了。
+        rich["_keep_source"] = True
+        rich["source"] = f"orig/{tid}.docx"
         return {"ok": True, "template": rich, "stats": template_rich.stats(rich)}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": type(e).__name__ + ": " + str(e)}
@@ -174,13 +177,27 @@ def api_tpl_rich_save(body: TplRichSave):
 
     rich = dict(body.template or {})
     src = rich.pop("_upload_path", None)
+    keep_source = bool(rich.pop("_keep_source", False))
+    rich.pop("_sync", None)          # 填充报告只是界面态，别落进模板 JSON
+    rich.pop("_sync_report", None)
+    # 只有「上传到数据目录的临时件」才允许删；其余（如模板原件）一律保留
+    tmp_path: Path | None = None
+    if src and not keep_source:
+        try:
+            cand = Path(src).resolve()
+            data_root = load_settings().data_dir.resolve()   # 跟随 EDU_DATA_DIR 配置
+            if data_root in cand.parents:
+                tmp_path = cand
+        except Exception:
+            tmp_path = None
     try:
-        path = template_rich.save_rich(rich, docx_source=src, set_current=body.set_current)
+        path = template_rich.save_rich(rich, docx_source=(None if keep_source else src),
+                                       set_current=body.set_current)
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": type(e).__name__ + ": " + str(e)}
-    if src:
+    if tmp_path is not None:
         try:
-            Path(src).unlink(missing_ok=True)
+            tmp_path.unlink(missing_ok=True)
         except Exception:
             pass
     saved = template_rich.load_rich(rich.get("template_id", "")) or {}

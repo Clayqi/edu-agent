@@ -391,7 +391,15 @@ def save_rich(rich: dict, docx_source: str | Path | None = None,
     src = docx_source or rich.get("source")
     if src and Path(src).exists() and Path(src).suffix.lower() == ".docx":
         try:
-            shutil.copy2(src, ORIG_DIR / f"{rich['template_id']}.docx")
+            dst = ORIG_DIR / f"{rich['template_id']}.docx"
+            # 源就是目的（例如「用原件升级」后再保存）就不必自拷，避免无谓的文件占用
+            same = False
+            try:
+                same = Path(src).resolve() == dst.resolve()
+            except Exception:
+                same = False
+            if not same:
+                shutil.copy2(src, dst)
             rich["source"] = f"orig/{rich['template_id']}.docx"
             p.write_text(json.dumps(rich, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception:

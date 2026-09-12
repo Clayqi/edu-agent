@@ -4,6 +4,8 @@
 全离线：自己用 python-docx 造一个带格式与表格的 .docx，跑
 解析 -> 规范化 -> 派生(给 Agent B) -> 导出 -> 再解析 的闭环，不碰网络与 WPS。
 """
+import json
+import os
 import sys
 import tempfile
 import unittest
@@ -12,8 +14,12 @@ from pathlib import Path
 _PROJ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_PROJ / "src"))
 
+# web_server 在 import 时会建 SessionStore，先把数据根指到临时目录，避免污染本机
+os.environ.setdefault("EDU_DATA_DIR", tempfile.mkdtemp(prefix="edu_test_data_"))
+
 from edu_agent import template_rich as tr      # noqa: E402
 from edu_agent import template_spec as ts      # noqa: E402
+from edu_agent import web_server as ws         # noqa: E402
 from edu_agent import wps_export as wx         # noqa: E402
 
 
@@ -216,6 +222,63 @@ class TestTemplateSpecBridge(unittest.TestCase):
         spec = ts.get_template("桥接")           # Agent B 的读法
         self.assertEqual(len(spec.blocks), len(rich["blocks"]))
         self.assertIn("一、教学目标", ts.template_sketch(spec))
+
+
+class TestUpgradeDoesNotDeleteOriginal(unittest.TestCase):
+    """回归：升级出来的模板保存时，模板原件必须还在。
+
+    曾因 `/api/template/upgrade` 把模板**自己的原件**当成「上传临时件」写进 `_upload_path`，
+    保存时被 unlink，导致 `content/templates/orig/<id>.docx` 被删（真丢过一份）。
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.dir = Path(self._tmp.name)
+        self._old = (tr.TEMPLATES_DIR, tr.ORIG_DIR)
+        tr.TEMPLATES_DIR = self.dir
+        tr.ORIG_DIR = self.dir / "orig"
+        tr.ORIG_DIR.mkdir(parents=True, exist_ok=True)
+        from docx import Document
+
+        doc = Document()
+        doc.add_paragraph("一、教学目标")
+        doc.add_paragraph("目标正文")
+        self.orig = tr.ORIG_DIR / "我的模板.docx"
+        doc.save(str(self.orig))
+
+    def tearDown(self):
+        tr.TEMPLATES_DIR, tr.ORIG_DIR = self._old
+
+    def test_upgrade_then_save_keeps_orig(self):
+        up = ws.api_tpl_upgrade({"template_id": "我的模板"})
+        self.assertTrue(up["ok"], up.get("error"))
+        self.assertNotIn("_upload_path", up["template"], "升级不得把原件标记成可删的临时件")
+        self.assertTrue(up["template"].get("_keep_source"))
+        # 模拟前端保存
+        res = ws.api_tpl_rich_save(ws.TplRichSave(template=up["template"], set_current=False))
+        self.assertTrue(res["ok"], res.get("error"))
+        self.assertTrue(self.orig.exists(), "模板原件被删了！（回归失败）")
+        self.assertTrue(tr.is_rich("我的模板"))
+        saved = json.loads((self.dir / "我的模板.json").read_text(encoding="utf-8"))
+        self.assertNotIn("_keep_source", saved, "临时标记不应落盘")
+
+    def test_save_rich_skips_self_copy(self):
+        """源就是目的时不自拷（否则同路径 copy 会抛 SameFileError 被吞掉）。"""
+        rich = tr.docx_to_rich(self.orig, template_id="我的模板", name="我的模板")
+        rich["source"] = f"orig/我的模板.docx"
+        tr.save_rich(rich, docx_source=str(self.orig))
+        self.assertTrue(self.orig.exists())
+
+    def test_uploaded_temp_still_cleaned(self):
+        """data/ 下的上传临时件仍应在保存后被清掉（别把清理也一起关了）。"""
+        tmp = Path(os.environ["EDU_DATA_DIR"]) / "upload_x.docx"
+        tmp.write_bytes(self.orig.read_bytes())
+        rich = tr.docx_to_rich(tmp, template_id="上传模板", name="上传模板")
+        rich["_upload_path"] = str(tmp)
+        res = ws.api_tpl_rich_save(ws.TplRichSave(template=rich, set_current=False))
+        self.assertTrue(res["ok"], res.get("error"))
+        self.assertFalse(tmp.exists(), "data/ 下的上传临时件应被清理")
 
 
 if __name__ == "__main__":

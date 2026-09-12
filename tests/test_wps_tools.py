@@ -170,6 +170,77 @@ class TestPptxLocal(_EnvSandbox):
         self.assertIn(r.get("gate"), ("capability", "mcp", "local"))
 
 
+class TestSlidesFromMarkdown(unittest.TestCase):
+    """教案 Markdown -> PPT 页（预览与实际生成共用，所以这里锁住形状）。
+
+    背景：原先 pptx_native 的 markdown 分支只认 `## ` 标题，而 Agent B 的教案用的是
+    `**板块**` + `### 环节` —— 于是「对话里导出 PPT」会出来一份几乎空白的 PPT。
+    """
+
+    PLAN = """# 3.3 幂函数
+
+**教学目标**
+- 理解幂函数的概念，能识别 y=x^α 的形式。[1]
+- 掌握五个常见幂函数的图象与性质。
+
+**教学过程**
+
+### 情境导入（约 5 分钟）
+投影课本 p89 五个实例，学生写解析式并找共同特征。[2]
+### 概念建构（约 12 分钟）
+给出定义，强调底数为自变量、指数为常数。
+- 追问：y=2x^2 是不是幂函数
+| 误导 | 表格不进 PPT |
+
+### 课堂小结（约 3 分钟）
+回顾研究路径。
+
+**板书设计**
+左侧定义，右侧图象对照表。
+"""
+
+    def test_h3_preferred(self):
+        d = wps_export.slides_from_markdown(self.PLAN)
+        self.assertEqual(d["title"], "3.3 幂函数")
+        self.assertEqual(d["source"], "h3", "有 ### 环节时以环节分页")
+        self.assertEqual([s["name"] for s in d["slides"]], ["情境导入", "概念建构", "课堂小结"])
+
+    def test_minutes_split_out_of_title(self):
+        d = wps_export.slides_from_markdown(self.PLAN)
+        self.assertEqual(d["slides"][0]["minutes"], "5")
+        self.assertNotIn("分钟", d["slides"][0]["name"], "时长进 minutes，标题里不再重复")
+
+    def test_citations_stripped_and_table_skipped(self):
+        d = wps_export.slides_from_markdown(self.PLAN)
+        s0 = d["slides"][0]["bullets"][0]
+        self.assertNotIn("[2]", s0, "幻灯片上不该出现引用角标")
+        joined = " ".join(b for s in d["slides"] for b in s["bullets"])
+        self.assertNotIn("表格不进 PPT", joined, "表格内容留给 Word")
+
+    def test_paragraph_line_becomes_bullet(self):
+        d = wps_export.slides_from_markdown(self.PLAN)
+        b = d["slides"][1]["bullets"]
+        self.assertIn("给出定义，强调底数为自变量、指数为常数。", b)
+        self.assertIn("追问：y=2x^2 是不是幂函数", b)
+
+    def test_falls_back_to_sections(self):
+        md = "# 单调性\n\n**教学目标**\n- 理解定义。\n**教学过程**\n- 讲三步。\n"
+        d = wps_export.slides_from_markdown(md)
+        self.assertEqual(d["source"], "section")
+        self.assertEqual([s["name"] for s in d["slides"]], ["教学目标", "教学过程"])
+
+    def test_falls_back_to_h2(self):
+        md = "# 课题\n\n## 第一段\n- 要点\n"
+        d = wps_export.slides_from_markdown(md)
+        self.assertEqual(d["source"], "h2")
+        self.assertEqual([s["name"] for s in d["slides"]], ["第一段"])
+
+    def test_empty_markdown_is_safe(self):
+        d = wps_export.slides_from_markdown("")
+        self.assertEqual(d["slides"], [])
+        self.assertEqual(d["title"], "")
+
+
 @unittest.skipUnless(WPS_LIVE, "需要本机 WPS + 已安装 wps-skills（设 EDU_TEST_WPS=1 开启）")
 class TestWpsLive(_EnvSandbox):
     """真·WPS 端到端（默认 skip，避免没有 WPS 的机器报红）。"""

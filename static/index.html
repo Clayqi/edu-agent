@@ -259,6 +259,26 @@ svg{display:block}
 .dz-ops button{width:24px;height:24px;border-radius:6px;border:.5px solid var(--line);background:#fff;color:var(--ink-500);font-size:12px;line-height:1;cursor:pointer}
 .dz-ops button:hover{background:var(--bg-hover)}
 .dz-slides{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px}
+/* ===== 模板工作台（导入自有教案模板 -> 全量编辑） ===== */
+#tplEditor{padding:12px 0 40px}
+.tpl-blk{background:#fff;border:.5px solid var(--line);border-radius:var(--r-md);padding:12px 14px;margin-bottom:10px}
+.tpl-blk-head{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.tpl-blk-head .tpl-title{flex:1;min-width:170px;height:32px;font-weight:600}
+.tpl-para{border:.5px dashed transparent;border-radius:8px;padding:6px 8px;line-height:1.8;font-size:14px;min-height:26px;outline:none;white-space:pre-wrap}
+.tpl-para:hover{border-color:var(--line)}
+.tpl-para:focus{border-color:var(--blue);background:#fafbff}
+.tpl-el{position:relative;margin:3px 0}
+.tpl-el-ops{display:none;gap:2px;position:absolute;right:2px;top:2px;background:#fff;border:.5px solid var(--line);border-radius:8px;padding:2px;z-index:5}
+.tpl-el:hover .tpl-el-ops{display:flex}
+.tpl-ops{border:none;background:transparent;color:var(--ink-500);cursor:pointer;font-size:11.5px;padding:2px 7px;border-radius:6px;line-height:1.6}
+.tpl-ops:hover{background:var(--bg-soft);color:var(--ink-800)}
+.tpl-table{width:100%;border-collapse:collapse;font-size:13px;margin:4px 0}
+.tpl-table td{border:.5px solid var(--line);padding:5px 7px;vertical-align:top}
+.tpl-table td:focus{outline:2px solid var(--blue);outline-offset:-2px;background:#fafbff}
+.tpl-img{font-size:12px;color:var(--ink-400);background:var(--bg-soft);border-radius:6px;padding:4px 8px;display:inline-block}
+.tpl-hint{font-size:12px;color:var(--ink-400);margin:4px 2px}
+.tpl-lvl{height:30px;width:70px;font-size:12px}
+.tpl-tb.on{background:var(--dark);color:#fff}
 .dz-slide{border:.5px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:#fff;cursor:pointer}
 .dz-slide:hover{border-color:var(--line-strong)}
 .dz-slide .mini{aspect-ratio:16/9;background:linear-gradient(160deg,#fbfcff,#eef2ff);border-bottom:.5px solid var(--line);padding:9px 11px;box-sizing:border-box;display:flex;flex-direction:column;gap:4px;position:relative;overflow:hidden;min-height:0}
@@ -411,7 +431,7 @@ svg{display:block}
     <aside class="sidebar">
       <div class="side-brand">
         <div class="name">教育 Agent</div>
-        <div class="ver">v1.7.0</div>
+        <div class="ver">v1.12.0</div>
         <button class="side-toggle" id="btnSideToggle" title="收起侧边栏">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M3 4h6v16H3z" fill="currentColor" stroke="none" opacity=".18"/></svg>
         </button>
@@ -577,6 +597,50 @@ svg{display:block}
             <div class="view-sub">左边编排这节课的环节，右边即时生成对应的 PPT 页面——改哪边两边一起变</div>
           </div>
           <div class="view-sec" style="padding-top:14px">
+            <!-- ===== 模板工作台：导入自有教案模板 -> 全量编辑 -> 导出/存模板 ===== -->
+            <div class="row-card" id="tplBar" style="padding:10px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <span style="font-size:12.5px;color:var(--ink-600);flex:none;font-weight:600">教案模板</span>
+              <button class="pill-btn" id="tplImport" title="导入你自己的 .docx 教案模板">导入 .docx</button>
+              <select class="text-input" id="tplPick" style="height:32px;min-width:190px;font-size:12.5px"></select>
+              <button class="pill-btn" id="tplLoad">载入编辑</button>
+              <button class="pill-btn" id="tplNew">新建空白</button>
+              <button class="pill-btn" id="tplDel" title="删除已保存的模板（移到回收站，可手工找回）">删除</button>
+              <span style="flex:1"></span>
+              <span id="tplStat" style="font-size:12px;color:var(--ink-500)"></span>
+              <button class="pill-btn" id="tplSave" title="存进 content/templates，可同时供 Agent B 生成教案时套用">保存为模板</button>
+              <button class="pill-btn" id="tplExit" style="display:none">退出模板模式</button>
+            </div>
+            <input type="file" id="tplFile" accept=".docx" style="display:none">
+            <!-- 模板模式：格式工具栏（选中文字改字符格式，对齐作用于光标段落） -->
+            <div class="row-card" id="tplFmt" style="display:none;margin-top:8px;padding:8px 12px;gap:6px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:22">
+              <button class="pill-btn tpl-tb" data-cmd="bold" title="加粗"><b>B</b></button>
+              <button class="pill-btn tpl-tb" data-cmd="italic" title="斜体"><i>I</i></button>
+              <button class="pill-btn tpl-tb" data-cmd="underline" title="下划线"><u>U</u></button>
+              <select class="text-input" id="tplFont" title="中文字体" style="height:30px;width:118px;font-size:12px">
+                <option value="">字体</option><option>宋体</option><option>黑体</option>
+                <option>楷体</option><option>仿宋</option><option>微软雅黑</option>
+                <option value="Times New Roman">Times New Roman</option>
+              </select>
+              <select class="text-input" id="tplSize" title="字号" style="height:30px;width:88px;font-size:12px">
+                <option value="">字号</option><option value="10.5">五号 10.5</option><option value="12">小四 12</option>
+                <option value="14">四号 14</option><option value="15">15</option><option value="16">三号 16</option>
+                <option value="18">18</option><option value="22">二号 22</option>
+              </select>
+              <input type="color" id="tplColor" title="字体颜色" value="#000000" style="width:34px;height:30px;padding:0;border:.5px solid var(--line);border-radius:6px;background:#fff">
+              <span style="width:1px;height:20px;background:var(--line);margin:0 4px"></span>
+              <button class="pill-btn tpl-tb" data-align="left" title="左对齐">左</button>
+              <button class="pill-btn tpl-tb" data-align="center" title="居中">中</button>
+              <button class="pill-btn tpl-tb" data-align="right" title="右对齐">右</button>
+              <button class="pill-btn tpl-tb" data-align="justify" title="两端对齐">两端</button>
+              <span style="width:1px;height:20px;background:var(--line);margin:0 4px"></span>
+              <button class="pill-btn" id="tplExportWord" title="按当前模板导出 .docx">导出 Word</button>
+              <button class="pill-btn dark" id="tplExportPpt" title="按当前模板导出 .pptx">生成 PPT</button>
+              <span style="flex:1"></span>
+              <span style="font-size:11.5px;color:var(--ink-400)">选中文字后点 B/I/U 或选字体字号；对齐作用于光标所在段落</span>
+            </div>
+            <div id="tplEditor" style="display:none"></div>
+          </div>
+          <div class="view-sec" style="padding-top:14px" id="dzEditBar">
             <div class="row-card" style="padding:14px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
               <input class="text-input" id="dzTitle" placeholder="课题，例：3.3 幂函数" style="width:230px;height:34px">
               <input class="text-input" id="dzGrade" placeholder="学情/课时，例：重点班 45 分钟" style="width:220px;height:34px">
@@ -1427,6 +1491,230 @@ svg{display:block}
     });
     el.appendChild(row);
   }
+  /* ==== 教案/PPT 联动：两个选项（① 生成教案模板 ② 按模板生成）（2026-09-12 一期） ==== */
+  var CHAT_TPL_KEY = 'edu_chat_tpl';
+  var PLAN_AUTO_KEY = 'edu_plan_auto';
+  var PLAN_FILL_PENDING = null;      // ②「按模板生成」完成后要自动填入教案中心的模板
+  function planAutoOn(){ try{ return localStorage.getItem(PLAN_AUTO_KEY) !== '0'; }catch(e){ return true; } }
+  function planAutoSet(on){ try{ if(on) localStorage.removeItem(PLAN_AUTO_KEY); else localStorage.setItem(PLAN_AUTO_KEY, '0'); }catch(e){} }
+  function planOptsInit(){ try{ var v = localStorage.getItem(CHAT_TPL_KEY); if(v) CHAT_TPL = v; }catch(e){} }
+  function planOptsRemember(id){ try{ if(id) localStorage.setItem(CHAT_TPL_KEY, id); }catch(e){} }
+  /* 生成前预检：选中的模板有几个板块 / 表格，以及大概要等多久 */
+  function planPickTip(card, use, tid){
+    var t = (use && (use.templates || []).filter(function(x){ return x.template_id === tid; })[0]) || null;
+    if(!t){ planTip(card, escHtml((use && use.hint) || '')); return; }
+    planTip(card, '已选《' + escHtml(t.name || t.template_id) + '》：<b>' + t.blocks + '</b> 个板块' +
+                  (t.tables ? ('（含 ' + t.tables + ' 个表格）') : '') +
+                  ' · ' + (t.rich ? '可编辑模板' : '骨架模板') +
+                  ' · 生成约 <b>1~4 分钟</b>，点②开始');
+  }
+
+  function renderPlanOptions(el, ev){
+    /* 设置里可以关掉自动提示（localStorage: edu_plan_auto，默认开） */
+    if(!planAutoOn()) return;
+    var opts = ev.options || [], gen = null, use = null, fill = null;
+    opts.forEach(function(o){
+      if(o.id === 'gen_template') gen = o;
+      if(o.id === 'use_template') use = o;
+      if(o.id === 'fill_center') fill = o;
+    });
+    if(!gen && !use && !fill) return;
+    var topic = ev.topic || lastQ || '';
+    var card = document.createElement('div');
+    card.className = 'plan-choice';
+    card.style.cssText = 'margin-top:10px;border:.5px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--bg-soft)';
+    var h = '<div style="font-size:12.5px;font-weight:600;color:var(--ink-700);margin-bottom:8px">下一步' +
+            (ev.reason === 'retrieval' ? '（检索到教案/课件相关内容）' : (ev.reason === 'plan_mode' ? '（教案 Agent）' : '')) +
+            '</div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
+    if(gen) h += '<button class="pill-btn" data-plan="gen">① ' + escHtml(gen.label) + '</button>';
+    if(use){
+      var tpls = use.templates || [];
+      h += '<button class="pill-btn dark" data-plan="use">② ' + escHtml(use.label) + '</button>';
+      if(tpls.length > 1){
+        var ids = tpls.map(function(t){ return t.template_id; });
+        var cur = CHAT_TPL || use.current || '';
+        /* 记忆里的模板可能已被删除：别静默落到第一项（那会变成 default），回到服务端的 current */
+        if(ids.indexOf(cur) < 0) cur = ids.indexOf(use.current) >= 0 ? use.current : (ids[0] || '');
+        h += '<select class="text-input" data-plan="pick" style="height:30px;min-width:180px;font-size:12px">' +
+             tpls.map(function(t){
+               return '<option value="' + escHtml(t.template_id) + '"' + (t.template_id === cur ? ' selected' : '') + '>' +
+                      escHtml(t.name || t.template_id) + '（' + t.blocks + ' 板块' + (t.rich ? ' · 可编辑' : '') + '）</option>';
+             }).join('') + '</select>';
+      } else if(tpls.length === 1){
+        h += '<span style="font-size:12px;color:var(--ink-500)">模板：' + escHtml(tpls[0].name || tpls[0].template_id) + '</span>';
+      }
+    }
+    if(fill) h += '<button class="pill-btn" data-plan="fill">③ ' + escHtml(fill.label) + '</button>';
+    h += '</div><div style="font-size:11.5px;color:var(--ink-400);margin-top:6px" data-plan="tip">' +
+         escHtml((use && use.hint) || (gen && gen.hint) || '') + '</div>';
+    card.innerHTML = h;
+    card.querySelectorAll('[data-plan="gen"]').forEach(function(b){ b.onclick = function(){ planGenTemplate(topic, b, card); }; });
+    card.querySelectorAll('[data-plan="use"]').forEach(function(b){ b.onclick = function(){ planUseTemplate(topic, card); }; });
+    card.querySelectorAll('[data-plan="fill"]').forEach(function(b){ b.onclick = function(){ planFillCenter(topic, card, '', '', b); }; });
+    /* 生成前预检：换模板就把「几个板块 / 几个表格 / 大概多久」写进提示 */
+    var pickEl = card.querySelector('[data-plan="pick"]');
+    if(pickEl){
+      planPickTip(card, use, pickEl.value);
+      pickEl.addEventListener('change', function(){ planOptsRemember(pickEl.value); planPickTip(card, use, pickEl.value); });
+    }
+    el.appendChild(card);
+  }
+
+  function planGenTemplate(topic, btn, card){
+    var label = btn.textContent;
+    btn.disabled = true; btn.textContent = '正在生成模板…（约 1 分钟）';
+    showToast('教案 Agent 正在归纳模板骨架…');
+    spJson('/api/plan/template', 'POST', { topic: topic, session_id: CUR || '' }).then(function(d){
+      btn.disabled = false; btn.textContent = label;
+      if(!d || !d.ok){ showToast('生成模板失败：' + ((d && d.error) || '未知错误'), false); return; }
+      var tip = card.querySelector('[data-plan="tip"]');
+      if(tip){
+        tip.innerHTML = '已生成《' + escHtml(d.name) + '》：' + d.stats.blocks + ' 板块 · ' + (d.stats.tables || 0) +
+                        ' 表　<a href="#" data-plan="open" style="color:var(--blue)">去教案中心编辑</a>';
+        var a = tip.querySelector('[data-plan="open"]');
+        if(a) a.onclick = function(e2){ e2.preventDefault(); tplLoadById(d.template_id); };
+      }
+      showToast('已生成教案模板《' + d.name + '》，可在教案中心继续编辑');
+      tplRefreshPick();
+    }).catch(function(e){
+      btn.disabled = false; btn.textContent = label;
+      showToast('生成模板失败：' + (e && e.message ? e.message : e), false);
+    });
+  }
+
+  function planUseTemplate(topic, card){
+    var pick = card.querySelector('[data-plan="pick"]');
+    var tid = (pick && pick.value) || CHAT_TPL || 'default';
+    planOptsRemember(tid);
+    var tip = card.querySelector('[data-plan="tip"]');
+    if(tip) tip.innerHTML = '已选用模板 <b>' + escHtml(tid) + '</b>，正按它生成教案…';
+    showToast('按模板《' + tid + '》生成教案中…');
+    /* 生成完成后自动把这份教案按板块填入模板、载入教案中心（见 done 分支） */
+    PLAN_FILL_PENDING = { templateId: tid, card: card };
+    sendText(topic || lastQ || '帮我生成教案', { preset: 'B', templateId: tid });
+  }
+
+  /* ---- 二期：把已有教案按板块填进模板，载入教案中心继续编辑（不再花模型调用） ---- */
+  function planTip(card, html){
+    var tip = card && card.querySelector('[data-plan="tip"]');
+    if(!tip) return;
+    tip.innerHTML = html;
+    var a = tip.querySelector('[data-plan="go"]');
+    if(a) a.onclick = function(e){ e.preventDefault(); switchView('design'); };
+  }
+  function planFillCenter(topic, card, tid, md, btn){
+    var pick = card.querySelector('[data-plan="pick"]');
+    var t = tid || (pick && pick.value) || CHAT_TPL || 'default';
+    planOptsRemember(t);
+    planFillRun(md || '', t, btn, card, false);
+  }
+  function planFillRun(md, tid, btn, card, quiet){
+    var label = btn ? btn.textContent : '';
+    if(btn){ btn.disabled = true; btn.textContent = '填入中…'; }
+    planTip(card, '正在把教案按板块填进《' + escHtml(tid || '当前模板') + '》…');
+    spJson('/api/plan/from-template', 'POST',
+           { markdown: md || '', session_id: CUR || '', template_id: tid || '' }
+    ).then(function(d){
+      if(btn){ btn.disabled = false; btn.textContent = label; }
+      if(!d || !d.ok){
+        var err = (d && d.error) || '未知错误';
+        if(!quiet) showToast('填入失败：' + err, false);
+        planTip(card, '填入失败：' + escHtml(err));
+        return;
+      }
+      planFillDone(d, card);
+    }).catch(function(e){
+      if(btn){ btn.disabled = false; btn.textContent = label; }
+      var m = (e && e.message ? e.message : e);
+      if(!quiet) showToast('填入失败：' + m, false);
+      planTip(card, '填入失败：' + escHtml(String(m)));
+    });
+  }
+  function planFillDone(d, card){
+    /* 教案中心有未保存的改动就不覆盖，交给老师自己决定 */
+    if(TPL_ON && TPL && TPL._dirty){
+      showToast('教案中心还有未保存的修改，没有覆盖', false);
+      planTip(card, '教案中心有未保存的修改，未覆盖。' +
+                    '<a href="#" data-plan="go" style="color:var(--blue)">去教案中心处理</a>');
+      return;
+    }
+    TPL = d.template || {}; TPL._dirty = true;
+    TPL._sync = d.report || {}; TPL._sync.blank_blocks = d.blank_blocks || [];
+    tplSetMode(true); tplPersist(); tplSync();
+    var r = d.report || {}, nm = (r.matched || []).length, ap = (r.appended || []).length;
+    var missL = r.unmatched_blocks || [];
+    /* 已经算「没匹配到」的板块不再重复算「还空着」 */
+    var blankL = (d.blank_blocks || []).filter(function(x){ return missL.indexOf(x) < 0; });
+    showToast('已按《' + (d.template_name || '模板') + '》填入 ' + nm + ' 个板块，可在教案中心继续编辑', true);
+    planTip(card, '已填入《' + escHtml(d.template_name || '模板') + '》：匹配 <b>' + nm + '</b> 个板块' +
+                  (ap ? ('，新增 ' + ap + ' 个') : '') +
+                  (missL.length ? ('，<span style="color:#b45309">' + missL.length + ' 个板块没匹配到</span>') : '') +
+                  (blankL.length ? ('，<span style="color:#b45309">' + blankL.length + ' 个板块还空着</span>') : '') +
+                  '　<a href="#" data-plan="go" style="color:var(--blue)">去教案中心编辑</a>');
+  }
+
+  /* ---- 三期：对话里的导出条（教案类回答才有；与教案中心同一套导出/预览实现） ---- */
+  function chatExportBar(el, md, htmlName){
+    var bar = document.createElement('div');
+    bar.className = 'chat-export';
+    bar.style.cssText = 'margin-top:10px;border:.5px solid var(--line);border-radius:12px;padding:9px 12px;background:var(--bg-soft);display:flex;gap:8px;align-items:center;flex-wrap:wrap';
+    var tip = document.createElement('div');
+    tip.style.cssText = 'font-size:11.5px;color:var(--ink-400);margin-top:6px;flex-basis:100%';
+    tip.textContent = '导出这份教案：Word 走 WPS（未落盘自动本地兜底）· PPT 本地生成 · 位置在教案中心同源';
+    function btn(text, title, fn, dark){
+      var b = document.createElement('button');
+      b.className = 'pill-btn' + (dark ? ' dark' : '');
+      b.textContent = text; b.title = title || '';
+      b.onclick = fn;
+      bar.appendChild(b);
+      return b;
+    }
+    var res = document.createElement('span');
+    res.style.cssText = 'font-size:12px;color:var(--ink-500)';
+    function show(html){ res.innerHTML = html || ''; }
+
+    btn('Word', '经 WPS 导成 .docx', function(){
+      show('处理中…');
+      expViaServer({ markdown: md, kind: 'docx', btn: this, onResult: show });
+    }, true);
+    btn('PPT', '本地生成 .pptx（每环节一页）', function(){
+      show('处理中…');
+      expViaServer({ markdown: md, kind: 'pptx', btn: this, onResult: show });
+    });
+    btn('预览 PPT', '先看会生成哪几页（不写文件、不用 WPS）', function(){
+      expPreviewFromMarkdown(md, this);
+    });
+    btn('HTML', '下载这份教案的网页版', function(){
+      /* 教案 Agent 回答时服务端已落了一份 HTML（content/plans），有就直接用 */
+      if(htmlName){
+        var a = document.createElement('a');
+        a.href = '/files/' + encodeURIComponent(htmlName);
+        a.download = htmlName; a.target = '_blank';
+        document.body.appendChild(a); a.click(); a.remove();
+        show('<span style="color:#16a34a">✓ ' + escHtml(htmlName) + '</span>　' +
+             '<a href="/files/' + encodeURIComponent(htmlName) + '" target="_blank" style="color:var(--blue)">在新标签打开</a>');
+        return;
+      }
+      show('<span style="color:#dc2626">这份回答没有服务端 HTML，可先点 Word/PPT</span>');
+    });
+    /* 导出位置：与教案中心同一个记忆（edu_dz_outdir） */
+    var pos = document.createElement('button');
+    pos.className = 'pill-btn';
+    function posText(){ var d = dzOutDirGet(); pos.textContent = '位置：' + (d ? (d.length > 22 ? '…' + d.slice(-20) : d) : '项目内 content/plans'); }
+    posText();
+    pos.title = '选择导出到哪个目录（与教案中心共用）';
+    pos.onclick = function(){
+      openDirPicker(function(dir){
+        if(dir){ dzOutDirSet(dir); showToast('导出位置已设为 ' + dir); }
+        posText();
+      }, { title: '选择教案导出位置', sub: '导出到哪个文件夹（与教案中心共用）' });
+    };
+    bar.appendChild(pos);
+    bar.appendChild(res);
+    bar.appendChild(tip);
+    el.appendChild(bar);
+  }
+
   function addActions(el, raw, q){
     var row = document.createElement('div');
     row.style.cssText='margin-top:10px;display:flex;gap:6px;flex-wrap:wrap';
@@ -1455,7 +1743,7 @@ svg{display:block}
         enterConversation();
         msgBox.innerHTML='';
         lastCites = [];
-        var prevQ = '';
+        var prevQ = '', planBodies = [];
         msgs.forEach(function(m){
           var c = (m.content||'').replace(/^【\*{2}.*?\*{2}】\s*/,'');
           if(!c) return;
@@ -1467,7 +1755,13 @@ svg{display:block}
             var cs = (m.meta && m.meta.citations) || [];
             if(cs.length){ lastCites = cs; addCites(b, cs); }
             addActions(b, c, prevQ);
+            /* 教案类回答恢复时也挂导出条；服务端 HTML 只按会话存了一份（last_html），
+               所以只把它挂到最近一条教案上，避免张冠李戴。 */
+            if((m.meta && m.meta.mode) === 'B' || /Agent\s*B/.test(c.slice(0, 60))) planBodies.push({ el: b, md: c });
           }
+        });
+        planBodies.forEach(function(p, i){
+          chatExportBar(p.el, p.md, i === planBodies.length - 1 ? (d.last_html || '') : '');
         });
         scrollChat();
         if(spView==='docs') spRenderDocs();
@@ -1793,7 +2087,14 @@ svg{display:block}
   }
   var projAddBtn = document.getElementById('projAdd');
   if(projAddBtn) projAddBtn.addEventListener('click', addProject);
-  function sendText(val){
+  /* 会话使用的教案模板：由「选项②按模板生成」写入（并记忆在 localStorage）。
+     以前这里写死 'default'，所以教案中心选了模板、对话里也永远用不到（2026-09-12 修）；
+     也不能写成 'default'——那样卡片下拉会永远预选 default，而不是服务端给的当前模板。 */
+  var CHAT_TPL = '';
+  function sendText(val, opts){
+    opts = opts || {};
+    var preset = opts.preset || curPreset;
+    var tpl = opts.templateId || CHAT_TPL || 'default';
     enterConversation();
     bubbleUser(val);
     document.getElementById('chatInput').value='';
@@ -1802,7 +2103,7 @@ svg{display:block}
     setBusy(true);
     var doFetch = function(sid){
       return fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({text:val,session_id:sid||CUR||'',preset:curPreset,template_id:'default',corpus:curCorpus})})
+        body:JSON.stringify({text:val,session_id:sid||CUR||'',preset:preset,template_id:tpl,corpus:curCorpus})})
         .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.body.getReader(); })
         .then(function(reader){ return streamRead(reader); });
     };
@@ -1853,11 +2154,20 @@ svg{display:block}
         lastCites = ev.citations || [];
         addCites(bodyEl, lastCites);
         addActions(bodyEl, raw);
+        /* 三期：教案类回答挂导出条（Word / PPT / 预览 / HTML + 位置） */
+        if(ev.mode === 'B' || /Agent\s*B/.test(raw.slice(0, 80))) chatExportBar(bodyEl, raw, ev.html || '');
+        /* ② 按模板生成完成后：自动把这份教案按板块填进模板并载入教案中心（不抢视图） */
+        if(PLAN_FILL_PENDING){
+          var pf = PLAN_FILL_PENDING; PLAN_FILL_PENDING = null;
+          if(raw && raw.length > 80) planFillRun(raw, pf.templateId, null, pf.card, true);
+          else planTip(pf.card, '生成的内容太短，没有按板块填入');
+        }
         scrollChat();
         buildTree();
         if(spView==='docs') spRenderDocs();
       }
-      else if(t==='error'){ hideThink(); showErr(ev.text||'请求出错'); }
+      else if(t==='options'){ hideThink(); renderPlanOptions(bodyEl, ev); scrollChat(); }
+      else if(t==='error'){ hideThink(); PLAN_FILL_PENDING = null; showErr(ev.text||'请求出错'); }
     }
     return pump();
   }
@@ -1999,6 +2309,13 @@ svg{display:block}
         '<div class="set-row"><div class="sl"><div class="t">主题</div><div class="s">选择教育 Agent 的界面外观</div></div><button class="switch blue on"></button></div>'+
         '<div class="set-row"><div class="sl"><div class="t">语言</div><div class="s">选择教育 Agent 的界面语言</div></div><div class="seg"><button class="active">中文</button><button>English</button></div></div>'+
       '</div>'+
+      '<div class="sec-h" style="margin-top:26px"><h3>教案</h3></div>'+
+      '<div class="set-card">'+
+        '<div class="set-row"><div class="sl"><div class="t">教案选项自动提示</div><div class="s">对话涉及教案 / 课件 / PPT 时，给出「生成模板 · 按模板生成 · 填入教案中心」选项卡</div></div>'+
+        '<button class="switch blue'+(planAutoOn()?' on':'')+'" data-set="plan_auto"></button></div>'+
+        '<div class="set-row"><div class="sl"><div class="t">导出位置</div><div class="s">对话与教案中心共用；留空 = 项目内 content/plans</div></div>'+
+        '<span style="font-size:12px;color:var(--ink-500)">'+(dzOutDirGet() ? escHtml(dzOutDirGet()) : 'content/plans')+'</span></div>'+
+      '</div>'+
       '<div class="sec-h" style="margin-top:26px"><h3>用户</h3></div>'+
       '<div class="set-card"><div class="set-row"><div class="sl"><div class="t">用户名</div><div class="s">让教育 Agent 记住你的名字</div></div><input class="text-input" value="王老师"></div></div>'+
       '<div class="sec-h" style="margin-top:26px"><h3>权限</h3></div>'+
@@ -2015,6 +2332,14 @@ svg{display:block}
   function wireToggles(){
     modal.querySelectorAll('.switch').forEach(function(t){
       t.addEventListener('click', function(){ t.classList.toggle('on'); });
+    });
+    /* 真正生效的开关：教案选项自动提示（存 localStorage） */
+    modal.querySelectorAll('.switch[data-set="plan_auto"]').forEach(function(t){
+      t.addEventListener('click', function(){
+        var on = t.classList.contains('on');
+        planAutoSet(on);
+        showToast(on ? '已开启：对话涉及教案/PPT 时会给选项卡' : '已关闭：不再自动弹选项卡（可在设置里重新开启）', on);
+      });
     });
     modal.querySelectorAll('.seg button').forEach(function(b){
       b.addEventListener('click', function(){ b.parentElement.querySelectorAll('button').forEach(function(x){x.classList.toggle('active',x===b);}); });
@@ -2235,13 +2560,102 @@ svg{display:block}
     dzRenderSlides();
     dzPersist();
   }
+  /* ==== 导出/预览共用层：教案中心（编排台 · 模板工作台）与对话导出条都走这里 ==== */
+  /* 结果条：文件名 + 目录 + 「下载到本机」 */
+  function expResultHtml(r){
+    return '<span style="color:#16a34a">✓ ' + escHtml(r.filename) + '</span>' +
+           '<span style="color:var(--ink-400)">　' + escHtml(r.outDir || '') + '</span>　' +
+           '<a class="pill-btn" style="text-decoration:none" href="' + escHtml(r.download_url || '#') + '">下载到本机</a>';
+  }
+  /* 前置校验：能力开关（与「MCP 服务」同源）与目录可写由服务端把关，这里先说清楚为什么不给导 */
+  function expGate(kind){
+    var w = capWps();
+    if(w && !w.enabled){
+      showToast('WPS Office 服务已关闭，请到「MCP 服务」开启后再导出', false);
+      return 'WPS Office 服务已关闭，请到「MCP 服务」开启';
+    }
+    return '';
+  }
+  /* 统一出口：{payload|template|markdown, kind, btn, onResult, onFail} */
+  function expViaServer(o){
+    var gate = expGate(o.kind);
+    if(gate){ if(o.onResult) o.onResult('<span style="color:#dc2626">✗ ' + escHtml(gate) + '</span>'); return; }
+    var body = { kind: o.kind, outDir: dzOutDirGet() };
+    if(o.payload) body.payload = o.payload;
+    if(o.template) body.template = o.template;
+    if(o.markdown) body.markdown = o.markdown;
+    var label = o.btn ? o.btn.textContent : '';
+    var done = function(){ if(o.btn){ o.btn.disabled = false; o.btn.textContent = label; } };
+    if(o.btn){ o.btn.disabled = true; o.btn.textContent = (o.kind === 'pptx' ? '正在生成 PPT…' : '正在导出…（约 1 分钟）'); }
+    spJson('/api/wps/export', 'POST', body).then(function(r){
+      done();
+      if(r && r.ok){
+        if(o.onResult) o.onResult(expResultHtml(r));
+        showToast(r.detail || ('已导出 ' + r.filename));
+        return;
+      }
+      var msg = (r && r.gate === 'capability') ? 'WPS Office 服务已关闭，请到「MCP 服务」开启'
+                                              : ((r && r.error) || '未知错误');
+      if(o.onResult) o.onResult('<span style="color:#dc2626">✗ ' + escHtml(msg) + '</span>');
+      showToast((o.kind === 'pptx' ? '生成失败：' : '导出失败：') + msg, false);
+    }).catch(function(e){
+      done();
+      var m = (e && e.message ? e.message : e);
+      if(o.onResult) o.onResult('');
+      showToast('请求失败：' + m, false);
+    });
+  }
+  /* HTML 下载（纯前端，不依赖服务端） */
+  function expDownloadHtml(html, filename){
+    try{
+      var url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+      var a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      return true;
+    }catch(e){ showToast('导出 HTML 失败：' + (e && e.message ? e.message : e), false); return false; }
+  }
+  /* PPT 预览渲染（对话与教案中心共用同一个渲染） */
+  function expPreviewSlides(slides, title, sub){
+    var w = window.open('', '_blank');
+    if(!w){ showToast('浏览器拦截了新窗口', false); return; }
+    var css = 'body{margin:0;background:#0f172a;font-family:"Microsoft YaHei",system-ui,sans-serif}' +
+      '.slide{width:88vw;max-width:900px;aspect-ratio:16/9;margin:26px auto;background:#fff;border-radius:16px;padding:40px 48px;box-sizing:border-box;display:flex;flex-direction:column}' +
+      '.st{font-size:34px;font-weight:700;color:#1e293b}.n{font-size:14px;color:#94a3b8;margin-bottom:6px}' +
+      'ul{margin:22px 0 0 26px;padding:0;font-size:22px;line-height:1.85;color:#334155}';
+    var body = (slides || []).map(function(s, i){
+      var b = (s.bullets || []).slice(0, 6);
+      return '<div class="slide"><div class="n">第 ' + (i+1) + ' / ' + slides.length + ' 页　' +
+        (s.minutes ? (escHtml(String(s.minutes)) + ' 分钟') : escHtml(sub || '')) + '</div>' +
+        '<div class="st">' + escHtml(s.name || '') + '</div>' +
+        (b.length ? '<ul>' + b.map(function(x){ return '<li>' + escHtml(x) + '</li>'; }).join('') + '</ul>' : '') +
+        '</div>';
+    }).join('');
+    w.document.write('<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>' +
+      escHtml(title || 'PPT 预览') + '</title><style>' + css + '</style></head><body>' + body + '</body></html>');
+    w.document.close();
+  }
+  /* 对话里的 PPT 预览：走服务端同一个解析（所以预览＝将生成的） */
+  function expPreviewFromMarkdown(md, btn){
+    var label = btn ? btn.textContent : '';
+    if(btn){ btn.disabled = true; btn.textContent = '解析中…'; }
+    spJson('/api/plan/preview', 'POST', { markdown: md || '', session_id: CUR || '' }).then(function(d){
+      if(btn){ btn.disabled = false; btn.textContent = label; }
+      if(!d || !d.ok){ showToast('预览失败：' + ((d && d.error) || '未知错误'), false); return; }
+      expPreviewSlides(d.slides, d.title, '');
+      showToast('共 ' + d.slides.length + ' 页（' + (d.note || '') + '）');
+    }).catch(function(e){
+      if(btn){ btn.disabled = false; btn.textContent = label; }
+      showToast('预览失败：' + (e && e.message ? e.message : e), false);
+    });
+  }
   function dzExportHTML(){
     var steps = DZ.steps.map(function(s, i){
       var b = dzBullets(s);
       return '<section class="s"><h3>'+(i+1)+'. '+escHtml(s.name)+'　<span class="m">'+(parseInt(s.minutes, 10) || 0)+' 分钟</span></h3>' +
         (b.length ? '<ul>'+b.map(function(x){ return '<li>'+escHtml(x)+'</li>'; }).join('')+'</ul>' : '<p class="m">（未填要点）</p>') + '</section>';
-    }).join('');
-    var slides = DZ.steps.map(function(s, i){
+    }).join('');    var slides = DZ.steps.map(function(s, i){
       var b = dzBullets(s);
       return '<div class="slide"><div class="num">'+(i+1)+'</div><div class="st">'+escHtml(s.name)+'</div>' +
         (b.length ? '<ul>'+b.slice(0,5).map(function(x){ return '<li>'+escHtml(x)+'</li>'; }).join('')+'</ul>' : '') + '</div>';
@@ -2261,15 +2675,7 @@ svg{display:block}
       '<h2>一、教案</h2>' + steps +
       '<h2>二、PPT 大纲（每页对应一个环节）</h2><div class="deck">' + slides + '</div>' +
       '<p class="m" style="margin-top:28px">导出自 edu-agent 教案 × PPT 编排台</p></body></html>';
-    try{
-      var blob = new Blob([html], { type:'text/html;charset=utf-8' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url; a.download = (DZ.title || '教案') + '-教案与PPT大纲.html';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
-      showToast('已导出 HTML（下载里找）');
-    }catch(e){ showToast('导出失败：' + e.message, false); }
+    if(expDownloadHtml(html, (DZ.title || '教案') + '-教案与PPT大纲.html')) showToast('已导出 HTML（下载里找）');
   }
   /* 教案 -> WPS 文字 .docx / 本地生成 .pptx（开关与「MCP 服务」同源：关掉即拒绝）
      注意：syncInputs 是 dzBind() 内的局部函数，这里不能调；由点击包装负责同步输入框。 */
@@ -2286,48 +2692,446 @@ svg{display:block}
   }
   function dzExportRun(kind, btn){
     try{
-      var w = capWps();
-      if(w && !w.enabled){ showToast('WPS Office 服务已关闭，请到「MCP 服务」开启', false); return; }
       var p = dzPayload();
       if(!p.steps.length){ showToast('先在教案中心生成骨架或添加环节', false); return; }
-      var label = btn ? btn.textContent : '';
-      var done = function(){ if(btn){ btn.disabled = false; btn.textContent = label; } };
-      if(btn){ btn.disabled = true; btn.textContent = (kind === 'pptx' ? '正在生成 PPT…' : '正在导出…（约 1 分钟）'); }
       dzResult('处理中…');
       showToast(kind === 'pptx' ? '正在生成 PPT，请稍候…' : '正在经 WPS 导出 Word，请稍候…');
-      spJson('/api/wps/export','POST',{payload:p, kind:kind, outDir: dzOutDirGet()}).then(function(r){
-        done();
-        if(r && r.ok){
-          dzResult('<span style="color:#16a34a">✓ ' + escHtml(r.filename) + '</span>' +
-                   '<span style="color:var(--ink-400)">　' + escHtml(r.outDir || '') + '</span>　' +
-                   '<a class="pill-btn" style="text-decoration:none" href="' + escHtml(r.download_url || '#') + '">下载到本机</a>');
-          showToast(r.detail || ('已导出 ' + r.filename));
-        } else {
-          var msg = (r && r.error) || '未知错误';
-          dzResult('<span style="color:#dc2626">✗ ' + escHtml(msg) + '</span>');
-          showToast((kind === 'pptx' ? '生成失败：' : '导出失败：') + msg, false);
-        }
-      }).catch(function(e){ done(); dzResult(''); showToast('请求失败：' + (e && e.message ? e.message : e), false); });
+      expViaServer({ payload: p, kind: kind, btn: btn, onResult: dzResult });
     }catch(err){ showToast('异常：' + (err && err.message ? err.message : err), false); }
   }
   function dzExportWps(){ dzExportRun('docx', document.getElementById('dzExportWps')); }
-  function dzExportPpt(){ dzExportRun('pptx', document.getElementById('dzExportPpt')); }
-  function dzPreviewPPT(){
-    var w = window.open('', '_blank');
-    if(!w){ showToast('浏览器拦截了新窗口', false); return; }
-    var css = 'body{margin:0;background:#0f172a;font-family:"Microsoft YaHei",system-ui,sans-serif}' +
-      '.slide{width:88vw;max-width:900px;aspect-ratio:16/9;margin:26px auto;background:#fff;border-radius:16px;padding:40px 48px;box-sizing:border-box;display:flex;flex-direction:column}' +
-      '.st{font-size:34px;font-weight:700;color:#1e293b}.n{font-size:14px;color:#94a3b8;margin-bottom:6px}' +
-      'ul{margin:22px 0 0 26px;padding:0;font-size:22px;line-height:1.85;color:#334155}';
-    var body = DZ.steps.map(function(s, i){
-      var b = dzBullets(s);
-      return '<div class="slide"><div class="n">第 '+(i+1)+' / '+DZ.steps.length+' 页　'+(parseInt(s.minutes,10)||0)+' 分钟</div><div class="st">'+escHtml(s.name)+'</div>' +
-        (b.length ? '<ul>'+b.map(function(x){ return '<li>'+escHtml(x)+'</li>'; }).join('')+'</ul>' : '') + '</div>';
-    }).join('');
-    w.document.write('<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>' +
-      escHtml(DZ.title || 'PPT 预览') + '</title><style>'+css+'</style></head><body>'+body+'</body></html>');
-    w.document.close();
+  /* ==== 教案模板工作台：导入自有 .docx -> 全量编辑（板块/段落/表格/格式）-> 导出或存模板 ==== */
+  var TPL = null, TPL_ON = false, TPL_FOCUS = null;
+  var TPL_KEY = 'edu_tpl_work_v2';
+  function tplUid(p){ return p + Math.random().toString(36).slice(2, 10); }
+  function tplGet(id){ return document.getElementById(id); }
+  function tplEsc(s){ return escHtml(s == null ? '' : s); }
+
+  function tplSetMode(on){
+    TPL_ON = !!on;
+    tplGet('tplEditor').style.display = on ? '' : 'none';
+    tplGet('tplFmt').style.display = on ? 'flex' : 'none';
+    tplGet('tplExit').style.display = on ? '' : 'none';
+    var g = document.querySelector('.dz-grid'); if(g) g.style.display = on ? 'none' : '';
+    var b = tplGet('dzEditBar'); if(b) b.style.display = on ? 'none' : '';
+    if(on) tplRender();
   }
+  function tplPersist(){ try{ if(TPL) localStorage.setItem(TPL_KEY, JSON.stringify(TPL)); }catch(e){} }
+  function tplRestore(){
+    try{ var s = localStorage.getItem(TPL_KEY); if(s){ TPL = JSON.parse(s); return true; } }catch(e){}
+    return false;
+  }
+  function tplStat(){
+    if(!TPL) return '';
+    var blocks = TPL.blocks || [], els = [];
+    blocks.forEach(function(b){ (b.elements||[]).forEach(function(e){ els.push(e); }); });
+    var chars = els.filter(function(e){ return e.type === 'para'; })
+                   .reduce(function(n, e){ return n + ((e.text||'').length); }, 0);
+    var h = '《' + (TPL.name || '未命名') + '》 · ' + blocks.length + ' 板块 · ' +
+            els.filter(function(e){return e.type==='para';}).length + ' 段 · ' +
+            els.filter(function(e){return e.type==='table';}).length + ' 表 · ' + chars + ' 字';
+    if(TPL._dirty) h += ' · <span style="color:#dc2626">未保存</span>';
+    return h;
+  }
+  function tplSync(){ var e = tplGet('tplStat'); if(e) e.innerHTML = tplStat(); }
+
+  /* ---- 渲染 ---- */
+  function tplRunHtml(r){
+    var st = [];
+    if(r.b) st.push('font-weight:700');
+    if(r.i) st.push('font-style:italic');
+    if(r.u) st.push('text-decoration:underline');
+    if(r.font) st.push('font-family:' + r.font);
+    if(r.size) st.push('font-size:' + r.size + 'pt');
+    if(r.color) st.push('color:' + r.color);
+    return '<span' + (st.length ? ' style="' + st.join(';') + '"' : '') + '>' + tplEsc(r.text || '') + '</span>';
+  }
+  function tplRunsHtml(p){
+    var runs = (p.runs && p.runs.length) ? p.runs : [{ text: p.text || '' }];
+    return runs.map(tplRunHtml).join('');
+  }
+  function tplParaHtml(p, bid){
+    var align = p.align ? 'text-align:' + p.align + ';' : '';
+    return '<div class="tpl-el" data-eid="' + tplEsc(p.id) + '" data-type="para">' +
+      '<div class="tpl-para" contenteditable="true" data-bid="' + tplEsc(bid) + '" data-eid="' + tplEsc(p.id) + '" style="' + align + '">' + tplRunsHtml(p) + '</div>' +
+      '<div class="tpl-el-ops">' +
+        '<button class="tpl-ops" data-act="e-up">↑</button><button class="tpl-ops" data-act="e-down">↓</button>' +
+        '<button class="tpl-ops" data-act="e-del">删除本段</button></div></div>';
+  }
+  function tplTableHtml(t, bid){
+    var rows = t.cells || [];
+    var cols = rows.length ? Math.max.apply(null, rows.map(function(r){ return r.length; })) : 3;
+    var h = '<div class="tpl-el" data-eid="' + tplEsc(t.id) + '" data-type="table">' +
+      '<table class="tpl-table" data-bid="' + tplEsc(bid) + '" data-eid="' + tplEsc(t.id) + '">';
+    rows.forEach(function(row){
+      h += '<tr>';
+      for(var c = 0; c < cols; c++){
+        var cell = row[c] || { text: '' };
+        var st = (cell.align ? 'text-align:' + cell.align + ';' : '') + (cell.b ? 'font-weight:700;' : '');
+        h += '<td contenteditable="true" style="' + st + '">' + tplEsc(cell.text || '') + '</td>';
+      }
+      h += '</tr>';
+    });
+    h += '</table><div class="tpl-el-ops">' +
+      '<button class="tpl-ops" data-act="t-row-add">＋行</button><button class="tpl-ops" data-act="t-row-del">−行</button>' +
+      '<button class="tpl-ops" data-act="t-col-add">＋列</button><button class="tpl-ops" data-act="t-col-del">−列</button>' +
+      '<button class="tpl-ops" data-act="e-up">↑</button><button class="tpl-ops" data-act="e-down">↓</button>' +
+      '<button class="tpl-ops" data-act="e-del">删除表格</button></div></div>';
+    return h;
+  }
+  function tplImgHtml(im){
+    return '<div class="tpl-el" data-eid="' + tplEsc(im.id) + '" data-type="image">' +
+      '<span class="tpl-img">🖼 ' + tplEsc(im.alt || '图片（导入不保留，导出会跳过）') + '</span>' +
+      '<div class="tpl-el-ops"><button class="tpl-ops" data-act="e-del">删除</button></div></div>';
+  }
+  function tplRender(){
+    var box = tplGet('tplEditor'); if(!box || !TPL) return;
+    var h = '', r = TPL._sync;
+    if(r){
+      var miss = r.unmatched_blocks || [];
+      /* 已列进「没匹配到」的板块，不再重复列进「还空着」 */
+      var blank = (r.blank_blocks || []).filter(function(x){ return miss.indexOf(x) < 0; });
+      h += '<div class="tpl-hint" style="background:var(--bg-soft);padding:8px 10px;border-radius:8px;color:var(--ink-600)">' +
+           '⇪ 已从会话填入' + (r.title ? ('（课题：' + escHtml(String(r.title).slice(0, 30)) + '）') : '') +
+           '：匹配 <b>' + ((r.matched || []).length) + '</b> 个板块' +
+           ((r.appended || []).length ? ('，新增 ' + r.appended.length + ' 个板块：' + escHtml(r.appended.join('、').slice(0, 44))) : '') +
+           '</div>';
+      if(miss.length || blank.length){
+        h += '<div class="tpl-hint" style="background:#fef3c7;border:1px solid #fcd34d;color:#92400e;' +
+             'padding:8px 10px;border-radius:8px;margin-top:6px">⚠ ' +
+             (miss.length ? (miss.length + ' 个板块没匹配到本次教案内容（保持原样）：' + escHtml(miss.join('、').slice(0, 60))) : '') +
+             (miss.length && blank.length ? '；' : '') +
+             (blank.length ? (blank.length + ' 个板块还空着：' + escHtml(blank.join('、').slice(0, 60))) : '') +
+             '</div>';
+      }
+    }
+    h += '<div class="tpl-hint">板块内可自由：改标题文字 / 增删段落 / 改表格行列 / 选中文字改字体字号颜色（工具栏）· 板块可上下移与删除</div>';
+    (TPL.blocks || []).forEach(function(b, i){
+      h += '<div class="tpl-blk" data-bid="' + tplEsc(b.id) + '">' +
+        '<div class="tpl-blk-head">' +
+          '<span style="font-size:11.5px;color:var(--ink-400);flex:none">' + (i + 1) + '</span>' +
+          '<div class="tpl-para tpl-title" contenteditable="true" data-bid="' + tplEsc(b.id) + '" data-role="title">' +
+            tplRunsHtml({ runs: b.title_runs, text: b.title }) + '</div>' +
+          '<select class="text-input tpl-lvl" data-bid="' + tplEsc(b.id) + '" data-role="level" title="板块层级">' +
+            [1,2,3,4].map(function(l){ return '<option value="' + l + '"' + ((b.level||1)===l?' selected':'') + '>H' + l + '</option>'; }).join('') +
+          '</select>' +
+          '<button class="pill-btn" data-act="b-up" data-bid="' + tplEsc(b.id) + '">↑</button>' +
+          '<button class="pill-btn" data-act="b-down" data-bid="' + tplEsc(b.id) + '">↓</button>' +
+          '<button class="pill-btn" data-act="b-add-para" data-bid="' + tplEsc(b.id) + '">＋段落</button>' +
+          '<button class="pill-btn" data-act="b-add-table" data-bid="' + tplEsc(b.id) + '">＋表格</button>' +
+          '<button class="pill-btn" data-act="b-del" data-bid="' + tplEsc(b.id) + '">删除板块</button>' +
+        '</div>';
+      (b.elements || []).forEach(function(e){
+        h += e.type === 'table' ? tplTableHtml(e, b.id)
+           : e.type === 'image' ? tplImgHtml(e) : tplParaHtml(e, b.id);
+      });
+      if(!(b.elements || []).length) h += '<div class="tpl-hint">（本板块暂无内容，可「＋段落」或「＋表格」）</div>';
+      h += '</div>';
+    });
+    h += '<div style="display:flex;gap:8px;margin-top:6px"><button class="pill-btn" id="tplAddBlock">＋ 新增板块</button>' +
+         '<button class="pill-btn" id="tplClean">清空全部板块</button></div>';
+    box.innerHTML = h;
+    var ab = tplGet('tplAddBlock');
+    if(ab) ab.onclick = function(){ TPL.blocks.push({ id: tplUid('b'), kind: 'section', level: 1, title: '新板块', elements: [{ id: tplUid('e'), type: 'para', text: '', align: '', runs: [] }] }); tplDirty(); tplRender(); };
+    var cl = tplGet('tplClean');
+    if(cl) cl.onclick = function(){ if(!window.confirm('清空全部板块？（可撤销：重新导入或退出不保存）')) return; TPL.blocks = []; tplDirty(); tplRender(); };
+    tplSync();
+  }
+  function tplDirty(){ TPL._dirty = true; tplSync(); }
+
+  /* ---- DOM -> 富模型 ---- */
+  function tplRgb2hex(c){
+    if(!c) return '';
+    if(c.charAt(0) === '#') return c.toUpperCase();
+    var m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(c);
+    if(!m) return '';
+    return '#' + [1,2,3].map(function(i){ var v = parseInt(m[i],10).toString(16).toUpperCase(); return v.length<2?'0'+v:v; }).join('');
+  }
+  function tplRunsFrom(node){
+    var out = [];
+    (function walk(n, st){
+      for(var i = 0; i < n.childNodes.length; i++){
+        var c = n.childNodes[i];
+        if(c.nodeType === 3){
+          if(c.nodeValue) out.push({ text: c.nodeValue, b: !!st.b, i: !!st.i, u: !!st.u, font: st.font || '', size: st.size || null, color: st.color || '' });
+          continue;
+        }
+        if(c.nodeType !== 1) continue;
+        if(c.tagName === 'BR'){ out.push({ text: '\n', b: !!st.b, i: !!st.i, u: !!st.u, font: st.font || '', size: st.size || null, color: st.color || '' }); continue; }
+        var s = { b: st.b, i: st.i, u: st.u, font: st.font, size: st.size, color: st.color };
+        var tag = c.tagName.toLowerCase();
+        if(tag === 'b' || tag === 'strong') s.b = true;
+        if(tag === 'i' || tag === 'em') s.i = true;
+        if(tag === 'u') s.u = true;
+        if(tag === 'font'){
+          if(c.getAttribute('face')) s.font = c.getAttribute('face');
+          if(c.getAttribute('color')) s.color = tplRgb2hex(c.getAttribute('color')) || c.getAttribute('color');
+        }
+        var cs = c.style || {};
+        if(cs.fontWeight && (cs.fontWeight === 'bold' || parseInt(cs.fontWeight, 10) >= 600)) s.b = true;
+        if(cs.fontStyle === 'italic') s.i = true;
+        if(cs.textDecoration && cs.textDecoration.indexOf('underline') > -1) s.u = true;
+        if(cs.fontFamily) s.font = cs.fontFamily.replace(/["']/g, '').split(',')[0];
+        if(cs.fontSize){ var m = /([\d.]+)pt/.exec(cs.fontSize); if(m) s.size = parseFloat(m[1]); }
+        if(cs.color) s.color = tplRgb2hex(cs.color) || s.color;
+        walk(c, s);
+      }
+    })(node, {});
+    return out;
+  }
+  function tplSerialize(){
+    var tpl = JSON.parse(JSON.stringify(TPL || {}));
+    var box = tplGet('tplEditor');
+    var byId = {};
+    (tpl.blocks || []).forEach(function(b){ byId[b.id] = b; });
+    var blocks = [];
+    box.querySelectorAll('.tpl-blk').forEach(function(el){
+      var bid = el.dataset.bid, src = byId[bid] || {};
+      var nb = { id: bid, kind: src.kind || 'section', level: src.level || 1, title: '', elements: [] };
+      var lv = el.querySelector('[data-role="level"]'); if(lv) nb.level = parseInt(lv.value, 10) || 1;
+      var tt = el.querySelector('[data-role="title"]');
+      if(tt){ var tr = tplRunsFrom(tt); nb.title = tr.map(function(r){ return r.text; }).join('').trim(); nb.title_runs = tr; nb.title_align = (tt.style.textAlign || ''); }
+      el.querySelectorAll(':scope > .tpl-el').forEach(function(ee){
+        var et = ee.dataset.type, eid = ee.dataset.eid;
+        if(et === 'para'){
+          var pd = ee.querySelector('.tpl-para');
+          var runs = tplRunsFrom(pd);
+          nb.elements.push({ id: eid, type: 'para', text: runs.map(function(r){ return r.text; }).join('').trim(),
+                             align: (pd.style.textAlign || ''), line_spacing: (src.elements || []).filter(function(x){ return x.id === eid; }).map(function(x){ return x.line_spacing; })[0] || null,
+                             style: '', level: 0, runs: runs });
+        } else if(et === 'table'){
+          var tb = ee.querySelector('table'), cells = [];
+          tb.querySelectorAll('tr').forEach(function(tr){
+            var row = [];
+            tr.querySelectorAll('td').forEach(function(td){
+              row.push({ text: (td.textContent || '').replace(/\n+$/, ''), b: /bold|700|800|900/.test(td.style.fontWeight || ''), align: td.style.textAlign || '' });
+            });
+            cells.push(row);
+          });
+          nb.elements.push({ id: eid, type: 'table', header: true, cells: cells });
+        } else if(et === 'image'){
+          nb.elements.push({ id: eid, type: 'image', alt: '图片（导入不保留，导出会跳过）' });
+        }
+      });
+      blocks.push(nb);
+    });
+    tpl.blocks = blocks;
+    return tpl;
+  }
+
+  /* ---- 板块 / 元素 / 表格 操作 ---- */
+  function tplFind(bid){ return (TPL.blocks || []).filter(function(b){ return b.id === bid; })[0]; }
+  function tplMove(arr, i, d){ var j = i + d; if(j < 0 || j >= arr.length) return false; var t = arr[i]; arr[i] = arr[j]; arr[j] = t; return true; }
+  function tplBlockAct(act, bid){
+    var i = (TPL.blocks || []).findIndex(function(b){ return b.id === bid; });
+    if(i < 0) return;
+    var b = TPL.blocks[i];
+    if(act === 'b-up') tplMove(TPL.blocks, i, -1);
+    else if(act === 'b-down') tplMove(TPL.blocks, i, 1);
+    else if(act === 'b-del'){ if(!window.confirm('删除板块「' + (b.title || '') + '」？')) return; TPL.blocks.splice(i, 1); }
+    else if(act === 'b-add-para') b.elements.push({ id: tplUid('e'), type: 'para', text: '', align: '', runs: [] });
+    else if(act === 'b-add-table') b.elements.push({ id: tplUid('e'), type: 'table', header: true, cells: [[{text:'表头1',b:true,align:'center'},{text:'表头2',b:true,align:'center'}],[{text:'',b:false,align:''},{text:'',b:false,align:''}]] });
+    tplDirty(); tplRender();
+  }
+  function tplElAct(act, bid, eid){
+    var b = tplFind(bid); if(!b) return;
+    var i = (b.elements || []).findIndex(function(e){ return e.id === eid; });
+    if(i < 0) return;
+    if(act === 'e-up') tplMove(b.elements, i, -1);
+    else if(act === 'e-down') tplMove(b.elements, i, 1);
+    else if(act === 'e-del') b.elements.splice(i, 1);
+    else {
+      var el = b.elements[i];
+      if(el.type !== 'table') return;
+      var rows = el.cells || (el.cells = []);
+      var cols = rows.length ? Math.max.apply(null, rows.map(function(r){ return r.length; })) : 0;
+      if(act === 't-row-add') rows.push(new Array(cols).fill(0).map(function(){ return { text: '', b: false, align: '' }; }));
+      else if(act === 't-row-del') rows.pop();
+      else if(act === 't-col-add') rows.forEach(function(r){ r.push({ text: '', b: false, align: '' }); });
+      else if(act === 't-col-del') rows.forEach(function(r){ r.pop(); });
+    }
+    tplDirty(); tplRender();
+  }
+
+  /* ---- 格式工具栏 ---- */
+  function tplFocusPara(){
+    var sel = window.getSelection();
+    var n = sel && sel.anchorNode;
+    while(n && n.nodeType === 3) n = n.parentNode;
+    while(n && n !== document.body){
+      if(n.classList && n.classList.contains('tpl-para')) return n;
+      n = n.parentNode;
+    }
+    return TPL_FOCUS;
+  }
+  function tplExec(cmd, val){
+    try{ document.execCommand('styleWithCSS', false, true); }catch(e){}
+    try{ document.execCommand(cmd, false, val); }catch(e){}
+    tplDirty();
+  }
+  function tplApplySize(pt){
+    tplExec('fontSize', '7');
+    tplGet('tplEditor').querySelectorAll('font[size="7"]').forEach(function(f){
+      var sp = document.createElement('span');
+      sp.style.fontSize = pt + 'pt';
+      sp.innerHTML = f.innerHTML;
+      f.parentNode.replaceChild(sp, f);
+    });
+    tplDirty();
+  }
+  function tplApplyAlign(a){
+    var p = tplFocusPara(); if(!p) { showToast('先把光标放到要设置的段落里', false); return; }
+    p.style.textAlign = a;
+    tplDirty();
+  }
+
+  /* ---- 导入 / 载入 / 保存 / 导出 ---- */
+  function tplRefreshPick(){
+    spJson('/api/templates').then(function(d){
+      var sel = tplGet('tplPick'); if(!sel) return;
+      var cur = (d && d.current) || '';
+      sel.innerHTML = '<option value="">（选择已有模板）</option>' + ((d && d.templates) || []).map(function(t){
+        return '<option value="' + escHtml(t.template_id) + '"' + (t.template_id === cur ? ' selected' : '') + '>' +
+               escHtml(t.name || t.template_id) + (t.rich ? ' · 可编辑' : ' · 骨架') + '</option>';
+      }).join('');
+    }).catch(function(){});
+  }
+  function tplImportFile(file){
+    var fd = new FormData(); fd.append('file', file);
+    tplGet('tplStat').textContent = '正在解析模板…';
+    fetch('/api/template/import', { method: 'POST', body: fd }).then(function(r){ return r.json(); }).then(function(d){
+      if(!d || !d.ok){ showToast('导入失败：' + ((d && d.error) || '未知错误'), false); tplSync(); return; }
+      TPL = d.template; TPL._dirty = true;
+      tplSetMode(true); tplPersist();
+      showToast('已导入《' + (TPL.name || '') + '》：' + d.stats.blocks + ' 板块 / ' + d.stats.paragraphs + ' 段 / ' + d.stats.tables + ' 表');
+    }).catch(function(e){ showToast('导入失败：' + e.message, false); tplSync(); });
+  }
+  function tplLoadById(id){
+    if(!id){ showToast('先选一个模板', false); return; }
+    spJson('/api/template/rich?id=' + encodeURIComponent(id)).then(function(d){
+      if(d && d.ok){ TPL = d.template; TPL._dirty = false; tplSetMode(true); tplPersist(); showToast('已载入《' + (TPL.name || '') + '》'); return; }
+      // 不是富模板：若原件还在（content/templates/orig/），自动升级成可编辑模板
+      showToast('该模板只有骨架，正在用原件升级为可编辑模板…');
+      spJson('/api/template/upgrade', 'POST', { template_id: id }).then(function(u){
+        if(u && u.ok){
+          TPL = u.template; TPL._dirty = true; tplSetMode(true); tplPersist();
+          showToast('已升级为可编辑《' + (TPL.name || '') + '》：' + u.stats.blocks + ' 板块 / ' + u.stats.tables + ' 表（记得「保存为模板」）');
+        } else {
+          showToast(((d && d.error) || '该模板不可编辑') + '；' + ((u && u.error) || '可在左侧「导入 .docx」'), false);
+        }
+      }).catch(function(){ showToast('载入失败', false); });
+    }).catch(function(){ showToast('载入失败', false); });
+  }
+  function tplSerializeSafe(){
+    try{ return tplSerialize(); }
+    catch(e){ showToast('读取编辑器内容失败：' + (e && e.message ? e.message : e), false); return null; }
+  }
+  function tplSaveTemplate(){
+    if(!TPL){ showToast('先导入或新建一个模板', false); return; }
+    var t = tplSerializeSafe(); if(!t) return;
+    spJson('/api/template/rich/save', 'POST', { template: t, set_current: true }).then(function(d){
+      if(d && d.ok){
+        TPL = t; TPL._dirty = false; delete TPL._upload_path; delete TPL._sync; tplPersist(); tplSync(); tplRefreshPick();
+        showToast('已保存为模板《' + (d.name || '') + '》（' + d.stats.blocks + ' 板块）· 已设为 Agent B 当前模板');
+      } else { showToast('保存失败：' + ((d && d.error) || ''), false); }
+    }).catch(function(e){ showToast('保存失败：' + e.message, false); });
+  }
+  function tplDeleteById(){
+    var sel = tplGet('tplPick');
+    var id = sel && sel.value;
+    if(!id){ showToast('先在上面的下拉里选一个模板', false); return; }
+    var opt = sel.options[sel.selectedIndex];
+    /* 下拉里带「（N 板块 · 可编辑）」后缀，确认框里只要名字 */
+    var label = opt ? opt.textContent.trim().split('（')[0] : id;
+    if(id === 'default' && !/可编辑/.test(label)){
+      showToast('「default」是内置模板，删不了（它是保底的那份）', false); return;
+    }
+    var msg = '删除模板《' + label + '》？\n\n' +
+              '· 会移到 content/templates/_trash/（带时间戳），需要时能手工找回\n' +
+              '· 原件备份 orig/' + id + '.docx 一并移走\n' +
+              '· 如果它是当前模板，当前会切回内置 default';
+    if(!window.confirm(msg)) return;
+    spJson('/api/template/delete', 'POST', { template_id: id }).then(function(d){
+      if(!d || !d.ok){ showToast('删除失败：' + ((d && d.error) || '未知错误'), false); return; }
+      /* 正在编辑的就是它 -> 退出模板模式，免得对着已删的模板继续改 */
+      if(TPL && TPL.template_id === id){ TPL = null; tplSetMode(false); try{ localStorage.removeItem(TPL_KEY); }catch(e){} }
+      tplRefreshPick();
+      showToast('已删除《' + (d.name || id) + '》' +
+                (d.was_current ? '　当前模板已切回 default' : '') +
+                (d.builtin_now ? '　已恢复内置 default 骨架' : ''), true);
+      var st = tplGet('tplStat');
+      if(st) st.innerHTML = '<span style="color:var(--ink-500)">已删除，可在 ' + escHtml(d.trash || '') + ' 找回</span>';
+    }).catch(function(e){ showToast('删除失败：' + (e && e.message ? e.message : e), false); });
+  }
+  function tplExport(kind, btn){
+    if(!TPL){ showToast('先导入或新建一个模板', false); return; }
+    var payload = tplSerializeSafe(); if(!payload) return;
+    tplGet('tplStat').textContent = '正在按模板导出…';
+    expViaServer({ template: payload, kind: kind, btn: btn,
+                   onResult: function(html){
+                     if(html){ tplGet('tplStat').innerHTML = html; } else { tplSync(); }
+                   } });
+  }
+
+  function tplBind(){
+    var f = tplGet('tplFile');
+    if(f) f.addEventListener('change', function(){ if(f.files && f.files[0]) tplImportFile(f.files[0]); f.value = ''; });
+    var im = tplGet('tplImport'); if(im) im.addEventListener('click', function(){ if(f) f.click(); });
+    var ld = tplGet('tplLoad'); if(ld) ld.addEventListener('click', function(){ tplLoadById(tplGet('tplPick').value); });
+    var nw = tplGet('tplNew'); if(nw) nw.addEventListener('click', function(){
+      spJson('/api/template/blank?name=' + encodeURIComponent('新教案模板')).then(function(d){
+        if(d && d.ok){ TPL = d.template; TPL._dirty = true; tplSetMode(true); tplPersist(); showToast('已新建空白模板，可直接编辑'); }
+      }).catch(function(){ showToast('新建失败', false); });
+    });
+    var sv = tplGet('tplSave'); if(sv) sv.addEventListener('click', tplSaveTemplate);
+    var dl = tplGet('tplDel'); if(dl) dl.addEventListener('click', tplDeleteById);
+    var ex = tplGet('tplExit'); if(ex) ex.addEventListener('click', function(){ tplSetMode(false); });
+    var ew = tplGet('tplExportWord'); if(ew) ew.addEventListener('click', function(){ tplExport('docx', ew); });
+    var ep = tplGet('tplExportPpt'); if(ep) ep.addEventListener('click', function(){ tplExport('pptx', ep); });
+
+    // 格式工具栏
+    document.querySelectorAll('#tplFmt .tpl-tb[data-cmd]').forEach(function(b){
+      b.addEventListener('mousedown', function(e){ e.preventDefault(); });      // 别抢走选区
+      b.addEventListener('click', function(){ tplExec(b.dataset.cmd); });
+    });
+    document.querySelectorAll('#tplFmt .tpl-tb[data-align]').forEach(function(b){
+      b.addEventListener('mousedown', function(e){ e.preventDefault(); });
+      b.addEventListener('click', function(){ tplApplyAlign(b.dataset.align); });
+    });
+    var fo = tplGet('tplFont');
+    if(fo) fo.addEventListener('change', function(){ if(fo.value){ tplExec('fontName', fo.value); showToast('已应用字体：' + fo.value); } });
+    var sz = tplGet('tplSize');
+    if(sz) sz.addEventListener('change', function(){ if(sz.value){ tplApplySize(sz.value); showToast('已应用字号：' + sz.value + 'pt'); } });
+    var co = tplGet('tplColor');
+    if(co) co.addEventListener('change', function(){ tplExec('foreColor', co.value); showToast('已应用颜色：' + co.value); });
+
+    // 编辑器内的操作按钮 + 脏标记
+    var box = tplGet('tplEditor');
+    if(box){
+      box.addEventListener('click', function(e){
+        var b = e.target.closest ? e.target.closest('[data-act]') : null;
+        if(!b) return;
+        var act = b.dataset.act;
+        var blk = b.closest('.tpl-blk'); var bid = blk ? blk.dataset.bid : b.dataset.bid;
+        if(act.indexOf('b-') === 0) return tplBlockAct(act, bid);
+        var el = b.closest('.tpl-el'); var eid = el ? el.dataset.eid : null;
+        if(eid) tplElAct(act, bid, eid);
+      });
+      box.addEventListener('input', function(){ tplDirty(); });
+      box.addEventListener('focusin', function(e){
+        var n = e.target;
+        while(n && n !== box && !(n.classList && n.classList.contains('tpl-para'))) n = n.parentNode;
+        if(n && n.classList) TPL_FOCUS = n;
+      });
+      // 自动存草稿（防刷新丢失）
+      setInterval(function(){ if(TPL_ON && TPL) tplPersist(); }, 8000);
+    }
+    tplRefreshPick();
+  }
+  function dzExportPpt(){ dzExportRun('pptx', document.getElementById('dzExportPpt')); }
+  function dzPreviewPPT(){ expPreviewSlides(DZ.steps.map(function(s){
+      return { name: s.name, minutes: parseInt(s.minutes, 10) || 0, bullets: dzBullets(s) };
+    }), DZ.title || 'PPT 预览', ''); }
   (function dzBind(){
     var box = document.getElementById('dzSteps'),
         sl = document.getElementById('dzSlides'),
@@ -2411,6 +3215,13 @@ svg{display:block}
                       start: dzOutDirGet() || undefined });
     });
     syncOutDirInput();
+    /* 模板工作台：绑事件 + 恢复上次未保存的草稿 + 恢复会话模板选择 */
+    planOptsInit();
+    tplBind();
+    if(tplRestore()){
+      tplSetMode(true);
+      showToast('已恢复上次编辑的模板草稿《' + (TPL.name || '') + '》（未保存；点「保存为模板」或「退出模板模式」）');
+    }
     var pv = document.getElementById('dzPreview');
     if(pv) pv.addEventListener('click', function(){ syncInputs(); dzPreviewPPT(); });
     dzRender();

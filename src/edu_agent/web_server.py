@@ -40,7 +40,8 @@ from edu_agent import capabilities, wps_export  # noqa: E402  能力开关 + WPS
 from edu_agent.config import load_settings  # noqa: E402
 from edu_agent.host.store import SessionStore  # noqa: E402
 from edu_agent.template_spec import (  # noqa: E402
-    get_template, list_templates, recognize_docx, save_template, set_current, template_sketch,
+    get_current, get_template, list_templates, recognize_docx, save_template, set_current,
+    template_sketch,
 )
 
 log = logsetup.get_logger("web_server")
@@ -76,7 +77,8 @@ def index():
 # ---------- 模板 ----------
 @app.get("/api/templates")
 def api_templates():
-    cur = get_template("").template_id
+    # 注意：current 必须走 get_current()（读 _current.json）；get_template("") 会直接回默认模板
+    cur = get_current().template_id
     return {"templates": list_templates(), "current": cur}
 
 
@@ -101,6 +103,281 @@ async def api_tpl_upload(file: UploadFile = File(...)):
         return {"ok": True, "current": spec.template_id, "name": spec.name, "preview": template_sketch(spec)}
     finally:
         tmp.unlink(missing_ok=True)
+
+
+# ---------- 富模板（教案中心：导入 -> 全量编辑 -> 保存 -> 导出） ----------
+class TplRichSave(BaseModel):
+    template: dict
+    set_current: bool = True
+
+
+@app.post("/api/template/import")
+async def api_tpl_rich_import(file: UploadFile = File(...)):
+    """导入自有 .docx 教案模板 -> 富模型（板块/段落/表格 + 格式），**先不落盘**供用户编辑。"""
+    from edu_agent import template_rich
+
+    if not (file.filename or "").lower().endswith(".docx"):
+        return {"ok": False, "error": "仅支持 .docx（Word 教案模板）"}
+    tmp = ROOT / "data" / ("tpl_" + uuid.uuid4().hex + ".docx")
+    tmp.write_bytes(await file.read())
+    try:
+        from edu_agent import template_spec as _ts
+
+        stem = (file.filename or "").rsplit(".", 1)[0] or "模板"
+        rich = template_rich.docx_to_rich(tmp, template_id=_ts._slugify(stem), name=stem)
+        rich["_upload_path"] = str(tmp)          # 保存时用它把原件备份到 orig/
+        return {"ok": True, "template": rich, "stats": template_rich.stats(rich)}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": type(e).__name__ + ": " + str(e)}
+    finally:
+        pass          # 原件要留到「保存」时备份，故不在此删除
+
+
+@app.post("/api/template/upgrade")
+def api_tpl_upgrade(body: dict):
+    """把已有模板「升级」为可编辑富模板：解析它在 orig/ 里备份的原件 .docx。"""
+    from edu_agent import template_rich
+
+    tid = str(body.get("template_id") or "").strip()
+    if not tid:
+        return {"ok": False, "error": "缺少 template_id"}
+    src = template_rich.ORIG_DIR / f"{tid}.docx"
+    if not src.exists():
+        return {"ok": False, "error": "没找到该模板的原件（content/templates/orig/），请直接「导入 .docx」"}
+    try:
+        rich = template_rich.docx_to_rich(src, template_id=tid, name=tid)
+        # 注意：这里**绝不能**写 _upload_path —— 保存时会 unlink 该路径，
+        # 而 src 是模板自己的原件（content/templates/orig/），删了就丢了。
+        rich["_keep_source"] = True
+        rich["source"] = f"orig/{tid}.docx"
+        return {"ok": True, "template": rich, "stats": template_rich.stats(rich)}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": type(e).__name__ + ": " + str(e)}
+
+
+@app.get("/api/template/rich")
+def api_tpl_rich_get(id: str = ""):
+    """读富模板（供编辑器加载）；非富模板返回 ok=False 并附简单骨架预览。"""
+    from edu_agent import template_rich
+
+    if not id:
+        return {"ok": False, "error": "缺少 id"}
+    rich = template_rich.load_rich(id)
+    if rich is None:
+        spec = get_template(id)
+        return {"ok": False, "error": "该模板不是富模板（只有板块骨架）",
+                "preview": template_sketch(spec)}
+    return {"ok": True, "template": rich, "stats": template_rich.stats(rich)}
+
+
+@app.post("/api/template/rich/save")
+def api_tpl_rich_save(body: TplRichSave):
+    """保存编辑后的富模板（落 content/templates/<id>.json，可同时设为 Agent B 的当前模板）。"""
+    from edu_agent import template_rich
+
+    rich = dict(body.template or {})
+    src = rich.pop("_upload_path", None)
+    keep_source = bool(rich.pop("_keep_source", False))
+    rich.pop("_sync", None)          # 填充报告只是界面态，别落进模板 JSON
+    rich.pop("_sync_report", None)
+    # 只有「上传到数据目录的临时件」才允许删；其余（如模板原件）一律保留
+    tmp_path: Path | None = None
+    if src and not keep_source:
+        try:
+            cand = Path(src).resolve()
+            data_root = load_settings().data_dir.resolve()   # 跟随 EDU_DATA_DIR 配置
+            if data_root in cand.parents:
+                tmp_path = cand
+        except Exception:
+            tmp_path = None
+    try:
+        path = template_rich.save_rich(rich, docx_source=(None if keep_source else src),
+                                       set_current=body.set_current)
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": type(e).__name__ + ": " + str(e)}
+    if tmp_path is not None:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+    saved = template_rich.load_rich(rich.get("template_id", "")) or {}
+    return {"ok": True, "path": str(path), "template_id": saved.get("template_id"),
+            "name": saved.get("name"), "spec_version": saved.get("spec_version"),
+            "stats": template_rich.stats(saved), "current": get_current().template_id}
+
+
+@app.post("/api/template/delete")
+def api_tpl_delete(body: dict):
+    """删除一个已保存的模板（**软删**：移到 content/templates/_trash/，可手工找回）。
+
+    删的正是当前模板时，当前会自动切回内置 `default`——否则 Agent B 会指向一个不存在的模板。
+    """
+    from edu_agent import template_rich
+
+    try:
+        return template_rich.delete_template(str(body.get("template_id") or ""))
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
+@app.get("/api/template/blank")
+def api_tpl_blank(name: str = "新模板"):
+    """空白富模板（编辑器「新建」用）。"""
+    from edu_agent import template_rich
+
+    rich = template_rich.blank_rich(name)
+    return {"ok": True, "template": rich, "stats": template_rich.stats(rich)}
+
+
+# ---------- 选项①：让教案 Agent 依据课题产出「教案模板」（2026-09-12 一期） ----------
+class PlanTemplateReq(BaseModel):
+    topic: str = ""             # 课题；不传则取会话里最近一份教案的课题
+    goal: str = ""
+    session_id: str = ""
+    save: bool = True
+    set_current: bool = False
+
+
+def _last_plan_topic(sid: str) -> str:
+    """取会话里最近一条教案回答的课题（`# 标题`）。"""
+    sess = _store.get(sid) if sid else None
+    if not sess:
+        return ""
+    for m in reversed(sess.get("messages") or []):
+        if m.get("role") != "assistant":
+            continue
+        c = m.get("content") or ""
+        if (m.get("meta") or {}).get("mode") == "B" or "Agent B" in c[:60]:
+            mm = re.search(r"^#\s+(.+)$", c, re.M)
+            if mm:
+                return mm.group(1).strip()
+    return ""
+
+
+@app.post("/api/plan/template")
+def api_plan_template(body: PlanTemplateReq):
+    """产出一份可复用的教案模板：板块骨架 + 每板块填写提示 + 表格板块表头。"""
+    from edu_agent import planner, template_rich
+
+    topic = (body.topic or "").strip() or _last_plan_topic(body.session_id.strip())
+    if not topic:
+        return {"ok": False, "error": "缺少课题：先问一句或让教案 Agent 生成一份教案，再点「生成教案模板」"}
+    try:
+        rich = planner.make_template(topic, goal=(body.goal or "").strip())
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": f"模板生成失败：{type(e).__name__}: {e}"}
+    if not (rich.get("blocks") or []):
+        return {"ok": False, "error": "模型没有产出板块，请再点一次重试"}
+
+    path = None
+    if body.save:
+        try:
+            path = template_rich.save_rich(rich, set_current=body.set_current)
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": f"模板保存失败：{type(e).__name__}: {e}"}
+    return {"ok": True, "template": rich, "template_id": rich["template_id"],
+            "name": rich["name"], "stats": template_rich.stats(rich),
+            "skeleton": planner.template_to_markdown(rich),
+            "path": str(path) if path else None}
+
+
+# ---------- 选项③：把会话里的教案按板块填进模板（2026-09-12 二期） ----------
+class PlanFromTemplateReq(BaseModel):
+    markdown: str = ""          # 不传则取会话里最近一条教案（Agent B）
+    session_id: str = ""
+    template_id: str = ""       # 不传则用 Agent B 当前模板
+    save: bool = False          # 默认不落盘：交给教案中心编辑器继续改，满意后再「保存为模板」
+
+
+def _last_plan_markdown(sid: str) -> str:
+    """取会话里最近一条教案回答（Agent B / 总指挥出的）的原文。"""
+    sess = _store.get(sid) if sid else None
+    if not sess:
+        return ""
+    for m in reversed(sess.get("messages") or []):
+        if m.get("role") != "assistant":
+            continue
+        text = m.get("content") or ""
+        if (m.get("meta") or {}).get("mode") == "B" or "Agent B" in text[:60]:
+            return text
+    return ""
+
+
+@app.post("/api/plan/from-template")
+def api_plan_from_template(body: PlanFromTemplateReq):
+    """把一份教案正文按标题匹配填进所选模板的对应板块（返回填充后的富模板，默认不落盘）。
+
+    与「选项② 按模板生成」的区别：② 是让模型**重新生成**一份教案；这里不花模型调用，
+    而是把**已有**的教案正文灌进模板板块——老师可以在教案中心接着改，再「保存为模板」。
+    """
+    from edu_agent import plan_sync, template_rich
+
+    md = (body.markdown or "").strip()
+    if not md:
+        md = (_last_plan_markdown(body.session_id.strip())
+              or _last_plan_markdown(_store.current_id() or ""))
+        if not md:                       # 兜底：扫最近几个会话里的教案
+            for row in (_store.list_sessions() or [])[:10]:
+                md = _last_plan_markdown(row.get("id") or "")
+                if md:
+                    break
+    if not md:
+        return {"ok": False, "error": "没拿到教案内容：请先在会话里让教案 Agent 生成一份教案"}
+
+    tid = (body.template_id or "").strip() or get_current().template_id
+    known = {t.get("template_id") for t in list_templates()}
+    if tid not in known:
+        return {"ok": False, "error": f"没有模板「{tid}」：它可能已被删除，请重新选一个"}
+    rich = template_rich.load_rich(tid)
+    source_kind = "rich"
+    if rich is None:                     # 不是 v2 富模板
+        src = template_rich.ORIG_DIR / f"{tid}.docx"
+        if src.exists():                 # 有原件 -> 现场升级成富模板再填
+            rich = template_rich.docx_to_rich(src, template_id=tid, name=tid)
+            rich["_keep_source"] = True  # 原件不可删（见 api_tpl_rich_save）
+            source_kind = "upgraded"
+        else:                            # 骨架模板（含内置 default）-> 用板块名现搭结构
+            rich = plan_sync.rich_from_skeleton(get_template(tid))
+            source_kind = "skeleton"
+
+    res = plan_sync.sync(md, rich)
+    if not res.get("ok"):
+        return res
+    if body.save:
+        try:
+            template_rich.save_rich(res["template"], docx_source=None, set_current=False)
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": f"填充结果保存失败：{type(e).__name__}: {e}"}
+    res["template_id"] = tid
+    res["template_name"] = rich.get("name")
+    res["template_source"] = source_kind
+    res["template_upgraded"] = source_kind == "upgraded"
+    res["stats"] = template_rich.stats(res["template"])
+    res["blank_blocks"] = plan_sync.blank_blocks(res["template"])
+    return res
+
+
+# ---------- 三期：教案 PPT 预览（与真正生成共用同一解析，不写文件、不需要 WPS 能力） ----------
+@app.post("/api/plan/preview")
+def api_plan_preview(body: dict):
+    """教案 Markdown -> PPT 页结构（预览用）。
+
+    刻意**不查能力开关**：这只是看一眼会生成什么，不落盘、不碰 WPS。
+    导出（`/api/wps/export`）仍然受开关约束。
+    """
+    md = str(body.get("markdown") or "").strip() or _last_plan_markdown(
+        str(body.get("session_id") or "").strip() or (_store.current_id() or ""))
+    if not md:
+        return {"ok": False, "error": "没有可预览的教案内容：先让教案 Agent 生成一份教案"}
+    try:
+        data = wps_export.slides_from_markdown(md)
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    if not data.get("slides"):
+        return {"ok": False, "error": "这份内容里没有解析出可成页的环节/板块"}
+    return {"ok": True, "title": data.get("title") or "教案",
+            "slides": data["slides"], "source": data.get("source"),
+            "note": "每页 6 条要点；表格内容不进 PPT（留给 Word）"}
 
 
 # ---------- 会话 ----------
@@ -314,12 +591,60 @@ def _chat_gen(req: ChatReq):
         code = routing.decide(text)
 
     if code == "A":
-        yield from _stream_coach(sid, req, text)
+        yield from _with_plan_options(_stream_coach(sid, req, text), req, text, code)
         return
     if code == "S":
-        yield from _stream_supervisor(sid, req, text)
+        yield from _with_plan_options(_stream_supervisor(sid, req, text), req, text, code)
         return
-    yield from _stream_planner(sid, req, text)
+    yield from _with_plan_options(_stream_planner(sid, req, text), req, text, code)
+
+
+# ---------- 教案/PPT 联动：生成「生成教案模板 / 按模板生成」两个选项（2026-09-12 一期） ----------
+def _plan_options_event(req: ChatReq, text: str, code: str, last: dict | None) -> dict | None:
+    """是否需要给用户那两个选项。B（教案 Agent）恒给；A/S 看生成层带回的信号。"""
+    if code == "B":
+        reason = "plan_mode"
+    else:
+        po = (last or {}).get("plan_options") or {}
+        if not po.get("suggest"):
+            return None
+        reason = po.get("reason") or "intent"
+    try:
+        templates = list_templates()
+        current = get_current().template_id
+    except Exception:
+        templates, current = [], "default"
+    # 有没有「可以填进模板的教案正文」：本轮就是教案，或会话里已经出过教案
+    sid = (getattr(req, "session_id", "") or "").strip() or (_store.current_id() or "")
+    has_plan = code == "B" or bool(_last_plan_markdown(sid))
+    options = [
+        {"id": "gen_template", "label": "生成教案模板",
+         "hint": "把这节课抽成板块骨架（含填写提示与表格表头），存进模板库可反复套用"},
+        {"id": "use_template", "label": "按模板生成",
+         "hint": "选一个模板，教案 Agent 会严格按它的板块名称与顺序产出",
+         "templates": templates, "current": current},
+    ]
+    if has_plan:
+        options.append(
+            {"id": "fill_center", "label": "填入教案中心",
+             "hint": "不重新生成：把上面这份教案按标题填进模板对应板块，之后在教案中心接着改"})
+    return {
+        "t": "options", "kind": "plan", "reason": reason,
+        "topic": (text or "").strip()[:40],
+        "options": options,
+    }
+
+
+def _with_plan_options(gen, req: ChatReq, text: str, code: str):
+    """把 Agent 流原样透传，收尾时按需补一个 options 事件。"""
+    last = None
+    for ev in gen:
+        if isinstance(ev, dict) and ev.get("t") == "done":
+            last = ev
+        yield ev
+    opt = _plan_options_event(req, text, code, last)
+    if opt:
+        yield opt
 
 
 def _stream_coach(sid: str, req: ChatReq, text: str):
@@ -343,6 +668,7 @@ def _stream_coach(sid: str, req: ChatReq, text: str):
     acc = ""
     final_answer = ""
     citations = []
+    plan_opt: dict = {}
     try:
         for ev in ask_stream(text, history=history, memory_prefix=prefix, source=src,
                              persist_dir=pdir, collection=pcol):
@@ -353,6 +679,7 @@ def _stream_coach(sid: str, req: ChatReq, text: str):
             elif ty == "done":
                 final_answer = ev.get("answer_md") or acc
                 citations = ev.get("citations") or []
+                plan_opt = ev.get("plan_options") or {}
                 record_sections("default", citations)
     except Exception as e:
         yield {"t": "error", "text": "A 出错：" + type(e).__name__ + ": " + str(e)}
@@ -360,7 +687,10 @@ def _stream_coach(sid: str, req: ChatReq, text: str):
     _store.append(sid, "assistant", _tag("A") + final_answer,
                   meta={"mode": "A", "citations": citations,
                         "pages": sorted({c.get("page") for c in citations if c.get("page")})})
-    yield {"t": "done", "mode": "A", "text": final_answer, "citations": citations}
+    done = {"t": "done", "mode": "A", "text": final_answer, "citations": citations}
+    if plan_opt.get("suggest"):
+        done["plan_options"] = plan_opt
+    yield done
 
 
 def _stream_supervisor(sid: str, req: ChatReq, text: str):
@@ -640,7 +970,8 @@ def api_wps_export(body: dict):
         return wps_export.export(body.get("payload") or {},
                                  markdown=str(body.get("markdown") or ""),
                                  kind=str(body.get("kind") or "docx").lower(),
-                                 out_dir=(body.get("outDir") or "").strip() or None)
+                                 out_dir=(body.get("outDir") or "").strip() or None,
+                                 template=body.get("template") or None)
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": type(e).__name__ + ": " + str(e)}
 

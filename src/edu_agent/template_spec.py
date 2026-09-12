@@ -170,7 +170,11 @@ def save_template(spec: TemplateSpec, docx_source: str | Path | None = None) -> 
 
 
 def list_templates() -> list[dict]:
-    """列出可用模板（内置 default + content/templates/*.json，排除 _current）。"""
+    """列出可用模板（内置 default + content/templates/*.json，排除 _current）。
+
+    富模板（spec_version>=2，见 template_rich.py）会带 rich=True，UI 可据此进富编辑器。
+    `tables` 给「生成前预检」用：告诉老师这个模板里有几个表格板块。
+    """
     out = []
     if TEMPLATES_DIR.exists():
         for f in sorted(TEMPLATES_DIR.glob("*.json")):
@@ -178,24 +182,55 @@ def list_templates() -> list[dict]:
                 continue
             try:
                 d = json.loads(f.read_text(encoding="utf-8"))
+                blocks = d.get("blocks") or []
+                if int(d.get("spec_version") or 1) >= 2:
+                    tables = sum(1 for b in blocks
+                                 for e in (b.get("elements") or []) if e.get("type") == "table")
+                else:
+                    tables = sum(1 for b in blocks if b.get("type") == "table")
                 out.append({"template_id": d.get("template_id"), "name": d.get("name"),
-                            "blocks": len(d.get("blocks", []))})
+                            "blocks": len(blocks), "tables": tables,
+                            "rich": int(d.get("spec_version") or 1) >= 2})
             except Exception:
                 continue
     if not any(o["template_id"] == "default" for o in out):
         dt = default_template()
-        out.insert(0, {"template_id": "default", "name": dt.name, "blocks": len(dt.blocks)})
+        out.insert(0, {"template_id": "default", "name": dt.name, "blocks": len(dt.blocks),
+                       "tables": sum(1 for b in dt.blocks if b.type == "table"), "rich": False})
     return out
 
 
 def get_template(template_id: str) -> TemplateSpec:
-    """读指定模板；缺省回退 default。"""
-    if template_id == "default" or not template_id:
+    """读指定模板；缺省回退 default。
+
+    富模板（template_rich 写的 spec_version>=2）在这里**派生**成简单骨架，
+    因此 Agent B 的模板列表与教案中心的富编辑器共用同一批模板文件。
+
+    注：`default` 只有**在没有同名存档文件时**才用内置骨架。否则「按内置 default 填好教案 →
+    保存为模板」会出现「教案中心显示的是填好的那份、Agent B 却还在用内置骨架」的错位。
+    """
+    if not template_id:
         return default_template()
     p = TEMPLATES_DIR / f"{template_id}.json"
+    if template_id == "default" and not p.exists():
+        return default_template()
     if p.exists():
         try:
-            return TemplateSpec.from_dict(json.loads(p.read_text(encoding="utf-8")))
+            d = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            return default_template()
+        if int(d.get("spec_version") or 1) >= 2:
+            try:
+                from edu_agent import template_rich          # 延迟导入避免环
+
+                return TemplateSpec(template_id=d.get("template_id", template_id),
+                                    name=d.get("name", ""),
+                                    source=d.get("source", ""),
+                                    blocks=[Block(**b) for b in template_rich.derive_simple(d)])
+            except Exception:
+                return default_template()
+        try:
+            return TemplateSpec.from_dict(d)
         except Exception:
             pass
     return default_template()

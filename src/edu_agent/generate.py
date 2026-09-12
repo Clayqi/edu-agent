@@ -22,7 +22,7 @@ import time
 
 from pydantic import BaseModel, Field
 
-from edu_agent import logsetup, math_verify, preprocess, prompts, session
+from edu_agent import logsetup, math_verify, preprocess, prompts, routing, session
 from edu_agent.config import get_chat_llm
 from edu_agent.retrieve import retrieve
 
@@ -378,7 +378,12 @@ def ask_stream(question: str, history=None, memory_prefix: str = "",
     if not hits:
         yield {"type": "status", "text": "检索无结果"}
         rec = degrade(question, reason="检索为空")
-        yield {"type": "done", "answer_md": rec.answer_md, "citations": [], "coverage": "low", "confidence": 0.0}
+        done = {"type": "done", "answer_md": rec.answer_md, "citations": [],
+                "coverage": "low", "confidence": 0.0}
+        involves, why = routing.involves_plan_topic(question, hits)     # 意图信号仍可能命中
+        if involves:
+            done["plan_options"] = {"suggest": True, "reason": why}
+        yield done
         return
 
     blocks = []
@@ -458,8 +463,14 @@ def ask_stream(question: str, history=None, memory_prefix: str = "",
         coverage = "low"
         confidence = 0.0
     answer = math_verify.attach_verify(question, answer)
-    yield {"type": "done", "answer_md": answer, "citations": citations,
-           "coverage": coverage, "confidence": min(max(confidence, 0.0), 1.0)}
+    done = {"type": "done", "answer_md": answer, "citations": citations,
+            "coverage": coverage, "confidence": min(max(confidence, 0.0), 1.0)}
+    # 教案/PPT 联动（2026-09-12 一期）：涉及教案/PPT 时带上信号，
+    # 由 web 网关据此追加 options 事件、前端渲染两个选项。
+    involves, why = routing.involves_plan_topic(question, hits)
+    if involves:
+        done["plan_options"] = {"suggest": True, "reason": why}
+    yield done
 
 
 if __name__ == "__main__":

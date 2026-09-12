@@ -258,7 +258,7 @@ def involves_plan_topic(text: str, hits=None) -> bool:
 |---|---|
 | 代码 | `routing.py`、`prompts.py`、`generate.py`、`web_server.py`、`static/index.html`、`plan_sync.py`（复用）、`planner.py`（小改） |
 | 测试 | `tests/test_plan_link.py`（新）、`tests/test_plan_sync.py`（复用） |
-| 文档 | `docs/07-教案PPT意图联动.md`、`CHANGELOG` v1.10.0 |
+| 文档 | `docs/12-教案PPT意图联动.md`、`CHANGELOG` v1.10.0 |
 | 分支 | `feat/plan-link`（基于 `main`，与 WPS 适配层解耦） |
 
 **合计约 2 人日**（一期 0.5 / 二期 1 / 三期 0.5）。可先只做一期看效果再决定是否继续。

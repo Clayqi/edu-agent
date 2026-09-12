@@ -73,7 +73,9 @@ def template_obj_to_rich(obj: dict, fallback_name: str = "AI 生成模板") -> d
             if hint:
                 els.append(_para("（填写提示）" + hint))
         else:
-            els.append(_para(hint or "（在此填写内容）"))
+            # 段落板块的填写提示也带前缀（与表格板块一致）：① 生成的模板里一眼能分出
+            # 「这是提示」还是「这是内容」，教案中心也据此判断哪些板块还空着。
+            els.append(_para(("（填写提示）" + hint) if hint else "（在此填写内容）"))
         blocks.append({"id": tr._uid("b"), "kind": "section",
                        "level": max(1, min(tr.MAX_LEVEL, int(b.get("level") or 1))),
                        "title": title, "elements": els})

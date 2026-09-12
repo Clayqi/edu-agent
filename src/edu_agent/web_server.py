@@ -267,6 +267,77 @@ def api_plan_template(body: PlanTemplateReq):
             "path": str(path) if path else None}
 
 
+# ---------- 选项③：把会话里的教案按板块填进模板（2026-09-12 二期） ----------
+class PlanFromTemplateReq(BaseModel):
+    markdown: str = ""          # 不传则取会话里最近一条教案（Agent B）
+    session_id: str = ""
+    template_id: str = ""       # 不传则用 Agent B 当前模板
+    save: bool = False          # 默认不落盘：交给教案中心编辑器继续改，满意后再「保存为模板」
+
+
+def _last_plan_markdown(sid: str) -> str:
+    """取会话里最近一条教案回答（Agent B / 总指挥出的）的原文。"""
+    sess = _store.get(sid) if sid else None
+    if not sess:
+        return ""
+    for m in reversed(sess.get("messages") or []):
+        if m.get("role") != "assistant":
+            continue
+        text = m.get("content") or ""
+        if (m.get("meta") or {}).get("mode") == "B" or "Agent B" in text[:60]:
+            return text
+    return ""
+
+
+@app.post("/api/plan/from-template")
+def api_plan_from_template(body: PlanFromTemplateReq):
+    """把一份教案正文按标题匹配填进所选模板的对应板块（返回填充后的富模板，默认不落盘）。
+
+    与「选项② 按模板生成」的区别：② 是让模型**重新生成**一份教案；这里不花模型调用，
+    而是把**已有**的教案正文灌进模板板块——老师可以在教案中心接着改，再「保存为模板」。
+    """
+    from edu_agent import plan_sync, template_rich
+
+    md = (body.markdown or "").strip()
+    if not md:
+        md = (_last_plan_markdown(body.session_id.strip())
+              or _last_plan_markdown(_store.current_id() or ""))
+        if not md:                       # 兜底：扫最近几个会话里的教案
+            for row in (_store.list_sessions() or [])[:10]:
+                md = _last_plan_markdown(row.get("id") or "")
+                if md:
+                    break
+    if not md:
+        return {"ok": False, "error": "没拿到教案内容：请先在会话里让教案 Agent 生成一份教案"}
+
+    tid = (body.template_id or "").strip() or get_current().template_id
+    rich = template_rich.load_rich(tid)
+    upgraded = False
+    if rich is None:                     # 骨架模板：有原件就现场升级成富模板再填
+        src = template_rich.ORIG_DIR / f"{tid}.docx"
+        if not src.exists():
+            return {"ok": False, "error": f"模板「{tid}」不是可编辑模板（也没有原件可升级）；"
+                                          f"请先在教案中心「导入 .docx」或「新建空白」"}
+        rich = template_rich.docx_to_rich(src, template_id=tid, name=tid)
+        rich["_keep_source"] = True      # 原件不可删（见 api_tpl_rich_save）
+        upgraded = True
+
+    res = plan_sync.sync(md, rich)
+    if not res.get("ok"):
+        return res
+    if body.save:
+        try:
+            template_rich.save_rich(res["template"], docx_source=None, set_current=False)
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": f"填充结果保存失败：{type(e).__name__}: {e}"}
+    res["template_id"] = tid
+    res["template_name"] = rich.get("name")
+    res["template_upgraded"] = upgraded
+    res["stats"] = template_rich.stats(res["template"])
+    res["blank_blocks"] = plan_sync.blank_blocks(res["template"])
+    return res
+
+
 # ---------- 会话 ----------
 @app.post("/api/session/new")
 def api_sess_new():
@@ -501,16 +572,24 @@ def _plan_options_event(req: ChatReq, text: str, code: str, last: dict | None) -
         current = get_current().template_id
     except Exception:
         templates, current = [], "default"
+    # 有没有「可以填进模板的教案正文」：本轮就是教案，或会话里已经出过教案
+    sid = (getattr(req, "session_id", "") or "").strip() or (_store.current_id() or "")
+    has_plan = code == "B" or bool(_last_plan_markdown(sid))
+    options = [
+        {"id": "gen_template", "label": "生成教案模板",
+         "hint": "把这节课抽成板块骨架（含填写提示与表格表头），存进模板库可反复套用"},
+        {"id": "use_template", "label": "按模板生成",
+         "hint": "选一个模板，教案 Agent 会严格按它的板块名称与顺序产出",
+         "templates": templates, "current": current},
+    ]
+    if has_plan:
+        options.append(
+            {"id": "fill_center", "label": "填入教案中心",
+             "hint": "不重新生成：把上面这份教案按标题填进模板对应板块，之后在教案中心接着改"})
     return {
         "t": "options", "kind": "plan", "reason": reason,
         "topic": (text or "").strip()[:40],
-        "options": [
-            {"id": "gen_template", "label": "生成教案模板",
-             "hint": "把这节课抽成板块骨架（含填写提示与表格表头），存进模板库可反复套用"},
-            {"id": "use_template", "label": "按模板生成",
-             "hint": "选一个模板，教案 Agent 会严格按它的板块名称与顺序产出",
-             "templates": templates, "current": current},
-        ],
+        "options": options,
     }
 
 

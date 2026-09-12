@@ -122,15 +122,16 @@ def involves_plan_topic(text: str, hits=None) -> bool:
              "current":"default"}]}
 ```
 
-**c) 两个新接口**
+**c) 新接口**
 
 | 方法 | 路径 | 入参 | 行为 | 返回 |
 |---|---|---|---|---|
-| POST | `/api/plan/template` | `{session_id?, markdown?, topic?, save?:true}` | 取会话里最近教案（或传入 Markdown/课题）→ `TEMPLATE_SYSTEM` 生成模板 → 转 `template_rich` 存库 | `{ok, template_id, name, stats, template}` |
-| POST | `/api/plan/from-template` | `{session_id?, markdown?, template_id}` | Agent B 按该模板骨架生成（`planner.make_plan(template=…)`）；若已生成正文则直接**按板块填充**（复用 `plan_sync`） | `{ok, template, report, stats}` |
+| POST | `/api/plan/template` | `{session_id?, topic?, goal?, save?:true}` | 取会话里最近教案的课题（或传入课题）→ `TEMPLATE_SYSTEM` 生成模板 → 转 `template_rich` 存库 | `{ok, template_id, name, stats, skeleton, template}` |
+| POST | `/api/plan/from-template` | `{markdown?, session_id?, template_id?, save?:false}` | **不调模型**：把已有教案正文按标题填进模板板块（`plan_sync`），默认不落盘，交给编辑器 | `{ok, template, report, blank_blocks, stats}` |
 
-> 选项②两条实现路径：**重新生成**（没现成教案内容时）与**填充已有正文**（有内容时，用 `plan_sync`）。
-> 前者复用现成能力，后者 cherry-pick 撤回的实现。
+> 选项②的实现拆成了两步：**生成**沿用现成管道（`/api/chat` + `preset=B` + `template_id` → `planner.make_plan(template=…)`，
+> 后端一行没改），**填入**才是新接口 `/api/plan/from-template`。
+> 原计划把两件事压在一个接口里；拆开后 ② 复用了既有链路，填充能力也能被 ③ 单独调用（不花模型调用）。
 
 ### 4.3 前端（`static/index.html`）
 
@@ -206,13 +207,24 @@ def involves_plan_topic(text: str, hits=None) -> bool:
 
 **一期验收对照**：✅ 涉及教案的问题出现选项卡；✅ 普通答疑不出现（零打扰）；✅ 两个选项都能用（① 生成模板落库、② 按所选模板生成）。
 
-### 二期（待办，约 1 天）
-5. cherry-pick `plan_sync` + `/api/plan/from-template`（把已有教案正文**按板块填充**，而不只是重新生成）；
-6. 教案中心联动：生成后自动载入模板编辑器；空板块黄条提示。
+### 二期 ✅ 已完成（2026-09-12 · v1.10.0）
+
+| 项 | 落地位置 | 实测 |
+|---|---|---|
+| 取回 `plan_sync`（解析 / 标题匹配 / 填充） | `src/edu_agent/plan_sync.py` | 真实会话教案 + 仓库 20 板块模板 → 教学目标 / 教学过程 **1.0 命中** |
+| **不花模型调用**的填充接口 | `POST /api/plan/from-template` | 1 秒内返回填充后的富模板 + 报告（`matched`/`appended`/`unmatched_blocks`/`blank_blocks`） |
+| ③「填入教案中心」 | 选项卡第三项（**仅当会话里真有教案正文**） | 点击 → 编辑器载入；卡片给「匹配 N / 新增 M / 没匹配到 K / 还空着 J」 |
+| ② 生成后**自动填入** | `done` 事件后调填充接口 | 走真实接口：编辑器载入 **12 板块 / 18 段 / 6 表**；**不抢视图** |
+| 教案中心联动 + 空板块黄条 | 编辑器顶部灰条（报告）+ **黄条**（没匹配到 / 还空着） | 未保存的编辑**不被覆盖**（有保护与提示） |
+| 顺手修 | 模板表格**没有真表头**时填充结果仍被标 `header:true` → 内容行被当表头加粗、还被空板块判定跳过（"填了也报空"） | 改为如实标 `header` |
+| 顺手修 | ① 生成的模板里段落板块的填写提示**没有** `（填写提示）` 前缀（表格板块有） | 统一加前缀，空板块判定也据此 |
+| 测试 | `tests/test_plan_sync.py` **21 例** | 全量 **186 例通过** |
+
+**二期验收对照**：✅ ③ 一键填入且不调模型；✅ ② 生成完自动进教案中心；✅ 空板块黄条提示；✅ 未保存的编辑不被覆盖。
 
 ### 三期（待办，约 0.5 天）
 7. 对话里的导出条（Word/PPT/HTML/预览 + 位置 + 下载），抽出与教案中心共用的函数；
-8. 模板记忆打磨、生成前预检、导出前置校验、设置开关、文档 + 全量回归。
+8. 生成前预检、导出前置校验、设置开关、文档 + 全量回归。
 
 
 ---

@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 _PROJ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_PROJ / "src"))
@@ -121,12 +122,14 @@ class TestTemplateObjToRich(unittest.TestCase):
 class TestOptionsEvent(unittest.TestCase):
     class _Req:
         template_id = "default"
+        session_id = ""
 
     def test_plan_mode_always_gets_options(self):
         ev = ws._plan_options_event(self._Req(), "帮我生成教案", "B", None)
         self.assertIsNotNone(ev)
         self.assertEqual(ev["t"], "options")
-        self.assertEqual([o["id"] for o in ev["options"]], ["gen_template", "use_template"])
+        self.assertEqual([o["id"] for o in ev["options"]],
+                         ["gen_template", "use_template", "fill_center"])
         self.assertEqual(ev["reason"], "plan_mode")
         use = [o for o in ev["options"] if o["id"] == "use_template"][0]
         self.assertIn("templates", use)
@@ -137,6 +140,16 @@ class TestOptionsEvent(unittest.TestCase):
         ev = ws._plan_options_event(self._Req(), "这节课怎么安排", "A", last)
         self.assertIsNotNone(ev)
         self.assertEqual(ev["reason"], "retrieval")
+
+    def test_fill_option_only_when_there_is_a_plan(self):
+        """③「填入教案中心」只在会话里真有教案正文时出现（没东西可填就别给按钮）。"""
+        last = {"t": "done", "plan_options": {"suggest": True, "reason": "intent"}}
+        with mock.patch.object(ws, "_last_plan_markdown", return_value=""):
+            ev = ws._plan_options_event(self._Req(), "写个教案", "A", last)
+            self.assertEqual([o["id"] for o in ev["options"]], ["gen_template", "use_template"])
+        with mock.patch.object(ws, "_last_plan_markdown", return_value="# 幂函数\n**教学目标**\n- 理解"):
+            ev2 = ws._plan_options_event(self._Req(), "写个教案", "A", last)
+            self.assertIn("fill_center", [o["id"] for o in ev2["options"]])
 
     def test_coach_without_signal_no_options(self):
         self.assertIsNone(ws._plan_options_event(self._Req(), "什么是单调性", "A", {"t": "done"}))

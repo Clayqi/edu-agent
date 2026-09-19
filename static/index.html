@@ -424,11 +424,15 @@ svg{display:block}
     .dp-word th{background:var(--bg-soft);font-weight:600}
     .dp-word img{max-width:100%}
 
-    /* 右下角常驻入口：导入 / 查看 / 收起文档 */
-    #docPanelFab{position:fixed;right:18px;bottom:18px;z-index:60;border:.5px solid var(--line-strong);
-      background:var(--dark);color:#fff;border-radius:999px;padding:9px 16px;font-size:12.5px;font-family:var(--font);
-      box-shadow:var(--shadow-md);cursor:pointer}
+    /* 贴着右侧面板边缘的「把手」：面板关着时贴在屏幕右缘，展开后跟着面板左边缘走
+       （三态文字：没有文档=导入文档 / 有文档=查看文档 / 展开中=收起文档） */
+    #docPanelFab{position:fixed;right:0;top:44%;z-index:60;border:.5px solid var(--line-strong);border-right:none;
+      background:var(--dark);color:#fff;border-radius:9px 0 0 9px;padding:13px 6px;font-size:12px;font-family:var(--font);
+      writing-mode:vertical-rl;letter-spacing:2px;line-height:1;box-shadow:var(--shadow-md);cursor:pointer;
+      transition:right .18s ease}
     #docPanelFab:hover{opacity:.9}
+    /* 展开时贴到面板左边缘：面板自身 right:14px，所以把手 right = 14 + 面板宽（拖宽时自动跟随） */
+    body.dp-open #docPanelFab{right:calc(var(--docp-w,460px) + 14px)}
 
     /* ===== 会话内文档预览面板（右侧，可拖拽调宽；内存渲染，不落盘）===== */
     #docPanel{position:fixed;top:74px;right:14px;bottom:14px;width:var(--docp-w,460px);
@@ -688,7 +692,7 @@ svg{display:block}
             <div class="dp-bd" id="docPanelBody"></div>
             <div class="dp-ft" id="docPanelRes"></div>
           </aside>
-          <!-- 右下角常驻入口：没有文档=「导入文档」；有文档=「查看/收起文档」 -->
+          <!-- 贴着右侧面板边缘的把手：没有文档=「导入文档」；有文档=「查看/收起文档」 -->
           <button id="docPanelFab" title="导入或查看文档">导入文档</button>
 
         <!-- ===== Library (teacher) ===== -->
@@ -1811,7 +1815,7 @@ svg{display:block}
             if((m.meta && m.meta.mode) === 'B' || /Agent\s*B/.test(c.slice(0, 60))) planBodies.push(c);
           }
         });
-        /* 恢复历史时不自动弹面板（会盖住会话），但把最近一份**备好并亮起右下角入口**，
+        /* 恢复历史时不自动弹面板（会盖住会话），但把最近一份**备好并亮起右侧把手**，
            老师随时点一下就能看（刷新页面后也有入口，不再"关掉就找不回来"）。 */
         if(lastDoc){
           if(docpEnabled()){ DOCP = lastDoc; DOCP.kind = DOCP.kind || 'md'; docpSyncFab(); }
@@ -3167,12 +3171,12 @@ svg{display:block}
                stats: { chars: chars, blocks: blocks.length, slides: 0 },
                report: (extra && extra.report) || null });
   }
-  /* 重新展示当前文档（右下角常驻入口用） */
+  /* 重新展示当前文档（右侧边缘把手用） */
   function docpReveal(){
-    if(!DOCP){ showToast('还没有可预览的文档：问一句教案（如「帮我备一节 3.3 幂函数的课」），或点面板里的「导入」', false); return; }
+    if(!DOCP){ showToast('还没有可预览的文档：问一句教案（如「帮我备一节 3.3 幂函数的课」），或点右侧边缘的「导入文档」把手', false); return; }
     if(DOCP_ON) docpClose(); else docpOpen(DOCP);
   }
-  /* 右下角常驻入口：没有文档时是「导入文档」，有文档时是「查看/收起文档」
+  /* 右侧边缘把手：没有文档时是「导入文档」，有文档时是「查看/收起文档」
      —— 保证「关掉面板」「刷新页面」「只想导入自己的 .docx」三种情况都有入口 */
   function docpSyncFab(){
     var f = docpEl('docPanelFab'); if(!f) return;
@@ -3181,7 +3185,7 @@ svg{display:block}
     f.title = !DOCP ? '导入一份 .docx 到右侧预览（也能下载成 Word / PPT）'
                     : ('预览《' + (DOCP.title || '文档') + '》');
   }
-  /* 备好一份文档但**不弹面板**（历史恢复用）：拿到预览模型、亮起右下角入口 */
+  /* 备好一份文档但**不弹面板**（历史恢复用）：拿到预览模型、亮起右侧把手 */
   function docpArm(md, htmlName){
     if(!md || !String(md).trim()) return;
     spJson('/api/session/doc-preview', 'POST', { markdown: md, session_id: CUR || '' }).then(function(d){
@@ -3215,7 +3219,7 @@ svg{display:block}
     DOCP_ON = false;
     var p = docpEl('docPanel'); if(p) p.style.display = 'none';
     document.body.classList.remove('dp-open');
-    docpSyncFab();      /* 收起后右下角入口亮起，随时能再打开 */
+    docpSyncFab();      /* 收起后边缘把手亮起，随时能再打开 */
   }
   /* AI 输出文档后自动唤起：把 payload/markdown 交给纯内存接口，原样拿回预览模型。
      开关以**接口返回的 enabled** 为准（服务端唯一真相源）——不先等 capLoad()，
@@ -3277,7 +3281,7 @@ svg{display:block}
       b.addEventListener('click', function(){ docpTabSet(b.dataset.dp); });
     });
     /* 导入 .docx：只进预览，不进模板库。
-       隐藏 input 常驻（教案中心的「导入 .docx」与右下角入口都用它），所以 change 必须独立绑定。 */
+       隐藏 input 常驻（教案中心的「导入 .docx」与右侧边缘把手都用它），所以 change 必须独立绑定。 */
     var ifile = docpEl('docPanelFile');
     if(ifile){
       ifile.addEventListener('change', function(){
@@ -3285,7 +3289,7 @@ svg{display:block}
         ifile.value = '';
       });
     }
-    /* 右下角常驻入口：没有文档时=「导入文档」，有文档时=「查看/收起文档」 */
+    /* 右侧边缘把手：没有文档时=「导入文档」，有文档时=「查看/收起文档」 */
     var fab = docpEl('docPanelFab');
     if(fab) fab.addEventListener('click', function(){
       if(!DOCP){ if(ifile) ifile.click(); return; }   /* 空态直接开文件选择，解决"想导入却没有入口" */

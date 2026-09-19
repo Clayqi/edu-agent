@@ -424,15 +424,17 @@ svg{display:block}
     .dp-word th{background:var(--bg-soft);font-weight:600}
     .dp-word img{max-width:100%}
 
-    /* 贴着右侧面板边缘的「把手」：面板关着时贴在屏幕右缘，展开后跟着面板左边缘走
-       （三态文字：没有文档=导入文档 / 有文档=查看文档 / 展开中=收起文档） */
-    #docPanelFab{position:fixed;right:0;top:44%;z-index:60;border:.5px solid var(--line-strong);border-right:none;
-      background:var(--dark);color:#fff;border-radius:9px 0 0 9px;padding:13px 6px;font-size:12px;font-family:var(--font);
-      writing-mode:vertical-rl;letter-spacing:2px;line-height:1;box-shadow:var(--shadow-md);cursor:pointer;
-      transition:right .18s ease}
-    #docPanelFab:hover{opacity:.9}
-    /* 展开时贴到面板左边缘：面板自身 right:14px，所以把手 right = 14 + 面板宽（拖宽时自动跟随） */
-    body.dp-open #docPanelFab{right:calc(var(--docp-w,460px) + 14px)}
+    /* 收起态：面板自己缩成右缘一条竖把手（不再另设悬浮按钮 —— 右侧任何时候只有一条框，
+       入口与预览窗口都在面板里）。点它展开；展开后由标题栏的 × 收回。
+       放在 #docPanel 基础样式之后，才能覆盖它的 width / min-width / top。 */
+    #docPanel.dp-collapsed{width:30px;min-width:0;max-width:none;right:0;top:38%;bottom:auto;
+      border-radius:9px 0 0 9px;cursor:pointer;box-shadow:var(--shadow-md)}
+    #docPanel.dp-collapsed > *{display:none}
+    #docPanel.dp-collapsed > #docPanelStrip{display:block}
+    #docPanelStrip{display:none;width:100%;border:0;background:var(--dark);color:#fff;cursor:pointer;
+      writing-mode:vertical-rl;letter-spacing:2px;font-size:12px;font-family:var(--font);
+      padding:14px 0;line-height:1}
+    #docPanelStrip:hover{opacity:.9}
 
     /* ===== 会话内文档预览面板（右侧，可拖拽调宽；内存渲染，不落盘）===== */
     #docPanel{position:fixed;top:74px;right:14px;bottom:14px;width:var(--docp-w,460px);
@@ -441,6 +443,31 @@ svg{display:block}
     #docPanel.dp-drag,#docPanel.dp-drag *{cursor:col-resize;user-select:none}
     #docPanelGrip{position:absolute;left:0;top:0;bottom:0;width:8px;cursor:col-resize;z-index:3}
     #docPanelGrip:hover,#docPanel.dp-drag #docPanelGrip{background:var(--blue);opacity:.18}
+    /* 编辑工具栏（文档页签）：改完同步到 Markdown / 幻灯片 / 导出 */
+    .dp-fmt{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 12px;border-bottom:.5px solid var(--line);flex:none}
+    .dp-fmt button{height:26px;min-width:30px;padding:0 8px;font-size:12px;border:.5px solid var(--line-strong);
+      background:var(--bg);border-radius:7px;cursor:pointer;color:var(--ink-700);font-family:var(--font)}
+    .dp-fmt button:hover{background:var(--bg-soft)}
+    .dp-fmt button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+    .dp-fmt-tip{font-size:11.5px;color:var(--ink-400);margin-left:2px}
+    /* 可编辑的文档正文：聚焦时给个淡边框，别让人猜"能不能改" */
+    .dp-word[contenteditable="true"]{outline:none;border-radius:8px;padding:10px 12px;margin:-10px -12px}
+    .dp-word[contenteditable="true"]:hover{background:rgba(0,0,0,.015)}
+    .dp-word[contenteditable="true"]:focus{background:rgba(0,0,0,.02);box-shadow:inset 0 0 0 1.5px var(--blue)}
+    .dp-mdta{width:100%;min-height:420px;border:.5px solid var(--line);border-radius:8px;padding:10px 12px;
+      font-family:ui-monospace,Consolas,monospace;font-size:12.5px;line-height:1.7;color:var(--ink-800);
+      background:var(--bg-soft);resize:vertical}
+    /* 幻灯片：面板内的 16:9 预览台（不再开新窗口） */
+    .dp-stage{background:#0f172a;color:#fff;border-radius:10px;padding:16px 18px;margin-bottom:12px;
+      aspect-ratio:16/9;overflow:hidden;display:flex;flex-direction:column;gap:8px}
+    .dp-stage h4{font-size:17px;font-weight:700;margin:0}
+    .dp-stage ul{margin:0 0 0 20px;padding:0;font-size:12.5px;line-height:1.75}
+    .dp-stage .cap{font-size:11px;color:#93a4c3;margin-top:auto}
+    .dp-slide{cursor:pointer}
+    .dp-slide.dp-cur{box-shadow:0 0 0 1.5px var(--blue)}
+    .dp-pagebar{display:flex;gap:6px;align-items:center;margin-bottom:10px;font-size:12px;color:var(--ink-500)}
+    .dp-pagebar button{height:24px;padding:0 9px;font-size:12px;border:.5px solid var(--line-strong);background:var(--bg);
+      border-radius:6px;cursor:pointer;color:var(--ink-700)}
     .dp-hd{display:flex;gap:6px;align-items:center;padding:9px 10px 9px 14px;border-bottom:.5px solid var(--line);flex:none}
     .dp-title{font-size:13.5px;font-weight:600;color:var(--ink-800);max-width:34%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .dp-stat{font-size:11.5px;color:var(--ink-400);white-space:nowrap}
@@ -661,25 +688,30 @@ svg{display:block}
 
         </div>
 
-          <!-- ===== 会话内文档预览（内存渲染：不落盘、不调用 WPS；导出才走 /api/wps/export）===== -->
-          <aside id="docPanel" style="display:none">
+          <!-- ===== 会话内文档预览（内存渲染：不落盘、不调用 WPS；导出才走 /api/wps/export）=====
+               收起态 = 面板自己缩成右缘的一条竖把手（#docPanelStrip），不再另设悬浮按钮：
+               右侧任何时候只有一条框，入口与预览窗口都在面板里。 -->
+          <aside id="docPanel" class="dp-collapsed">
+            <button id="docPanelStrip" title="查看 / 导入文档">导入文档</button>
             <div id="docPanelGrip" title="拖动调整宽度（双击复位）"></div>
             <input type="file" id="docPanelFile" accept=".docx" style="display:none">
             <div class="dp-hd">
               <span class="dp-title" id="docPanelTitle">文档预览</span>
               <span class="dp-stat" id="docPanelStat"></span>
               <span style="flex:1"></span>
+              <!-- 导入：面板自己的入口（收起时用左缘那条把手） -->
+              <button class="pill-btn dp-mini" id="docPanelImport" title="导入一份 .docx 到面板里看、改、下载">导入</button>
               <!-- 下载：三个出口合并成一个按钮，鼠标悬停弹出要选的下载方式 -->
               <span class="dp-dl" id="docPanelDown">
                 <button class="pill-btn dp-mini dark" id="docPanelDownBtn" title="下载这份文档（鼠标悬停选择格式）">下载<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" style="margin-left:3px;vertical-align:-1px"><path d="M6 9l6 6 6-6"/></svg></button>
                 <div class="dp-menu" id="docPanelMenu">
                   <button data-dl="docx"><b>Word（.docx）</b><span>经 WPS 导出 · 落盘</span></button>
                   <button data-dl="pptx"><b>PPT（.pptx）</b><span>本地生成 · 每环节一页</span></button>
-                  <button data-dl="html"><b>HTML</b><span>服务端网页版 · 直接下载</span></button>
+                  <button data-dl="html"><b>HTML</b><span>网页版 · 直接下载</span></button>
                 </div>
               </span>
               <button class="pill-btn dp-mini" id="docPanelDir" title="导出位置（与教案中心共用同一个记忆）">位置</button>
-              <button class="dp-x" id="docPanelClose" title="关闭预览">×</button>
+              <button class="dp-x" id="docPanelClose" title="收起预览（缩成右缘把手，随时能再打开）">×</button>
             </div>
             <div class="dp-tabs">
               <button class="dp-tab dp-on" data-dp="doc">文档</button>
@@ -689,11 +721,20 @@ svg{display:block}
               <span style="flex:1"></span>
               <span class="dp-note">右侧为内存预览效果，实际排版以导出 WPS 文件为准</span>
             </div>
+            <!-- 文档 Tab 的编辑工具栏（只在「文档」页签出现；改完同步到 Markdown / 幻灯片 / 导出） -->
+            <div class="dp-fmt" id="docPanelFmt" style="display:none">
+              <button data-fmt="bold" title="加粗"><b>B</b></button>
+              <button data-fmt="italic" title="斜体"><i>I</i></button>
+              <button data-fmt="h2" title="大标题">H2</button>
+              <button data-fmt="h3" title="小标题">H3</button>
+              <button data-fmt="ul" title="项目符号">• 列表</button>
+              <button data-fmt="ol" title="编号列表">1. 列表</button>
+              <button data-fmt="clear" title="清除格式">清格式</button>
+              <span class="dp-fmt-tip" id="docPanelFmtTip">可直接在下面改；改动会同步到 Markdown、幻灯片与导出</span>
+            </div>
             <div class="dp-bd" id="docPanelBody"></div>
             <div class="dp-ft" id="docPanelRes"></div>
           </aside>
-          <!-- 贴着右侧面板边缘的把手：没有文档=「导入文档」；有文档=「查看/收起文档」 -->
-          <button id="docPanelFab" title="导入或查看文档">导入文档</button>
 
         <!-- ===== Library (teacher) ===== -->
         <div class="view" id="view-library">
@@ -1826,7 +1867,7 @@ svg{display:block}
         /* 恢复历史时不自动弹面板（会盖住会话），但把最近一份**备好并亮起右侧把手**，
            老师随时点一下就能看（刷新页面后也有入口，不再"关掉就找不回来"）。 */
         if(lastDoc){
-          if(docpEnabled()){ DOCP = lastDoc; DOCP.kind = DOCP.kind || 'md'; docpSyncFab(); }
+          if(docpEnabled()){ DOCP = lastDoc; DOCP.kind = DOCP.kind || 'md'; docpSyncEdge(); }
         } else if(planBodies.length){
           docpArm(planBodies[planBodies.length - 1], d.last_html || '');
         }
@@ -2633,9 +2674,18 @@ svg{display:block}
     dzPersist();
   }
   function dzExportPpt(){ dzExportRun('pptx', document.getElementById('dzExportPpt')); }
-  function dzPreviewPPT(){ expPreviewSlides(DZ.steps.map(function(s){
+  /* 编排台的「预览 PPT」也不再开新窗口：把这几页送进**右侧面板**的「幻灯片」页签看 */
+  function dzPreviewPPT(){
+    var slides = DZ.steps.map(function(s){
       return { name: s.name, minutes: parseInt(s.minutes, 10) || 0, bullets: dzBullets(s) };
-    }), DZ.title || 'PPT 预览', ''); }
+    });
+    if(!docpEnabled()){ showToast('会话文档预览已关闭（Skill 市场可开）', false); return; }
+    DOCP_PAGE = 0;
+    docpOpen({ kind: 'md', title: DZ.title || 'PPT 预览', markdown: '', slides: slides,
+               blocks: DZ.steps.map(function(s){ return { title: s.name || '', level: 2, chars: 0 }; }),
+               stats: { chars: 0, blocks: DZ.steps.length, slides: slides.length, minutes: 0 } });
+    docpTabSet('slides');
+  }
   (function dzBind(){
     var box = document.getElementById('dzSteps'),
         sl = document.getElementById('dzSlides'),
@@ -2925,8 +2975,27 @@ svg{display:block}
     docpRender();
   }
   function docpResult(html){ var el = docpEl('docPanelRes'); if(el) el.innerHTML = html || ''; }
-  /* 直接下载服务端已落的网页版（不落新文件、不碰 WPS） */
+  /* HTML 下载：改过 → 用面板里的改后内容在**内存**里生成一份（不落盘、不碰 WPS）；
+     没改过就直连服务端已落的那份网页版。 */
   function docpDownloadHtml(){
+    var edited = !!(DOCP && (DOCP.docHtml || (DOCP.__orig !== undefined && (DOCP.markdown || '') !== DOCP.__orig)));
+    if(edited){
+      var name = (DOCP.title || '文档') + '.html';
+      var html = '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>' + escHtml(DOCP.title || '文档') +
+        '</title><style>body{max-width:820px;margin:32px auto;padding:0 20px;font:15px/1.9 -apple-system,"Microsoft YaHei",sans-serif;color:#1a1a1b}' +
+        'h1{font-size:24px}h2{font-size:19px}h3{font-size:16px}table{width:100%;border-collapse:collapse}' +
+        'th,td{border:1px solid #d0d5dd;padding:6px 9px;text-align:left}th{background:#f6f7f9}</style></head><body>' +
+        dpSanitize(DOCP.docHtml || dpMarkdownToHtml(DOCP.markdown || ''), DOCP.markdown) + '</body></html>';
+      try{
+        var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        var bu = URL.createObjectURL(blob), ba = document.createElement('a');
+        ba.href = bu; ba.download = name;
+        document.body.appendChild(ba); ba.click(); ba.remove();
+        setTimeout(function(){ try{ URL.revokeObjectURL(bu); }catch(e){} }, 5000);
+        docpResult('<span style="color:#16a34a">✓ ' + escHtml(name) + '</span>　改后版本（面板内存生成，服务端未落盘）');
+      }catch(e){ docpResult('生成失败：' + escHtml(e.message || String(e))); }
+      return;
+    }
     if(DOCP && DOCP.html){
       var u = '/files/' + encodeURIComponent(DOCP.html);
       var a = document.createElement('a');
@@ -3007,17 +3076,29 @@ svg{display:block}
     }
     return mdLight(md);                                          /* 降级：现有迷你渲染器 */
   }
-  /* Markdown Tab：marked 解析内存 md → 富文本；XSS 过 DOMPurify */
+  /* Markdown Tab：可直接编辑源码（改完自动回流到「文档」与「幻灯片」） */
   function docpRenderMd(bd){
     var md = DOCP.markdown || '';
-    if(!md.trim()){
-      bd.innerHTML = '<div class="dp-empty">' +
-        (DOCP.kind === 'rich' ? '这是导入的 .docx：没有 Markdown 源，看「文档」页签' : '没有 Markdown 内容') + '</div>';
+    if(!md.trim() && DOCP.kind === 'rich'){
+      bd.innerHTML = '<div class="dp-empty">这是导入的 .docx：没有 Markdown 源。' +
+        '到「文档」页签改正文，改完这里就会有 Markdown</div>';
       return;
     }
-    bd.innerHTML = dpMarkdownToHtml(md);
+    bd.innerHTML = '<div class="dp-empty" style="margin-bottom:8px">直接改下面的 Markdown，' +
+      '改完自动回流到「文档」「幻灯片」与导出</div>' +
+      '<textarea class="dp-mdta" id="dpMdTa" spellcheck="false"></textarea>';
+    var ta = docpEl('dpMdTa');
+    if(!ta) return;
+    ta.value = md;
+    ta.addEventListener('input', function(){
+      DOCP.markdown = ta.value;
+      DOCP.docHtml = null;            /* 以 Markdown 为准：文档页签下次按新 md 渲染 */
+      docpEditQueue();
+    });
+    ta.addEventListener('blur', function(){ docpEditFlush(); });
   }
-  /* 文档 Tab（Word 样式预览）：① 导入的 .docx → mammoth；② 结构化 payload → 同口径类 Word 排版 */
+  /* 文档 Tab（Word 样式预览）：① 改过的正文 ② 导入的 .docx → mammoth ③ 结构化 payload → 类 Word 排版
+     三种都是**可直接编辑**的（contenteditable），改动回流到 markdown。 */
   function docpRenderDocDocx(bd, buf){
     if(!(window.mammoth && window.mammoth.convertToHtml)){
       docpRenderDocPayload(bd); return;
@@ -3028,14 +3109,18 @@ svg{display:block}
                  "p[style-name='Heading 2'] => h2:fresh",
                  "p[style-name='Heading 3'] => h3:fresh"]
     }).then(function(r){
-      bd.innerHTML = '<div class="dp-word">' + dpSanitize(r.value) + '</div>';
+      docpFillDoc(bd, dpSanitize(r.value));
     }).catch(function(){ docpRenderDocPayload(bd); });
   }
   function docpRenderDocPayload(bd){
-    var inner = DOCP.rich ? docpRichHtml(DOCP.rich) : dpMarkdownToHtml(DOCP.markdown || '');
-    bd.innerHTML = '<div class="dp-word">' + inner + '</div>';
+    docpFillDoc(bd, DOCP.rich ? docpRichHtml(DOCP.rich) : (DOCP.docHtml || dpMarkdownToHtml(DOCP.markdown || '')));
+  }
+  function docpFillDoc(bd, innerHtml){
+    bd.innerHTML = '<div class="dp-word" contenteditable="true" spellcheck="false">' + innerHtml + '</div>';
+    docpBindDocEdit(bd);
   }
   function docpRenderDoc(bd){
+    if(DOCP.docHtml){ docpFillDoc(bd, DOCP.docHtml); return; }   /* 改过的正文优先，别被重新渲染冲掉 */
     var buf = DOCP && DOCP.docxBuffer;
     if(buf){ docpRenderDocDocx(bd, buf); return; }               /* 导入的 .docx → mammoth */
     docpRenderDocPayload(bd);                                    /* Agent payload → 同口径渲染 */
@@ -3067,6 +3152,17 @@ svg{display:block}
     }
     return deck;
   }
+  /* 幻灯片 Tab：pptxgenjs 在前端内存里建页（不落盘），16:9 预览台**就在面板里**
+     （原来的「在新窗口看」已去掉 —— 预览窗口统一收进侧边面板）。 */
+  var DOCP_PAGE = 0;
+  function docpStageHtml(sl){
+    var s = sl[DOCP_PAGE] || {};
+    var bs = (s.bullets || []).slice(0, 6);
+    return '<div class="dp-stage"><h4>' + escHtml(s.name || '') + '</h4>' +
+      (bs.length ? '<ul>' + bs.map(function(x){ return '<li>' + escHtml(x) + '</li>'; }).join('') + '</ul>' : '') +
+      '<div class="cap">第 ' + (DOCP_PAGE + 1) + ' / ' + sl.length + ' 页' +
+      (s.minutes ? ('　' + escHtml(String(s.minutes)) + ' 分钟') : '') + '　16:9 预览（面板内）</div></div>';
+  }
   function docpRenderSlides(bd){
     var deck = docpBuildDeck(), sl = deck.slides || [];
     if(!sl.length){
@@ -3075,16 +3171,32 @@ svg{display:block}
                               : '没有解析出可成页的环节 / 板块') + '</div>';
       return;
     }
-    bd.innerHTML = sl.map(function(s, i){
-      var bs = (s.bullets || []).slice(0, 6);
-      return '<div class="dp-slide"><div class="n">第 ' + (i + 1) + ' / ' + sl.length + ' 页' +
-        (s.minutes ? ('　' + escHtml(String(s.minutes)) + ' 分钟') : '') + '</div>' +
-        '<h4>' + escHtml(s.name || '') + '</h4>' +
-        (bs.length ? ('<ul>' + bs.map(function(x){ return '<li>' + escHtml(x) + '</li>'; }).join('') + '</ul>') : '') +
-        '</div>';
-    }).join('') + '<button class="pill-btn" id="dpOpenWin">在新窗口看（16:9）</button>';
-    var ow = docpEl('dpOpenWin');
-    if(ow) ow.onclick = function(){ expPreviewSlides(sl, deck.title, ''); };
+    if(DOCP_PAGE >= sl.length) DOCP_PAGE = sl.length - 1;
+    if(DOCP_PAGE < 0) DOCP_PAGE = 0;
+    bd.innerHTML = docpStageHtml(sl) +
+      '<div class="dp-pagebar"><button data-pg="prev">上一页</button>' +
+      '<span>第 ' + (DOCP_PAGE + 1) + ' / ' + sl.length + ' 页　点下面的卡片可直接跳页</span>' +
+      '<button data-pg="next">下一页</button></div>' +
+      sl.map(function(s, i){
+        var bs = (s.bullets || []).slice(0, 6);
+        return '<div class="dp-slide' + (i === DOCP_PAGE ? ' dp-cur' : '') + '" data-pg="' + i + '">' +
+          '<div class="n">第 ' + (i + 1) + ' / ' + sl.length + ' 页' +
+          (s.minutes ? ('　' + escHtml(String(s.minutes)) + ' 分钟') : '') + '</div>' +
+          '<h4>' + escHtml(s.name || '') + '</h4>' +
+          (bs.length ? ('<ul>' + bs.map(function(x){ return '<li>' + escHtml(x) + '</li>'; }).join('') + '</ul>') : '') +
+          '</div>';
+      }).join('');
+    Array.prototype.forEach.call(bd.querySelectorAll('[data-pg]'), function(el){
+      el.addEventListener('click', function(){
+        var v = el.dataset.pg;
+        if(v === 'prev') DOCP_PAGE--;
+        else if(v === 'next') DOCP_PAGE++;
+        else DOCP_PAGE = parseInt(v, 10) || 0;
+        if(DOCP_PAGE < 0) DOCP_PAGE = 0;
+        if(DOCP_PAGE > sl.length - 1) DOCP_PAGE = sl.length - 1;
+        docpRenderSlides(bd);
+      });
+    });
   }
   /* 结构 Tab：板块清单 + 原始结构化 JSON 大纲 */
   function docpRenderOutline(bd){
@@ -3110,12 +3222,196 @@ svg{display:block}
     if(DOCP_TAB === 'md')            docpRenderMd(bd);
     else if(DOCP_TAB === 'slides')   docpRenderSlides(bd);
     else if(DOCP_TAB === 'outline')  docpRenderOutline(bd);
-    else                             docpRenderDoc(bd);        /* 文档（Word 样式） */
+    else                             docpRenderDoc(bd);        /* 文档（Word 样式，可编辑） */
+    /* 编辑工具栏只在「文档」页签出现（也只有这时才有可编辑正文） */
+    var bar = docpEl('docPanelFmt');
+    if(bar) bar.style.display = (DOCP_TAB === 'doc' && !!(DOCP.markdown || DOCP.rich || DOCP.docxBuffer))
+      ? 'flex' : 'none';
+    docpUpdateStat();
+  }
+  /* 标题栏那行标题 + 统计（编辑后单独刷新它，不动正文，避免打断输入） */
+  function docpUpdateStat(){
+    if(!DOCP) return;
     var ti = docpEl('docPanelTitle'); if(ti) ti.textContent = DOCP.title || '文档预览';
     var se = docpEl('docPanelStat'), st = DOCP.stats || {};
     if(se) se.textContent = (DOCP.kind === 'rich')
       ? ('导入文档 · ' + (st.blocks || (DOCP.blocks || []).length) + ' 板块')
       : ((st.chars || 0) + ' 字 · ' + (st.slides || 0) + ' 页');
+    docpSyncEdge();
+  }
+  /* ==== 编辑层：预览文档可以直接改 ============================================
+     数据源仍是 **markdown**：文档页签改了 → 转回 markdown；Markdown 页签改了 → 直接用。
+     改完 400ms 回流到 /api/session/doc-preview（纯内存派生板块 / 幻灯片 / 统计 / 标题），
+     派生字段更新但**不重渲染正在编辑的正文**（否则光标会跳）。
+     导出（Word / PPT / HTML）用的就是这份改后的 markdown。改动还会镜像到 localStorage，
+     键里带会话与标题，且只在"原文没被别人改过"时恢复（见 docpEditLoad）。 */
+  var DOCP_EDIT_KEY = 'edu_docp_edit_v1';
+  var docpEditTimer = null;
+
+  function docpEditKey(){
+    return !DOCP ? '' : (DOCP_EDIT_KEY + '|' + (CUR || '') + '|' + (DOCP.title || ''));
+  }
+  /* 打开一份文档时登记"原文"，并把上次的改动取回来（仅当原文一致，避免张冠李戴） */
+  function docpEditLoad(){
+    if(!DOCP) return;
+    if(DOCP.__orig === undefined) DOCP.__orig = DOCP.markdown || '';
+    try{
+      var o = JSON.parse(localStorage.getItem(docpEditKey()) || 'null');
+      if(o && o.md && o.orig === DOCP.markdown && o.md !== DOCP.markdown){
+        DOCP.markdown = o.md;
+        DOCP.docHtml = null;
+        DOCP.__edited = true;
+        docpFmtTip(true);
+      }
+    }catch(e){}
+  }
+  function docpEditSave(){
+    if(!DOCP) return;
+    try{
+      var k = docpEditKey();
+      if(DOCP.__orig === undefined) DOCP.__orig = DOCP.markdown || '';
+      if((DOCP.markdown || '') === DOCP.__orig){ localStorage.removeItem(k); return; }   /* 改回原样 → 不留痕 */
+      localStorage.setItem(k, JSON.stringify({ orig: DOCP.__orig, md: DOCP.markdown || '' }));
+    }catch(e){}
+  }
+  function docpEditFlush(){
+    if(docpEditTimer){ clearTimeout(docpEditTimer); docpEditTimer = null; }
+    docpEditSave();
+  }
+  function docpEditQueue(){
+    docpFmtTip(true);
+    if(docpEditTimer) clearTimeout(docpEditTimer);
+    docpEditTimer = setTimeout(function(){ docpEditTimer = null; docpRederive(); }, 400);
+  }
+  function docpFmtTip(edited){
+    var t = docpEl('docPanelFmtTip'); if(!t) return;
+    t.textContent = edited ? '已修改：Markdown / 幻灯片 / 导出都用改后的内容（刷新后仍保留）'
+                           : '可直接在下面改；改动会同步到 Markdown、幻灯片与导出';
+  }
+  /* 改完回流：markdown → 服务端纯内存派生（板块 / 幻灯片 / 统计 / 标题） */
+  function docpRederive(){
+    if(!DOCP) return;
+    docpEditSave();
+    var md = DOCP.markdown || '';
+    spJson('/api/session/doc-preview', 'POST', { markdown: md, session_id: CUR || '' }).then(function(d){
+      if(!d || !d.ok || !d.enabled || !DOCP) return;
+      DOCP.slides = d.slides || [];
+      DOCP.blocks = d.blocks || [];
+      DOCP.stats = d.stats || {};
+      if(d.title) DOCP.title = d.title;
+      docpUpdateStat();
+      /* 正在编辑的两个页签不重渲染（会打断输入），其他页签跟着刷新 */
+      if(DOCP_TAB !== 'doc' && DOCP_TAB !== 'md') docpRender();
+    }).catch(function(){});
+  }
+  /* 文档页签改动：抓 DOM → HTML 存起来（切页签不丢）→ 转回 markdown */
+  function docpDocChanged(){
+    var w = docpDocWord(); if(!w || !DOCP) return;
+    DOCP.docHtml = w.innerHTML;
+    DOCP.markdown = dpHtmlToMd(w);
+    if(DOCP.kind === 'rich') DOCP.kind = 'md';    /* 改过之后按 Markdown 口径导出 */
+    docpEditQueue();
+  }
+  function docpDocWord(){
+    var bd = docpEl('docPanelBody');
+    return bd ? bd.querySelector('.dp-word[contenteditable]') : null;
+  }
+  function docpBindDocEdit(bd){
+    var w = bd.querySelector('.dp-word[contenteditable]');
+    if(!w) return;
+    w.addEventListener('input', docpDocChanged);
+    w.addEventListener('blur', function(){ docpEditFlush(); });
+    docpFmtTip(!!DOCP.__edited);
+  }
+  /* 编辑工具栏：加粗 / 斜体 / 标题 / 列表 / 清格式（execCommand 够用，不引库） */
+  function docpBindFmt(){
+    var bar = docpEl('docPanelFmt'); if(!bar) return;
+    bar.addEventListener('mousedown', function(e){ e.preventDefault(); });   /* 别把选区抢走 */
+    Array.prototype.forEach.call(bar.querySelectorAll('button[data-fmt]'), function(b){
+      b.addEventListener('click', function(){
+        var w = docpDocWord();
+        if(!w){ showToast('先切到「文档」页签再改', false); return; }
+        w.focus();
+        var c = b.dataset.fmt;
+        try{
+          if(c === 'bold')            document.execCommand('bold');
+          else if(c === 'italic')     document.execCommand('italic');
+          else if(c === 'h2')         document.execCommand('formatBlock', false, 'H2');
+          else if(c === 'h3')         document.execCommand('formatBlock', false, 'H3');
+          else if(c === 'ul')         document.execCommand('insertUnorderedList');
+          else if(c === 'ol')         document.execCommand('insertOrderedList');
+          else if(c === 'clear')      document.execCommand('removeFormat');
+        }catch(e){}
+        docpDocChanged();
+      });
+    });
+  }
+  /* 编辑后的正文 → Markdown（只认我们渲染出来的那几类块：标题/段落/列表/表格/引用/代码） */
+  function dpHtmlToMd(root){
+    var out = [];
+    function inline(node){
+      var s = '';
+      Array.prototype.forEach.call(node.childNodes || [], function(n){
+        if(n.nodeType === 3){ s += n.nodeValue; return; }
+        if(n.nodeType !== 1) return;
+        var tag = (n.tagName || '').toLowerCase(), inner = inline(n);
+        if(tag === 'br') s += '\n';
+        else if(tag === 'strong' || tag === 'b') s += '**' + inner + '**';
+        else if(tag === 'em' || tag === 'i')     s += '*' + inner + '*';
+        else if(tag === 'code')                  s += '`' + inner + '`';
+        else if(tag === 'a')                     s += '[' + inner + '](' + (n.getAttribute('href') || '') + ')';
+        else if(tag === 'u' || tag === 's' || tag === 'span' || tag === 'font') s += inner;
+        else                                     s += inner;
+      });
+      return String(s).replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
+    }
+    function walk(node, indent, quote){
+      Array.prototype.forEach.call(node.children || [], function(el){
+        var tag = (el.tagName || '').toLowerCase();
+        var pre = new Array(indent + 1).join('  ');
+        if(tag === 'h1' || tag === 'h2' || tag === 'h3' || tag === 'h4' || tag === 'h5'){
+          out.push('', new Array(parseInt(tag.charAt(1), 10) + 1).join('#') + ' ' + inline(el));
+        } else if(tag === 'p' || tag === 'div'){
+          var hasBlock = el.querySelector && el.querySelector('h1,h2,h3,h4,p,ul,ol,table,blockquote,pre');
+          if(hasBlock) walk(el, indent, false);
+          else { var t = inline(el); if(t) out.push((quote ? '> ' : '') + pre + t); }
+        } else if(tag === 'ul' || tag === 'ol'){
+          var i = 1;
+          Array.prototype.forEach.call(el.children || [], function(li){
+            if((li.tagName || '').toLowerCase() !== 'li') return;
+            var mark = (tag === 'ol') ? ((i++) + '. ') : '- ';
+            out.push((quote ? '> ' : '') + pre + mark + inline(li));
+            walk(li, indent + 1, quote);           /* 嵌套一层 */
+          });
+        } else if(tag === 'blockquote'){
+          var tmp = []; var save = out; out = tmp; walk(el, indent, true);
+          out = save; tmp.forEach(function(x){ out.push(x); });
+        } else if(tag === 'table'){
+          var rows = [];
+          Array.prototype.forEach.call(el.querySelectorAll('tr'), function(tr){
+            var cells = [];
+            Array.prototype.forEach.call(tr.children || [], function(td){ cells.push(inline(td) || ' '); });
+            if(cells.length) rows.push(cells);
+          });
+          if(rows.length){
+            out.push('', '| ' + rows[0].join(' | ') + ' |',
+                     '| ' + rows[0].map(function(){ return '---'; }).join(' | ') + ' |');
+            rows.slice(1).forEach(function(r){ out.push('| ' + r.join(' | ') + ' |'); });
+          }
+        } else if(tag === 'pre'){
+          out.push('', '```', el.textContent || '', '```');
+        } else if(tag === 'hr'){
+          out.push('', '---');
+        } else if(tag === 'br'){
+          out.push('');
+        } else {
+          var t2 = inline(el);
+          if(t2) out.push((quote ? '> ' : '') + pre + t2);
+        }
+      });
+    }
+    walk(root, 0, false);
+    return out.join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+|\s+$/g, '');
   }
   /* 统一数据入口：Agent 推送 / 历史重载 / 「生成文档」/ 导入 四条路都走它 */
   function docpSetDoc(payload){
@@ -3125,33 +3421,46 @@ svg{display:block}
     DOCP.markdown = DOCP.markdown || '';
     DOCP.slides = DOCP.slides || [];
     DOCP.blocks = DOCP.blocks || [];
-    docpSyncFab();
+    DOCP.docHtml = null;          /* 新文档：丢掉上一份的编辑态 */
+    docpEditLoad();               /* 同一份文档的改动（刷新后）取回来 */
+    docpSyncEdge();
     if(DOCP_ON) docpRender();
   }
-  /* skill 关闭：面板内容清空（外壳、拖拽、收起、【下载▾】都保留可用） */
+  /* skill 关闭：面板内容清空（面板本体、拖拽、收起、【下载▾】都保留可用） */
   function docpClear(){
     DOCP = null;
     DOCP_ON = false;
-    var p = docpEl('docPanel'); if(p) p.style.display = 'none';
-    document.body.classList.remove('dp-open');
+    docpCollapse();
     var bd = docpEl('docPanelBody');
     if(bd) bd.innerHTML = '<div class="dp-empty">会话文档预览已关闭（Skill 市场可开）：' +
                           '面板不再接收文档，导出按钮仍可用</div>';
     var ti = docpEl('docPanelTitle'); if(ti) ti.textContent = '文档预览';
     var se = docpEl('docPanelStat'); if(se) se.textContent = '';
-    docpSyncFab();
+    docpSyncEdge();
+  }
+  /* 收起 = 面板缩成右缘那条竖把手（不再 display:none，右侧始终只有面板这一条框） */
+  function docpCollapse(){
+    DOCP_ON = false;
+    docpEditFlush();              /* 收起前把编辑落定（内存 + localStorage） */
+    var p = docpEl('docPanel');
+    if(p){ p.classList.add('dp-collapsed'); p.style.display = ''; }
+    var f = docpEl('docPanelFmt'); if(f) f.style.display = 'none';
+    document.body.classList.remove('dp-open');
+    docpSyncEdge();
   }
   function docpOpen(doc){
     if(!docpEnabled()){ showToast('会话文档预览已关闭（设置 → Skill 市场 → 会话文档预览）', false); return; }
     DOCP = doc || {};
     if(!DOCP.kind) DOCP.kind = 'md';
     DOCP_ON = true;
-    var p = docpEl('docPanel'); if(p) p.style.display = 'flex';
+    docpEditLoad();                 /* 这份文档若改过（刷新前），把改动取回来 */
+    var p = docpEl('docPanel');
+    if(p){ p.classList.remove('dp-collapsed'); p.style.display = 'flex'; }
     document.body.classList.add('dp-open');
     /* 导入的文档默认看「文档」页签 */
     if(DOCP.kind === 'rich') DOCP_TAB = 'doc';
     docpTabSet(DOCP_TAB);
-    docpSyncFab();
+    docpSyncEdge();
   }
   /* 打开一份富文档（导入的 .docx / ③按板块填入的结果） */
   function docpOpenRich(rich, title, extra, docxBuffer){
@@ -3176,14 +3485,13 @@ svg{display:block}
     if(!DOCP){ showToast('还没有可预览的文档：问一句教案（如「帮我备一节 3.3 幂函数的课」），或点右侧边缘的「导入文档」把手', false); return; }
     if(DOCP_ON) docpClose(); else docpOpen(DOCP);
   }
-  /* 右侧边缘把手：没有文档时是「导入文档」，有文档时是「查看/收起文档」
-     —— 保证「关掉面板」「刷新页面」「只想导入自己的 .docx」三种情况都有入口 */
-  function docpSyncFab(){
-    var f = docpEl('docPanelFab'); if(!f) return;
-    f.style.display = '';
-    f.textContent = !DOCP ? '导入文档' : (DOCP_ON ? '收起文档' : '查看文档');
-    f.title = !DOCP ? '导入一份 .docx 到右侧预览（也能下载成 Word / PPT）'
-                    : ('预览《' + (DOCP.title || '文档') + '》');
+  /* 收起态的竖把手就是面板自己（#docPanelStrip）：没有文档时是「导入文档」，有文档时是「查看文档」
+     —— 入口与预览窗口在同一块面板里，右侧不会出现两条框 */
+  function docpSyncEdge(){
+    var s = docpEl('docPanelStrip'); if(!s) return;
+    s.textContent = !DOCP ? '导入文档' : '查看文档';
+    s.title = !DOCP ? '导入一份 .docx 到右侧面板（可看、可改、可下载成 Word / PPT）'
+                    : ('打开右侧面板看《' + (DOCP.title || '文档') + '》（可直接编辑）');
   }
   /* 备好一份文档但**不弹面板**（历史恢复用）：拿到预览模型、亮起右侧把手 */
   function docpArm(md, htmlName){
@@ -3193,7 +3501,8 @@ svg{display:block}
       d.html = htmlName || '';
       DOCP = d;
       if(!DOCP.kind) DOCP.kind = 'md';
-      docpSyncFab();
+      docpEditLoad();                 /* 这份文档若改过（刷新前），把改动取回来 */
+      docpSyncEdge();
     }).catch(function(){});
   }
   /* 导入 .docx：解析成富结构后**只进预览**（不建模板、不落模板库） */
@@ -3215,12 +3524,7 @@ svg{display:block}
       });
     }).catch(function(e){ showToast('导入失败：' + (e && e.message ? e.message : e), false); });
   }
-  function docpClose(){
-    DOCP_ON = false;
-    var p = docpEl('docPanel'); if(p) p.style.display = 'none';
-    document.body.classList.remove('dp-open');
-    docpSyncFab();      /* 收起后边缘把手亮起，随时能再打开 */
-  }
+  function docpClose(){ docpCollapse(); }   /* 收起 = 缩成右缘把手，随时能再点开 */
   /* AI 输出文档后自动唤起：把 payload/markdown 交给纯内存接口，原样拿回预览模型。
      开关以**接口返回的 enabled** 为准（服务端唯一真相源）——不先等 capLoad()，
      否则首屏那次 /api/capabilities 的 WPS 桥接探测会把面板出现拖慢好几秒。 */
@@ -3289,13 +3593,18 @@ svg{display:block}
         ifile.value = '';
       });
     }
-    /* 右侧边缘把手：没有文档时=「导入文档」，有文档时=「查看/收起文档」 */
-    var fab = docpEl('docPanelFab');
-    if(fab) fab.addEventListener('click', function(){
+    /* 收起态那条竖把手 = 面板的一部分（#docPanelStrip）：没文档时点它开文件选择，
+       有文档时点它展开面板。右侧只有面板这一条框，不再有第二个悬浮按钮。 */
+    var strip = docpEl('docPanelStrip');
+    if(strip) strip.addEventListener('click', function(){
       if(!DOCP){ if(ifile) ifile.click(); return; }   /* 空态直接开文件选择，解决"想导入却没有入口" */
       if(DOCP_ON) docpClose(); else docpOpen(DOCP);
     });
-    docpSyncFab();
+    /* 面板标题栏的「导入」：与收起态把手同一个入口 */
+    var pImp = docpEl('docPanelImport');
+    if(pImp) pImp.addEventListener('click', function(){ if(ifile) ifile.click(); });
+    docpBindFmt();                                   /* 文档页签的编辑工具栏 */
+    docpSyncEdge();
     window.addEventListener('resize', function(){ if(DOCP_ON) docpApplyWidth(docpWidth()); });
   }
   /* ==== 启动初始化（会话文档预览面板 + 导出位置；编排台由 dzBind 自调用初始化）==== */

@@ -659,6 +659,9 @@ svg{display:block}
             #view-kg .kg-mark-btn{width:100%;padding:10px;border:none;border-radius:8px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:13px;cursor:pointer;margin-top:12px;transition:all 0.2s;font-family:inherit}
             #view-kg .kg-mark-btn:hover{box-shadow:0 0 20px rgba(100,100,255,0.5)}
             #view-kg .kg-mark-btn.learned{background:linear-gradient(135deg,#f093fb,#f5576c)}
+            #view-kg .kg-toolbar{position:absolute;right:16px;bottom:18px;z-index:16;display:flex;gap:4px;background:var(--kg-panel);border:1px solid var(--kg-panel-line);border-radius:10px;padding:4px;box-shadow:var(--kg-panel-shadow);backdrop-filter:blur(12px)}
+            #view-kg .kg-toolbar button{width:30px;height:30px;border:none;background:#fff;color:#3d6ef2;border-radius:7px;cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;transition:all 0.15s;font-family:inherit;box-shadow:0 1px 4px rgba(30,50,120,0.18)}
+            #view-kg .kg-toolbar button:hover{background:#f0f4ff;color:#2b55c9;box-shadow:0 2px 8px rgba(30,50,120,0.28)}
           </style>
           <div class="kg-stars"></div>
           <div class="kg-header">
@@ -671,14 +674,15 @@ svg{display:block}
           </div>
           <div class="kg-search">
             <input type="text" id="kgSearchInput" placeholder="搜索知识点，如：函数、集合、单调性...">
-            <div class="kg-legend">
-              <div class="kg-legend-item"><div class="kg-legend-dot" style="background:#7ab8ff"></div>集合</div>
-              <div class="kg-legend-item"><div class="kg-legend-dot" style="background:#ffd700"></div>函数</div>
-              <div class="kg-legend-item"><div class="kg-legend-dot" style="background:#98ff98"></div>不等式</div>
-              <div class="kg-legend-item"><div class="kg-legend-dot" style="background:#ff6b9d"></div>指数函数</div>
-            </div>
+            <div class="kg-legend" id="kgLegend"></div>
           </div>
           <div id="kgChart"></div>
+          <div class="kg-toolbar" id="kgToolbar">
+            <button title="放大" onclick="KG.zoom(1)">＋</button>
+            <button title="缩小" onclick="KG.zoom(-1)">－</button>
+            <button title="适配画布" onclick="KG.fitView()">⛶</button>
+            <button title="重新布局" onclick="KG.relayout()">🔄</button>
+          </div>
           <div class="kg-info-panel" id="kgInfoPanel">
             <span class="kg-close" title="关闭" onclick="KG.closeInfo()">×</span>
             <h3 id="kgNodeName"></h3>
@@ -2041,28 +2045,76 @@ function updateThemeIcon(isDark){
           damping: 0.4,
           avoidOverlap: 0.8
         },
-        stabilization: { iterations: 200, fit: true },
+        stabilization: { iterations: 130, fit: true },
         maxVelocity: 60,
         minVelocity: 0.12
       },
       interaction: {
         hover: true,
-        tooltipDelay: 120,
+        tooltipDelay: 80,
         navigationButtons: false,
         keyboard: false,
         dragNodes: true,
         zoomView: true,
-        dragView: true
+        dragView: true,
+        hoverConnectedEdges: true,
+        selectConnectedEdges: true
       },
       nodes: { shape: 'dot', borderWidth: 1.2, scaling: { min: 10, max: 30 } },
       edges: {
         smooth: { type: 'continuous', roundness: 0.2 },
-        selectionWidth: 2,
+        selectionWidth: 2.5,
+        hoverWidth: 2.2,
         arrows: { to: { enabled: true, scaleFactor: 0.4 } }
       }
     };
   }
-  function renderGraph(nodes, links, focusNode){
+  /* 生态浮动模式：布局收敛后物理引擎不停机，用「高阻尼+低速」持续运行，
+     节点一直轻微漂浮；再配合周期性涟漪扰动，整张图保持动态而不僵硬 */
+  function lockPhysics(){
+    try {
+      if (network) network.setOptions({
+        physics: {
+          enabled: true,
+          solver: 'forceAtlas2Based',
+          forceAtlas2Based: {
+            gravitationalConstant: -60,
+            centralGravity: 0.005,
+            springLength: 120,
+            springConstant: 0.08,
+            damping: 0.9,
+            avoidOverlap: 0.8
+          },
+          stabilization: { enabled: false },
+          timestep: 0.6,
+          adaptiveTimestep: true,
+          maxVelocity: 12,
+          minVelocity: 0.05
+        }
+      });
+    } catch(e){}
+  }
+  var draggingNow = false, breatheTimer = null;
+  function startBreathe(){
+    if (breatheTimer) return;
+    breatheTimer = setInterval(function(){
+      if (!network || !nodesDS || draggingNow) return;
+      var ids = nodesDS.getIds();
+      if (!ids.length) return;
+      var id = ids[Math.floor(Math.random() * ids.length)];
+      var pos = null;
+      try { pos = network.getPositions([id])[id]; } catch(e){}
+      if (!pos) return;
+      try {
+        var dx = (Math.random() - 0.5) * 10, dy = (Math.random() - 0.5) * 10;
+        network.moveNode(id, pos.x + dx, pos.y + dy);
+      } catch(e){}
+    }, 2200);
+  }
+  function stopBreathe(){
+    if (breatheTimer) { clearInterval(breatheTimer); breatheTimer = null; }
+  }
+  function renderGraph(nodes, links, focusNode, iters){
     if (!network) return;
     var kr = kgPalette();
     var nodeItems = nodes.map(function(n){
@@ -2118,15 +2170,33 @@ function updateThemeIcon(isDark){
     nodesDS = new vis.DataSet(nodeItems);
     edgesDS = new vis.DataSet(edgeItems);
     network.setData({ nodes: nodesDS, edges: edgesDS });
-    network.setOptions(visOptions());
-    if (focusNode) {
-      network.selectNodes([focusNode]);
-      setTimeout(function(){
-        try { network.focus(focusNode, { scale: 1.3, animation: { duration: 400, easingFunction: 'easeInOutQuad' } }); } catch(e){}
-      }, 80);
-    } else {
-      network.fit({ animation: { duration: 400 } });
+    function settle(){
+      if (focusNode) {
+        network.selectNodes([focusNode]);
+        setTimeout(function(){
+          try { network.focus(focusNode, { scale: 1.3, animation: { duration: 400, easingFunction: 'easeInOutQuad' } }); } catch(e){}
+        }, 120);
+      } else {
+        try { network.fit({ animation: { duration: 400 } }); } catch(e){}
+      }
     }
+    var its = (typeof iters === 'number' && iters > 0) ? iters : 0;
+    if (its > 0) {
+      // 全图/初次：跑力导向稳定，稳定完成后进入生态浮动（图保持动态、不僵硬）
+      var opt = visOptions();
+      opt.physics.stabilization.iterations = its;
+      opt.physics.stabilization.fit = true;
+      network.setOptions(opt);
+      network.once('stabilizationIterationsDone', function(){
+        lockPhysics();
+        settle();
+      });
+    } else {
+      // 局部刷新（点亮/改色等）：不重跑布局，保持生态浮动只适配画布
+      lockPhysics();
+      settle();
+    }
+    updateLegend(nodes);
   }
   function updateNodeColors(){
     if (!nodesDS || !edgesDS) return;
@@ -2159,9 +2229,28 @@ function updateThemeIcon(isDark){
       });
     });
     edgesDS.update(updE);
+    updateLegend(graphData.nodes);
     try { network.redraw(); } catch(e){}
   }
   KG.applyTheme = updateNodeColors;
+  /* 动态图例：从数据实际类别生成，点亮/未点亮随主题 */
+  function updateLegend(nodes){
+    var el = document.getElementById('kgLegend');
+    if (!el) return;
+    var kr = kgPalette();
+    var cats = [], seen = {};
+    (nodes || []).forEach(function(n){
+      var c = n.category || '';
+      if (c && !seen[c]) { seen[c] = 1; cats.push(c); }
+    });
+    var h = '';
+    cats.forEach(function(c){
+      var col = constellationColors[c] || kr.defColor;
+      h += '<div class="kg-legend-item"><div class="kg-legend-dot" style="background:' + col + ';color:' + col + '"></div>' + escHtml(c) + '</div>';
+    });
+    h += '<div class="kg-legend-item"><div class="kg-legend-dot" style="background:' + kr.nodeDimColor + ';box-shadow:none"></div>未点亮</div>';
+    el.innerHTML = h;
+  }
   function showNodeInfo(id, name){
     var kr = kgPalette();
     document.getElementById('kgNodeName').textContent = name;
@@ -2196,6 +2285,31 @@ function updateThemeIcon(isDark){
       }
     }).catch(function(){ pre.innerHTML = '<div style="color:' + kr.loading + '">加载失败</div>'; });
   }
+  KG.zoom = function(dir){
+    if (!network) return;
+    try {
+      var s = network.getScale();
+      var ns = dir > 0 ? Math.min(s * 1.35, 6) : Math.max(s / 1.35, 0.15);
+      network.moveTo({ scale: ns, animation: { duration: 220, easingFunction: 'easeInOutQuad' } });
+    } catch(e){}
+  };
+  KG.fitView = function(){
+    if (!network) return;
+    try { network.fit({ animation: { duration: 300, easingFunction: 'easeInOutQuad' } }); } catch(e){}
+  };
+  KG.relayout = function(){
+    if (!network) return;
+    try {
+      var opt = visOptions();
+      opt.physics.stabilization.iterations = 150;
+      opt.physics.stabilization.fit = true;
+      network.setOptions(opt);
+      network.once('stabilizationIterationsDone', function(){
+        lockPhysics();
+        try { network.fit({ animation: { duration: 300 } }); } catch(e){}
+      });
+    } catch(e){}
+  };
   KG.toggleLearn = function(){
     if (!currentNodeId) return;
     if (learnedSet.has(currentNodeId)) learnedSet.delete(currentNodeId);
@@ -2206,16 +2320,44 @@ function updateThemeIcon(isDark){
   };
   KG.closeInfo = function(){
     document.getElementById('kgInfoPanel').style.display = 'none';
-    renderGraph(graphData.nodes, graphData.links);
+    renderGraph(graphData.nodes, graphData.links, null, 130);
   };
   KG.jumpToNode = function(id, name){
     showNodeInfo(id, name);
     fetch('/api/kg/related/' + encodeURIComponent(id) + '?hops=1')
       .then(function(r){ return r.json(); })
-      .then(function(d){ renderGraph(d.nodes, d.links, id); });
+      .then(function(d){ renderGraph(d.nodes, d.links, id, 60); });
   };
   function bindEvents(){
-    if (network) network.on('click', function(params){
+    if (network) {
+      /* 自然拖动：按下拖动时临时开启物理引擎（邻居弹簧联动），松手后短稳定进入生态浮动 */
+      network.on('dragStart', function(){
+        draggingNow = true;
+        try {
+          network.setOptions({ physics: {
+            enabled: true,
+            solver: 'forceAtlas2Based',
+            forceAtlas2Based: {
+              gravitationalConstant: -60, centralGravity: 0.005,
+              springLength: 120, springConstant: 0.08,
+              damping: 0.5, avoidOverlap: 0.8
+            },
+            stabilization: { enabled: false },
+            timestep: 0.5, adaptiveTimestep: true,
+            maxVelocity: 90, minVelocity: 0.05
+          } });
+        } catch(e){}
+      });
+      network.on('dragEnd', function(){
+        draggingNow = false;
+        try {
+          network.stabilize(60, function(){ lockPhysics(); });
+        } catch(e){}
+      });
+      network.on('dragging', function(){
+        try { network.unselectAll(); } catch(e){}
+      });
+      network.on('click', function(params){
       if (params.nodes && params.nodes.length) {
         var id = params.nodes[0];
         var node = nodesDS.get(id);
@@ -2224,20 +2366,21 @@ function updateThemeIcon(isDark){
         showNodeInfo(id, node.label);
         fetch('/api/kg/related/' + encodeURIComponent(id) + '?hops=1')
           .then(function(r){ return r.json(); })
-          .then(function(d){ renderGraph(d.nodes, d.links, id); });
+          .then(function(d){ renderGraph(d.nodes, d.links, id, 60); });
       }
     });
+    }
     var input = document.getElementById('kgSearchInput');
     if (input) input.addEventListener('input', function(e){
       var q = e.target.value.trim();
-      if (!q) { renderGraph(graphData.nodes, graphData.links); return; }
+      if (!q) { renderGraph(graphData.nodes, graphData.links, null, 130); return; }
       fetch('/api/kg/search?q=' + encodeURIComponent(q)).then(function(r){ return r.json(); }).then(function(data){
         if (data.results && data.results.length > 0) {
           var first = data.results[0];
           showNodeInfo(first.id, first.name);
           fetch('/api/kg/related/' + encodeURIComponent(first.id) + '?hops=1')
             .then(function(r){ return r.json(); })
-            .then(function(d){ renderGraph(d.nodes, d.links, first.id); });
+            .then(function(d){ renderGraph(d.nodes, d.links, first.id, 60); });
         }
       });
     });
@@ -2246,7 +2389,7 @@ function updateThemeIcon(isDark){
     fetch('/api/kg/graph').then(function(r){ return r.json(); }).then(function(data){
       graphData = data || {nodes:[], links:[]};
       updateProgress();
-      renderGraph(graphData.nodes, graphData.links);
+      renderGraph(graphData.nodes, graphData.links, null, 130);
     }).catch(function(){ kgFail('星图加载失败'); });
   }
   window.__kgEnter = function(){
@@ -2256,6 +2399,7 @@ function updateThemeIcon(isDark){
         el.innerHTML = '';
         network = new vis.Network(el, { nodes: [], edges: [] }, visOptions());
         bindEvents();
+        startBreathe();
         loadGraph();
       } else if (network) {
         setTimeout(function(){ try { network.redraw(); } catch(e){} }, 60);

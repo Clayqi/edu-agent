@@ -25,6 +25,35 @@
   --shadow-md:0 8px 30px rgba(0,0,0,.15);
   --font:-apple-system,BlinkMacSystemFont,"Segoe UI","Inter","Helvetica Neue","Microsoft YaHei",system-ui,sans-serif;
 }
+/* ===== 夜间模式（dark theme），CSS 变量整体切换 ===== */
+html.dark{
+  --ink-900:#ececf4; --ink-700:#c9c9da; --ink-600:#a0a0b8; --ink-500:#84849e; --ink-400:#676782;
+  --line:#27273c; --line-strong:#3a3a58;
+  --bg:#0e0e1a; --bg-soft:#16162a; --bg-hover:#1e1e36; --bg-active:#252544;
+  --blue:#7fa9ff; --blue-soft:#1b2244;
+  --green:#34d399; --green-soft:#0e2b20; --green-500:#10b981;
+  --red:#f87171; --orange:#fb923c; --amber:#fbbf24;
+  --dark:#2b2b46;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.5);
+  --shadow-md:0 8px 30px rgba(0,0,0,.55);
+}
+/* 硬编码浅色背景元素的夜间覆盖（保持文字主色跟随 --ink 变量） */
+html.dark .titlebar,
+html.dark .wtab.active{background:var(--bg);color:var(--ink-900)}
+html.dark .wtab{background:transparent;color:var(--ink-600)}
+html.dark .drop-pill,
+html.dark .icon-pill,
+html.dark .skill-card,
+html.dark .pill-btn,
+html.dark .pill-btn.orange,
+html.dark .pill-btn.orange:hover,
+html.dark .pill-btn.danger,
+html.dark .plus-orb,
+html.dark .pop,
+html.dark .modal{background:var(--bg-soft);color:var(--ink-900)}
+html.dark .seg button.active{background:var(--bg-hover);color:var(--ink-900)}
+html.dark .switch::after,
+html.dark .gdot{background:var(--bg)}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{font-family:var(--font);font-size:14px;color:var(--ink-900);background:var(--bg) !important;-webkit-font-smoothing:antialiased;overflow:hidden;transition:background 0.3s, color 0.3s}
@@ -445,6 +474,7 @@ svg{display:block}
         <button class="branch-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/></svg>new-chat</button>
         <div class="mh-spacer"></div>
         <div class="mh-right">
+          <button class="wctl" id="themeToggle" title="切换夜间模式" style="width:30px;height:30px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></button>
           <button class="wctl" title="工具栏" style="width:30px;height:30px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>
           <div class="avt" id="avat">师</div>
           <button class="ai-chip">y-an<b> AI</b><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
@@ -2094,6 +2124,26 @@ function updateThemeIcon(isDark){
       }
     });
   };
+})();
+</script>
+
+<script>
+/* ===== 夜间模式按钮：切换 / 持久化 / 图标 ===== */
+(function(){
+  var btn = document.getElementById('themeToggle');
+  if (!btn) return;
+  var icon = btn.querySelector('svg');
+  var sun = '<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>';
+  var moon = '<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function setIcon(isDark){ icon.innerHTML = isDark ? moon : sun; }
+  function apply(){
+    var isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    setIcon(isDark);
+    if (isDark && window.echarts) { try { window.dispatchEvent(new Event('resize')); } catch(e){} }
+  }
+  setIcon(document.documentElement.classList.contains('dark'));
+  btn.addEventListener('click', apply);
 })();
 </script>
 

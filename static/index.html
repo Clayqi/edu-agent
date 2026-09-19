@@ -412,6 +412,18 @@ svg{display:block}
 .icon-ghost:hover{background:var(--bg-hover);color:var(--ink-900)}
 .icon-ghost svg{width:15px;height:15px}
 
+    /* 文档 Tab（类 Word 排版）：基础排版，高级 Word 样式降级 */
+    .dp-word{font-size:14px;line-height:1.9;color:#1a1a1b}
+    .dp-word h1{font-size:19px;margin:14px 0 8px;font-weight:700}
+    .dp-word h2{font-size:16px;margin:14px 0 6px;font-weight:600}
+    .dp-word h3{font-size:14px;margin:12px 0 4px;font-weight:600}
+    .dp-word p{margin:6px 0;text-indent:0}
+    .dp-word ul,.dp-word ol{margin:6px 0 6px 22px;padding:0}
+    .dp-word table{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+    .dp-word th,.dp-word td{border:.5px solid var(--line-strong);padding:5px 8px;vertical-align:top}
+    .dp-word th{background:var(--bg-soft);font-weight:600}
+    .dp-word img{max-width:100%}
+
     /* 右下角常驻入口：导入 / 查看 / 收起文档 */
     #docPanelFab{position:fixed;right:18px;bottom:18px;z-index:60;border:.5px solid var(--line-strong);
       background:var(--dark);color:#fff;border-radius:999px;padding:9px 16px;font-size:12.5px;font-family:var(--font);
@@ -474,6 +486,11 @@ svg{display:block}
     .dp-bd{border-radius:0 0 13px 13px}
 
 </style>
+<!-- 侧边面板的多格式渲染库：CDN 主用，加载失败自动落回本地 vendor（离线不白屏） -->
+<script defer src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js" onerror="this.onerror=null;this.src='/static/vendor/marked.min.js'"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js" onerror="this.onerror=null;this.src='/static/vendor/purify.min.js'"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/mammoth@1/mammoth.browser.min.js" onerror="this.onerror=null;this.src='/static/vendor/mammoth.browser.min.js'"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/pptxgenjs@3/dist/pptxgen.bundle.js" onerror="this.onerror=null;this.src='/static/vendor/pptxgen.bundle.js'"></script>
 </head>
 <body>
 <div class="win">
@@ -666,7 +683,7 @@ svg{display:block}
               <button class="dp-tab" data-dp="slides">幻灯片</button>
               <button class="dp-tab" data-dp="outline">结构</button>
               <span style="flex:1"></span>
-              <span class="dp-note">内存预览 · 不落盘</span>
+              <span class="dp-note">右侧为内存预览效果，实际排版以导出 WPS 文件为准</span>
             </div>
             <div class="dp-bd" id="docPanelBody"></div>
             <div class="dp-ft" id="docPanelRes"></div>
@@ -1671,9 +1688,7 @@ svg{display:block}
   function planTip(card, html){
     var tip = card && card.querySelector('[data-plan="tip"]');
     if(!tip) return;
-    tip.innerHTML = html;
-    var a = tip.querySelector('[data-plan="go"]');
-    if(a) a.onclick = function(e){ e.preventDefault(); docpReveal(); };
+    tip.innerHTML = html;      /* 卡片提示只显示结果；预览/导出统一走右侧面板与「生成文档」 */
   }
   function planFillCenter(topic, card, tid, md, btn){
     var pick = card.querySelector('[data-plan="pick"]');
@@ -1717,7 +1732,35 @@ svg{display:block}
                   (ap ? ('，新增 ' + ap + ' 个') : '') +
                   (missL.length ? ('，<span style="color:#b45309">' + missL.length + ' 个板块没匹配到</span>') : '') +
                   (blankL.length ? ('，<span style="color:#b45309">' + blankL.length + ' 个板块还空着</span>') : '') +
-                  '　<a href="#" data-plan="go" style="color:var(--blue)">在右侧预览里查看</a>');
+                  '　<span style="color:var(--ink-400)">已在右侧预览打开</span>');
+  }
+
+  /* 每条回答的第三个按钮：生成文档 → 填进**已存在的**右侧面板（内存预览，不落盘、不调 WPS） */
+  function chatDocButton(row, el, raw, q){
+    var b = document.createElement('button');
+    b.className = 'pill-btn';
+    b.textContent = '生成文档';
+    if(!docpEnabled()){
+      b.disabled = true;
+      b.title = '会话文档预览已关闭（Skill 市场可开）';
+    }
+    b.onclick = function(){
+      if(!docpEnabled()){ showToast('会话文档预览已关闭（设置 → Skill 市场 → 会话文档预览）', false); return; }
+      if(el.__doc){ docpSetDoc(el.__doc); docpOpen(DOCP); return; }   /* 同一条不重复请求 */
+      b.disabled = true; b.textContent = '整理中…';
+      spJson('/api/session/doc-preview', 'POST', { markdown: raw || '', session_id: CUR || '' }).then(function(d){
+        b.disabled = false; b.textContent = '生成文档';
+        if(!d || !d.ok){ showToast('生成文档失败：' + ((d && d.error) || '未知错误'), false); return; }
+        if(!d.enabled){ docpClear(); showToast('会话文档预览已关闭（Skill 市场可开）', false); return; }
+        el.__doc = d;                       /* 缓存：再点直接打开 */
+        docpSetDoc(d);                      /* 填进已存在的 #docPanel */
+        docpOpen(DOCP);                     /* 自动打开右侧面板 */
+      }).catch(function(e){
+        b.disabled = false; b.textContent = '生成文档';
+        showToast('生成文档失败：' + (e && e.message ? e.message : e), false);
+      });
+    };
+    row.appendChild(b);
   }
 
   function addActions(el, raw, q){
@@ -1729,6 +1772,7 @@ svg{display:block}
     /* q：该条回答对应的问题（历史恢复时逐条传入，避免"重新生成"用了别的轮次的问题） */
     rg.onclick = function(){ if(BUSY) return; var qq = q || lastQ; if(!qq) return; sendText(qq); };
     row.appendChild(cp); row.appendChild(rg);
+    chatDocButton(row, el, raw, q);        /* 第三个按钮：生成文档 → 右侧面板 */
     el.appendChild(row);
   }
   function resetToHome(){
@@ -1748,7 +1792,7 @@ svg{display:block}
         enterConversation();
         msgBox.innerHTML='';
         lastCites = [];
-        var prevQ = '', planBodies = [];
+        var prevQ = '', planBodies = [], lastDoc = null;
         msgs.forEach(function(m){
           var c = (m.content||'').replace(/^【\*{2}.*?\*{2}】\s*/,'');
           if(!c) return;
@@ -1760,14 +1804,18 @@ svg{display:block}
             var cs = (m.meta && m.meta.citations) || [];
             if(cs.length){ lastCites = cs; addCites(b, cs); }
             addActions(b, c, prevQ);
-            /* 文档类回答：记下来，恢复完历史后唤起预览面板（服务端 HTML 只按会话存一份，
+            /* 历史里的 payload：预置给该条回答的「生成文档」按钮 → 点击零请求直接打开面板 */
+            if(m.meta && m.meta.doc){ b.__doc = m.meta.doc; lastDoc = m.meta.doc; }
+            /* 文档类回答：记下来，恢复完历史后备好面板（服务端 HTML 只按会话存一份，
                所以只把 last_html 给最近一条，避免张冠李戴）。 */
             if((m.meta && m.meta.mode) === 'B' || /Agent\s*B/.test(c.slice(0, 60))) planBodies.push(c);
           }
         });
         /* 恢复历史时不自动弹面板（会盖住会话），但把最近一份**备好并亮起右下角入口**，
            老师随时点一下就能看（刷新页面后也有入口，不再"关掉就找不回来"）。 */
-        if(planBodies.length){
+        if(lastDoc){
+          if(docpEnabled()){ DOCP = lastDoc; DOCP.kind = DOCP.kind || 'md'; docpSyncFab(); }
+        } else if(planBodies.length){
           docpArm(planBodies[planBodies.length - 1], d.last_html || '');
         }
         scrollChat();
@@ -2161,9 +2209,21 @@ svg{display:block}
         lastCites = ev.citations || [];
         addCites(bodyEl, lastCites);
         addActions(bodyEl, raw);
-        /* 文档类回答：唤起会话页右侧的内存预览面板（开关关掉则不渲染；导出不受影响）。
-           判定：Agent B 直出 / 正文带 Agent B 标记 / 服务端落了 HTML（总指挥 S 出的教案也走这条）。 */
-        if(ev.mode === 'B' || ev.html || /Agent\s*B/.test(raw.slice(0, 80))) docpFromAnswer(raw, ev.html || '');
+        /* 文档类回答：优先用 **Agent 推送的 payload**（done.doc）填进已存在的面板；
+           没带 payload 时回落到纯内存接口整理；skill 关掉则清空面板内容（外壳与下载仍在） */
+        if(ev.mode === 'B' || ev.html || /Agent\s*B/.test(raw.slice(0, 80))){
+          try{
+            if(ev.doc){
+              if(!docpEnabled()){ docpClear(); }
+              else { ev.doc.html = ev.html || ''; bodyEl.__doc = ev.doc; docpSetDoc(ev.doc); docpOpen(DOCP); }
+            } else {
+              docpFromAnswer(raw, ev.html || '');
+            }
+          }catch(err){
+            /* 面板填充失败不该影响对话本身；记一条便于排查（SSE 循环会吞掉异常） */
+            if(window.console && console.error) console.error('[docPanel] 填充失败：', err && err.message ? err.message : err);
+          }
+        }
         /* ② 按模板生成完成后：自动把这份教案按板块填进模板并载入教案中心（不抢视图） */
         if(PLAN_FILL_PENDING){
           var pf = PLAN_FILL_PENDING; PLAN_FILL_PENDING = null;
@@ -2813,6 +2873,37 @@ svg{display:block}
        · 导出：面板上的 Word/PPT 按钮复用既有 /api/wps/export 落盘，受 wps-office 开关约束。
      是否渲染由 skill 开关 `doc-session-preview` 决定（/api/capabilities 的 session_doc_preview_ready）。 */
   var DOCP_W_KEY = 'edu_docpanel_w', DOCP = null, DOCP_ON = false, DOCP_TAB = 'doc';
+  /* ---- 渲染库保险：CDN 优先、本地 vendor 兜底 --------------------------------
+     <head> 里的 4 个 CDN 标签带 defer（不阻塞首屏）+ onerror 就地切本地；
+     但"脚本元素已启动后改 src 不再执行"在严格实现下成立，所以这里再补一道：
+     缺哪个就自己插一个本地脚本，补齐后回调重渲染。最多补 2 轮，避免离线时死循环。 */
+  var DP_LIB_DEFS = [
+    { k: 'marked',    url: '/static/vendor/marked.min.js' },
+    { k: 'DOMPurify', url: '/static/vendor/purify.min.js' },
+    { k: 'mammoth',   url: '/static/vendor/mammoth.browser.min.js' },
+    { k: 'PptxGenJS', url: '/static/vendor/pptxgen.bundle.js' },
+  ];
+  var dpLibTried = 0;
+  function dpEnsureLibs(after){
+    var miss = [], i;
+    for(i = 0; i < DP_LIB_DEFS.length; i++){ if(!window[DP_LIB_DEFS[i].k]) miss.push(DP_LIB_DEFS[i]); }
+    if(!miss.length || dpLibTried >= 2) return false;      /* 齐了 / 补过两轮仍失败：渲染层自己降级 */
+    dpLibTried++;
+    var left = miss.length, fired = false;
+    var done = function(){
+      if(--left > 0 || fired) return;
+      fired = true;
+      if(after) after();
+    };
+    for(i = 0; i < miss.length; i++){
+      (function(d){
+        var s = document.createElement('script');
+        s.src = d.url; s.async = false; s.onload = done; s.onerror = done;
+        (document.head || document.documentElement).appendChild(s);
+      })(miss[i]);
+    }
+    return true;                                            /* true = 正在补，补完会回调 */
+  }
   function docpEl(id){ return document.getElementById(id); }
   function docpEnabled(){ return CAP.session_doc_preview_ready !== false; }
   function docpWidth(){
@@ -2891,43 +2982,160 @@ svg{display:block}
     });
     return out.join('') || '<div class="dp-empty">这份文档没有可显示的内容</div>';
   }
+  /* ---- Tab 内部渲染：全部浏览器内存渲染，无 iframe、不落盘 --------------------
+     数据源唯一：DOCP（内存对象）；切 Tab 只换渲染器，不重新取数。
+     库缺失一律降级（不白屏）：marked 缺失→现有 mdLight/pre；DOMPurify 缺失→纯文本转义。 */
+  function dpSanitize(html, fallbackText){
+    if(window.DOMPurify && window.DOMPurify.sanitize){
+      try{
+        return window.DOMPurify.sanitize(html, {
+          ALLOWED_TAGS: ['h1','h2','h3','h4','h5','p','ul','ol','li','strong','em','u','s','code','pre',
+                         'blockquote','table','thead','tbody','tr','th','td','br','hr','span','div','a'],
+          ALLOWED_ATTR: ['style','colspan','rowspan','align','href','target']
+        });
+      }catch(e){}
+    }
+    return escHtml(fallbackText == null ? html : fallbackText);   /* XSS 兜底：宁可纯文本 */
+  }
+  function dpMarkdownToHtml(md){
+    if(window.marked && window.marked.parse){
+      try{ return dpSanitize(window.marked.parse(md, { breaks: true, gfm: true }), md); }catch(e){}
+    }
+    return mdLight(md);                                          /* 降级：现有迷你渲染器 */
+  }
+  /* Markdown Tab：marked 解析内存 md → 富文本；XSS 过 DOMPurify */
+  function docpRenderMd(bd){
+    var md = DOCP.markdown || '';
+    if(!md.trim()){
+      bd.innerHTML = '<div class="dp-empty">' +
+        (DOCP.kind === 'rich' ? '这是导入的 .docx：没有 Markdown 源，看「文档」页签' : '没有 Markdown 内容') + '</div>';
+      return;
+    }
+    bd.innerHTML = dpMarkdownToHtml(md);
+  }
+  /* 文档 Tab（Word 样式预览）：① 导入的 .docx → mammoth；② 结构化 payload → 同口径类 Word 排版 */
+  function docpRenderDocDocx(bd, buf){
+    if(!(window.mammoth && window.mammoth.convertToHtml)){
+      docpRenderDocPayload(bd); return;
+    }
+    window.mammoth.convertToHtml({ arrayBuffer: buf }, {
+      styleMap: ["p[style-name='Title'] => h1:fresh",
+                 "p[style-name='Heading 1'] => h1:fresh",
+                 "p[style-name='Heading 2'] => h2:fresh",
+                 "p[style-name='Heading 3'] => h3:fresh"]
+    }).then(function(r){
+      bd.innerHTML = '<div class="dp-word">' + dpSanitize(r.value) + '</div>';
+    }).catch(function(){ docpRenderDocPayload(bd); });
+  }
+  function docpRenderDocPayload(bd){
+    var inner = DOCP.rich ? docpRichHtml(DOCP.rich) : dpMarkdownToHtml(DOCP.markdown || '');
+    bd.innerHTML = '<div class="dp-word">' + inner + '</div>';
+  }
+  function docpRenderDoc(bd){
+    var buf = DOCP && DOCP.docxBuffer;
+    if(buf){ docpRenderDocDocx(bd, buf); return; }               /* 导入的 .docx → mammoth */
+    docpRenderDocPayload(bd);                                    /* Agent payload → 同口径渲染 */
+  }
+  /* 幻灯片 Tab：pptxgenjs 在前端内存里建页（不落盘），同一份 deck 模型渲染 HTML 分页 */
+  function docpBuildDeck(){
+    var deck = { title: (DOCP && DOCP.title) || '教案', slides: (DOCP && DOCP.slides) || [] };
+    var G = window.PptxGenJS || window.pptxgenjs;
+    if(G && deck.slides.length){
+      try{
+        var p = new G();
+        p.defineLayout({ name: 'W16x9', width: 13.333, height: 7.5 });
+        p.layout = 'W16x9';
+        var cover = p.addSlide();
+        if(cover.addText) cover.addText(deck.title, { x: 0.6, y: 2.6, w: 12, h: 1.2, fontSize: 30, bold: true });
+        deck.slides.forEach(function(s, i){
+          var sl = p.addSlide();
+          if(sl.addText){
+            sl.addText((i + 1) + '. ' + (s.name || '') + (s.minutes ? ('（' + s.minutes + ' 分钟）') : ''),
+                       { x: 0.6, y: 0.5, w: 12, h: 0.9, fontSize: 22, bold: true });
+            var bullets = (s.bullets || []).slice(0, 6).map(function(b){
+              return { text: String(b), options: { bullet: true } };
+            });
+            if(bullets.length) sl.addText(bullets, { x: 0.8, y: 1.6, w: 11.6, h: 5, fontSize: 16 });
+          }
+        });
+        /* 注意：只建内存模型，**绝不 writeFile / 不生成磁盘文件** */
+      }catch(e){ /* pptxgenjs 不可用也不影响 HTML 预览 */ }
+    }
+    return deck;
+  }
+  function docpRenderSlides(bd){
+    var deck = docpBuildDeck(), sl = deck.slides || [];
+    if(!sl.length){
+      bd.innerHTML = '<div class="dp-empty">' +
+        (DOCP.kind === 'rich' ? '导入的 .docx 没有环节结构，下载 PPT 会按板块标题成页'
+                              : '没有解析出可成页的环节 / 板块') + '</div>';
+      return;
+    }
+    bd.innerHTML = sl.map(function(s, i){
+      var bs = (s.bullets || []).slice(0, 6);
+      return '<div class="dp-slide"><div class="n">第 ' + (i + 1) + ' / ' + sl.length + ' 页' +
+        (s.minutes ? ('　' + escHtml(String(s.minutes)) + ' 分钟') : '') + '</div>' +
+        '<h4>' + escHtml(s.name || '') + '</h4>' +
+        (bs.length ? ('<ul>' + bs.map(function(x){ return '<li>' + escHtml(x) + '</li>'; }).join('') + '</ul>') : '') +
+        '</div>';
+    }).join('') + '<button class="pill-btn" id="dpOpenWin">在新窗口看（16:9）</button>';
+    var ow = docpEl('dpOpenWin');
+    if(ow) ow.onclick = function(){ expPreviewSlides(sl, deck.title, ''); };
+  }
+  /* 结构 Tab：板块清单 + 原始结构化 JSON 大纲 */
+  function docpRenderOutline(bd){
+    var bl = DOCP.blocks || [], stt = DOCP.stats || {};
+    var raw = DOCP.payload || { title: DOCP.title, markdown: DOCP.markdown,
+                                slides: DOCP.slides, blocks: DOCP.blocks, stats: stt };
+    var json = '';
+    try{ json = JSON.stringify(raw, null, 2); }catch(e){ json = String(raw); }
+    bd.innerHTML = '<div class="dp-rows">' +
+      (bl.length ? bl.map(function(x){
+        return '<div class="dp-row"><b>' + escHtml(x.title || '') + '</b><span class="m">' +
+               (x.chars ? (x.chars + ' 字') : '') + '</span></div>';
+      }).join('') : '<div class="dp-empty">没有板块</div>') + '</div>' +
+      '<div class="dp-empty" style="margin-top:12px">共 ' + (bl.length || 0) + ' 个板块' +
+      (stt.slides ? (' · ' + stt.slides + ' 页幻灯片') : '') + ' · ' + (stt.chars || 0) + ' 字</div>' +
+      '<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:var(--ink-500)">' +
+      '原始 JSON</summary><pre>' + escHtml(json) + '</pre></details>';
+  }
   function docpRender(){
     var bd = docpEl('docPanelBody'); if(!bd || !DOCP) return;
-    var md = DOCP.markdown || '', isRich = (DOCP.kind === 'rich');
-    if(DOCP_TAB === 'md'){
-      bd.innerHTML = isRich ? '<div class="dp-empty">这是导入的 .docx：没有 Markdown 源，看「文档」页签</div>'
-                            : (md.trim() ? ('<pre>' + escHtml(md) + '</pre>') : '<div class="dp-empty">没有 Markdown 内容</div>');
-    } else if(DOCP_TAB === 'slides'){
-      var sl = DOCP.slides || [];
-      bd.innerHTML = sl.length ? (sl.map(function(s, i){
-        var bs = (s.bullets || []).slice(0, 6);
-        return '<div class="dp-slide"><div class="n">第 ' + (i + 1) + ' / ' + sl.length + ' 页' +
-          (s.minutes ? ('　' + escHtml(String(s.minutes)) + ' 分钟') : '') + '</div>' +
-          '<h4>' + escHtml(s.name || '') + '</h4>' +
-          (bs.length ? ('<ul>' + bs.map(function(x){ return '<li>' + escHtml(x) + '</li>'; }).join('') + '</ul>') : '') +
-          '</div>';
-      }).join('') + '<button class="pill-btn" id="dpOpenWin">在新窗口看（16:9）</button>')
-        : ('<div class="dp-empty">' + (isRich ? '导入的 .docx 没有环节结构，下载 PPT 会按板块标题成页'
-                                              : '没有解析出可成页的环节 / 板块') + '</div>');
-      var ow = docpEl('dpOpenWin');
-      if(ow) ow.onclick = function(){ expPreviewSlides(sl, DOCP.title, ''); };
-    } else if(DOCP_TAB === 'outline'){
-      var bl = DOCP.blocks || [], stt = DOCP.stats || {};
-      bd.innerHTML = '<div class="dp-rows">' +
-        (bl.length ? bl.map(function(x){
-          return '<div class="dp-row"><b>' + escHtml(x.title || '') + '</b><span class="m">' +
-                 (x.chars ? (x.chars + ' 字') : '') + '</span></div>';
-        }).join('') : '<div class="dp-empty">没有板块</div>') + '</div>' +
-        '<div class="dp-empty" style="margin-top:12px">共 ' + (bl.length || 0) + ' 个板块' +
-        (stt.slides ? (' · ' + stt.slides + ' 页幻灯片') : '') + ' · ' + (stt.chars || 0) + ' 字</div>';
-    } else {
-      bd.innerHTML = isRich ? docpRichHtml(DOCP.rich || {})
-                            : (md.trim() ? mdLight(md) : '<div class="dp-empty">没有内容可预览</div>');
-    }
+    /* 库还没齐（CDN 慢/被墙）就先补本地 vendor，补齐后自动再渲染一次 */
+    dpEnsureLibs(function(){ if(DOCP && DOCP_ON) docpRender(); });
+    if(DOCP_TAB === 'md')            docpRenderMd(bd);
+    else if(DOCP_TAB === 'slides')   docpRenderSlides(bd);
+    else if(DOCP_TAB === 'outline')  docpRenderOutline(bd);
+    else                             docpRenderDoc(bd);        /* 文档（Word 样式） */
     var ti = docpEl('docPanelTitle'); if(ti) ti.textContent = DOCP.title || '文档预览';
     var se = docpEl('docPanelStat'), st = DOCP.stats || {};
-    if(se) se.textContent = isRich ? ('导入文档 · ' + (st.blocks || (DOCP.blocks || []).length) + ' 板块')
-                                   : ((st.chars || 0) + ' 字 · ' + (st.slides || 0) + ' 页');
+    if(se) se.textContent = (DOCP.kind === 'rich')
+      ? ('导入文档 · ' + (st.blocks || (DOCP.blocks || []).length) + ' 板块')
+      : ((st.chars || 0) + ' 字 · ' + (st.slides || 0) + ' 页');
+  }
+  /* 统一数据入口：Agent 推送 / 历史重载 / 「生成文档」/ 导入 四条路都走它 */
+  function docpSetDoc(payload){
+    if(!payload) return;
+    DOCP = payload;
+    if(!DOCP.kind) DOCP.kind = 'md';
+    DOCP.markdown = DOCP.markdown || '';
+    DOCP.slides = DOCP.slides || [];
+    DOCP.blocks = DOCP.blocks || [];
+    docpSyncFab();
+    if(DOCP_ON) docpRender();
+  }
+  /* skill 关闭：面板内容清空（外壳、拖拽、收起、【下载▾】都保留可用） */
+  function docpClear(){
+    DOCP = null;
+    DOCP_ON = false;
+    var p = docpEl('docPanel'); if(p) p.style.display = 'none';
+    document.body.classList.remove('dp-open');
+    var bd = docpEl('docPanelBody');
+    if(bd) bd.innerHTML = '<div class="dp-empty">会话文档预览已关闭（Skill 市场可开）：' +
+                          '面板不再接收文档，导出按钮仍可用</div>';
+    var ti = docpEl('docPanelTitle'); if(ti) ti.textContent = '文档预览';
+    var se = docpEl('docPanelStat'); if(se) se.textContent = '';
+    docpSyncFab();
   }
   function docpOpen(doc){
     if(!docpEnabled()){ showToast('会话文档预览已关闭（设置 → Skill 市场 → 会话文档预览）', false); return; }
@@ -2942,7 +3150,7 @@ svg{display:block}
     docpSyncFab();
   }
   /* 打开一份富文档（导入的 .docx / ③按板块填入的结果） */
-  function docpOpenRich(rich, title, extra){
+  function docpOpenRich(rich, title, extra, docxBuffer){
     rich = rich || {};
     var blocks = (rich.blocks || []).map(function(b){
       var chars = 0;
@@ -2955,10 +3163,11 @@ svg{display:block}
     var chars = blocks.reduce(function(a, b){ return a + b.chars; }, 0);
     docpOpen({ kind: 'rich', rich: rich, title: title || rich.name || '导入的文档',
                blocks: blocks, slides: [], markdown: '',
+               docxBuffer: docxBuffer || null,      /* 有原始 .docx 时，「文档」Tab 走 mammoth */
                stats: { chars: chars, blocks: blocks.length, slides: 0 },
                report: (extra && extra.report) || null });
   }
-  /* 重新展示当前文档（右下角入口 / 计划卡片上的「在右侧预览里查看」用） */
+  /* 重新展示当前文档（右下角常驻入口用） */
   function docpReveal(){
     if(!DOCP){ showToast('还没有可预览的文档：问一句教案（如「帮我备一节 3.3 幂函数的课」），或点面板里的「导入」', false); return; }
     if(DOCP_ON) docpClose(); else docpOpen(DOCP);
@@ -2988,11 +3197,18 @@ svg{display:block}
     if(!file) return;
     var fd = new FormData(); fd.append('file', file);
     showToast('正在解析 ' + (file.name || '文档') + '…');
+    /* 同时留一份原始字节：文档 Tab 用 mammoth 在浏览器里直接转类 Word HTML（不落盘） */
+    var bufP = (file.arrayBuffer ? file.arrayBuffer() : Promise.resolve(null));
     fetch('/api/template/import', { method: 'POST', body: fd }).then(function(r){ return r.json(); }).then(function(d){
       if(!d || !d.ok){ showToast('导入失败：' + ((d && d.error) || '未知错误'), false); return; }
       var nm = (d.template && d.template.name) || file.name || '导入的文档';
-      docpOpenRich(d.template, nm, null);
-      showToast('已导入《' + nm + '》：' + d.stats.blocks + ' 板块 / ' + d.stats.tables + ' 表（可预览与下载）', true);
+      bufP.then(function(buf){
+        docpOpenRich(d.template, nm, null, buf);
+        showToast('已导入《' + nm + '》：' + d.stats.blocks + ' 板块 / ' + d.stats.tables + ' 表（可预览与下载）', true);
+      }).catch(function(){
+        docpOpenRich(d.template, nm, null);
+        showToast('已导入《' + nm + '》：' + d.stats.blocks + ' 板块（可预览与下载）', true);
+      });
     }).catch(function(e){ showToast('导入失败：' + (e && e.message ? e.message : e), false); });
   }
   function docpClose(){
@@ -3007,7 +3223,8 @@ svg{display:block}
   function docpFromAnswer(md, htmlName){
     if(!md || !String(md).trim()) return;
     spJson('/api/session/doc-preview', 'POST', { markdown: md, session_id: CUR || '' }).then(function(d){
-      if(!d || !d.ok || !d.enabled) return;     /* 开关关掉：不渲染面板（导出不受影响） */
+      if(!d || !d.ok) return;
+      if(!d.enabled){ docpClear(); return; }   /* skill 关掉：面板内容清空（外壳与下载按钮仍在） */
       d.html = htmlName || '';
       docpOpen(d);
     }).catch(function(){});

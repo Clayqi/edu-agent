@@ -626,8 +626,8 @@ def _plan_options_event(req: ChatReq, text: str, code: str, last: dict | None) -
     ]
     if has_plan:
         options.append(
-            {"id": "fill_center", "label": "填入教案中心",
-             "hint": "不重新生成：把上面这份教案按标题填进模板对应板块，之后在教案中心接着改"})
+            {"id": "fill_center", "label": "按模板填入",
+             "hint": "不重新生成：按标题填进模板对应板块，结果直接进右侧预览面板"})
     return {
         "t": "options", "kind": "plan", "reason": reason,
         "topic": (text or "").strip()[:40],
@@ -719,11 +719,48 @@ def _stream_supervisor(sid: str, req: ChatReq, text: str):
         elif ty == "error":
             yield ev
             return
-    _store.append(sid, "assistant", _tag("S") + final_text,
-                  meta={"mode": "S", "citations": citations,
-                        "pages": sorted({c.get("page") for c in citations if c.get("page")})})
-    yield {"t": "done", "mode": "S", "agent": "A" if not html_name else "B",
-           "text": final_text, "citations": citations, "html": html_name}
+    # 总指挥如果产出了教案（html_name 非空），同样下发结构化 payload
+    doc = (_doc_payload(final_text) if (html_name and capabilities.session_preview_ready()) else None)
+    meta = {"mode": "S", "citations": citations,
+            "pages": sorted({c.get("page") for c in citations if c.get("page")})}
+    if doc:
+        meta["doc"] = doc
+    _store.append(sid, "assistant", _tag("S") + final_text, meta=meta)
+    done = {"t": "done", "mode": "S", "agent": "A" if not html_name else "B",
+            "text": final_text, "citations": citations, "html": html_name}
+    if doc:
+        done["doc"] = doc
+    yield done
+
+
+def _doc_payload(md: str, title: str = "", grade: str = "") -> dict:
+    """把一份教案 Markdown 整理成「结构化文档 payload」（纯内存，不落盘、不调 WPS）。
+
+    形状沿用 wps 导出 payload 的字段命名，前端 4 个 Tab 共用这一份数据源。
+    """
+    md = str(md or "")
+    slides: list[dict] = []
+    if md.strip():
+        try:
+            slides = wps_export.slides_from_markdown(md).get("slides") or []
+        except Exception:  # noqa: BLE001 纯整理，解析失败不该让对话出错
+            slides = []
+    blocks = _plan_blocks(md) if md.strip() else []
+    minutes = 0
+    for s in slides:
+        try:
+            minutes += int(s.get("minutes") or 0)
+        except (TypeError, ValueError):
+            pass
+    return {
+        "title": title or "未命名文档",
+        "grade": grade,
+        "markdown": md,
+        "slides": slides,
+        "blocks": blocks,
+        "stats": {"chars": len(md), "blocks": len(blocks),
+                  "slides": len(slides), "minutes": minutes},
+    }
 
 
 def _stream_planner(sid: str, req: ChatReq, text: str):
@@ -739,11 +776,18 @@ def _stream_planner(sid: str, req: ChatReq, text: str):
         html_path = plan_html.save_html(md, rec.title)
         html_name = html_path.name
         _store.set_last_html(sid, html_name)
-        _store.append(sid, "assistant", _tag("B") + md,
-                      meta={"mode": "B", "citations": [c.model_dump() for c in rec.citations],
-                            "pages": sorted({c.page for c in rec.citations if c.page})})
-        yield {"t": "done", "mode": "B", "text": md, "html": html_name,
-               "title": rec.title, "citations": [c.model_dump() for c in rec.citations]}
+        # 结构化 payload：skill 开着才下发给前端（含落库，历史恢复时还能重载）
+        doc = (_doc_payload(md, title=rec.title) if capabilities.session_preview_ready() else None)
+        meta = {"mode": "B", "citations": [c.model_dump() for c in rec.citations],
+                "pages": sorted({c.page for c in rec.citations if c.page})}
+        if doc:
+            meta["doc"] = doc
+        _store.append(sid, "assistant", _tag("B") + md, meta=meta)
+        done = {"t": "done", "mode": "B", "text": md, "html": html_name,
+                "title": rec.title, "citations": [c.model_dump() for c in rec.citations]}
+        if doc:
+            done["doc"] = doc
+        yield done
     except Exception as e:
         yield {"t": "error", "text": "B 出错：" + type(e).__name__ + ": " + str(e)}
 
@@ -773,27 +817,35 @@ class DocPreviewReq(BaseModel):
 
 @app.post("/api/session/doc-preview")
 def api_session_doc_preview(body: DocPreviewReq):
-    """只做内存里的结构化整理，原样回传输入。无磁盘 IO、不调用 WPS MCP。"""
-    md = str(body.markdown or "")
-    # 没给 markdown 时，允许从会话里取最近一份教案（同样只读内存/库，不落盘）
+    """结构化文档 → 前端预览：**只透传**，无任何磁盘 IO、不调用 WPS MCP。
+
+    与 /api/wps/export 是两条独立链路：
+      · 本接口：payload → 原样回传（+ 派生页结构供幻灯片 Tab 用），内存计算；
+      · 导出接口：同一份 payload → 落盘 docx/pptx，受 wps-office 开关约束。
+    """
+    payload = body.payload if isinstance(body.payload, dict) else {}
+    # markdown 优先取请求体，其次取 payload.markdown；都没有再用会话里最近一份教案兜底
+    md = str(body.markdown or payload.get("markdown") or "")
     if not md.strip():
         md = _last_plan_markdown(str(body.session_id or "").strip()
                                  or (_store.current_id() or ""))
-    payload = body.payload if isinstance(body.payload, dict) else {}
 
+    # payload 自带的 slides/blocks 优先（Agent 已结构化），否则由 markdown 纯计算派生
+    slides = payload.get("slides") if isinstance(payload.get("slides"), list) else []
+    blocks = payload.get("blocks") if isinstance(payload.get("blocks"), list) else []
     title = str(payload.get("title") or "").strip()
-    blocks: list[dict] = []
-    slides: list[dict] = []
     if md.strip():
-        try:
-            data = wps_export.slides_from_markdown(md)
-            title = title or str(data.get("title") or "")
-            slides = data.get("slides") or []
-        except Exception:  # noqa: BLE001 纯预览，解析失败不该 500
-            slides = []
-        blocks = _plan_blocks(md)
+        if not slides:
+            try:
+                data = wps_export.slides_from_markdown(md)
+                title = title or str(data.get("title") or "")
+                slides = data.get("slides") or []
+            except Exception:  # noqa: BLE001 纯预览，解析失败不该 500
+                slides = []
+        if not blocks:
+            blocks = _plan_blocks(md)
     if not title:
-        title = str(payload.get("title") or "未命名文档")
+        title = "未命名文档"
 
     minutes = 0
     for s in slides:
@@ -803,10 +855,10 @@ def api_session_doc_preview(body: DocPreviewReq):
             pass
     return {
         "ok": True,
-        "enabled": capabilities.session_preview_ready(),   # 前端据此决定要不要渲染面板
+        "enabled": capabilities.session_preview_ready(),   # 前端据此决定渲染 or 清空面板
         "title": title,
-        "markdown": md,                                    # 原样回传
-        "payload": payload,                                # 原样回传
+        "payload": payload,                                # 原样回传（结构 Tab 的原始 JSON）
+        "markdown": md,                                    # 原样回传（Markdown Tab 的输入）
         "blocks": blocks,
         "slides": slides,
         "stats": {"chars": len(md), "blocks": len(blocks),

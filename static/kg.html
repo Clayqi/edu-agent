@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>高中数学知识星图</title>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.6/standalone/umd/vis-network.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { 
@@ -181,10 +181,14 @@
   </div>
 
 <script>
-const chart = echarts.init(document.getElementById('chart'));
+let network = null, nodesDS = null, edgesDS = null;
 let graphData = { nodes: [], links: [] };
 let learnedSet = new Set(JSON.parse(localStorage.getItem('kg_learned') || '[]'));
 let currentNodeId = null;
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 // 星座配色
 const constellationColors = {
@@ -193,6 +197,55 @@ const constellationColors = {
   '第三章': '#ffd700',
   '第四章': '#ff6b9d',
   '初中衔接': '#c084fc'
+};
+
+// vis-network 配置（forceAtlas2Based 布局 + 连续贝塞尔曲线 + 节点自动避让）
+const DEFAULT_VIS_OPTIONS = {
+  physics: {
+    enabled: true,
+    solver: 'forceAtlas2Based',
+    forceAtlas2Based: {
+      gravitationalConstant: -60,
+      centralGravity: 0.005,
+      springLength: 120,
+      springConstant: 0.08,
+      damping: 0.4,
+      avoidOverlap: 0.8
+    },
+    stabilization: { iterations: 200, fit: true },
+    maxVelocity: 60,
+    minVelocity: 0.12
+  },
+  interaction: {
+    hover: true,
+    tooltipDelay: 120,
+    navigationButtons: false,
+    keyboard: false,
+    dragNodes: true,
+    zoomView: true,
+    dragView: true
+  },
+  nodes: { shape: 'dot', borderWidth: 1.2, scaling: { min: 10, max: 30 } },
+  edges: {
+    smooth: { type: 'continuous', roundness: 0.2 },
+    selectionWidth: 2,
+    arrows: { to: { enabled: true, scaleFactor: 0.4 } }
+  }
+};
+
+// 深色主题配色
+const KG_DARK = {
+  nodeDimColor: '#5a628a',
+  nodeLabel: '#ffffff',
+  nodeDimLabel: '#aab2d8',
+  linkOn: 'rgba(255, 255, 255, 0.55)',
+  linkOff: 'rgba(160, 170, 220, 0.35)',
+  emLine: '#ffffff',
+  defColor: '#c9a3ff',
+  succBg: 'rgba(100,200,150,0.2)',
+  succText: '#98ff98',
+  empty: '#666',
+  loading: '#888'
 };
 
 // 加载图谱数据
@@ -243,126 +296,122 @@ function updateProgress() {
 }
 
 function renderGraph(nodes, links, focusNode = null) {
-  const seriesData = nodes.map(n => {
+  if (!network) return;
+  const nodeItems = nodes.map(n => {
     const isLearned = learnedSet.has(n.id);
-    const color = constellationColors[n.category] || '#fff';
+    const color = constellationColors[n.category] || KG_DARK.defColor;
     // 根据度数自动计算大小（度数越高越大，核心节点更突出）
     const degree = n.degree || 1;
     let baseSize = 8 + Math.min(degree * 2, 12); // 8~20之间
-    if (focusNode === n.id) baseSize += 6;
+    if (focusNode === n.id) baseSize += 4;
     
     return {
       id: n.id,
-      name: n.name,
-      category: n.category,
-      degree: degree,
-      symbolSize: baseSize,
-      itemStyle: {
-        color: isLearned ? color : '#666',
-        opacity: isLearned ? 1 : 0.6,
-        shadowBlur: isLearned ? (degree > 5 ? 25 : 15) : 0,
-        shadowColor: isLearned ? color : 'transparent',
-        shadowOffsetX: 0,
-        shadowOffsetY: 0
+      label: String(n.name || n.id),
+      title: `<b>${escHtml(n.name)}</b><br>${isLearned ? '✨ 已点亮' : '⭕ 未点亮'}<br>章节：${escHtml(n.category || '-')}<br>${degree} 个连接`,
+      shape: 'dot',
+      size: baseSize,
+      color: {
+        background: isLearned ? color : KG_DARK.nodeDimColor,
+        border: isLearned ? color : KG_DARK.nodeDimColor,
+        highlight: { background: '#fff', border: color },
+        hover: { background: '#fff', border: color }
       },
-      label: { 
-        show: true, 
-        fontSize: 12,
-        position: 'bottom',
-        color: isLearned ? '#ffffff' : '#888888',
-        textShadow: isLearned ? '0 0 6px ' + color : '0 1px 2px rgba(0,0,0,0.8)',
-        fontWeight: isLearned ? 'bold' : 'normal'
-      }
+      font: { size: 11, color: isLearned ? KG_DARK.nodeLabel : KG_DARK.nodeDimLabel, face: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' },
+      shadow: isLearned ? { enabled: true, color: color, size: degree > 5 ? 18 : 10, x: 0, y: 0 } : { enabled: false },
+      _degree: degree,
+      _category: n.category || ''
     };
   });
 
-  const option = {
-    backgroundColor: 'transparent',
-    tooltip: {
-      backgroundColor: 'rgba(10, 10, 40, 0.9)',
-      borderColor: 'rgba(100, 150, 255, 0.3)',
-      textStyle: { color: '#fff' },
-      formatter: params => {
-        if (params.dataType === 'node') {
-          const status = learnedSet.has(params.data.id) ? ' ✨已点亮' : ' ⭕未点亮';
-          return '<b>' + params.data.name + '</b>' + status;
-        }
-        return params.data.relation;
-      }
-    },
-    series: [{
-      type: 'graph',
-      layout: 'force',
-      force: { 
-        repulsion: 400, 
-        edgeLength: [100, 200],
-        gravity: 0.1
-      },
-      roam: true,
-      draggable: true,
-      data: seriesData,
-      links: (() => {
-        const pairKey = l => l.source < l.target ? l.source + '~' + l.target : l.target + '~' + l.source;
-        const group = {};
-        links.forEach(l => { const g = pairKey(l); (group[g] = group[g] || []).push(l); });
-        const out = [];
-        for (const g in group) {
-          const arr = group[g];
-          arr.forEach((l, i) => {
-            const sourceLearned = learnedSet.has(l.source);
-            const targetLearned = learnedSet.has(l.target);
-            const bothLearned = sourceLearned && targetLearned;
-            
-            // 根据关系类型设置不同线样式
-            let lineType = 'solid';
-            if (l.relation === '前置知识点') lineType = 'dashed';
-            else if (l.relation === '可推导') lineType = 'dotted';
-            
-            // 同一对节点多条边时，弧形方向错开避免重叠
-            let curv = 0.18;
-            if (arr.length > 1) curv = 0.18 + (i - (arr.length - 1) / 2) * 0.16;
-            
-            out.push({
-              source: l.source,
-              target: l.target,
-              relation: l.relation,
-              lineStyle: {
-                color: bothLearned ? 'rgba(255, 255, 255, 0.5)' : 'rgba(150, 150, 200, 0.3)',
-                width: bothLearned ? 1.5 : 1.1,
-                curveness: curv,
-                type: lineType,
-                shadowBlur: bothLearned ? 5 : 0,
-                shadowColor: 'rgba(100, 150, 255, 0.3)'
-              }
-            });
-          });
-        }
-        return out;
-      })(),
-      emphasis: {
-        focus: 'adjacency',
-        lineStyle: { 
-          width: 2.5,
-          color: 'rgba(255, 255, 255, 0.8)'
-        },
-        itemStyle: {
-          shadowBlur: 30
-        }
-      }
-    }]
-  };
+  // 同一对节点之间的多条边：roundness 逐条错开，曲线自然散开互不重叠
+  const pairCount = {};
+  links.forEach(l => {
+    const k = l.source < l.target ? l.source + '~' + l.target : l.target + '~' + l.source;
+    pairCount[k] = (pairCount[k] || 0) + 1;
+  });
+  const pairIdx = {};
+  const edgeItems = links.map((l, idx) => {
+    const bothLearned = learnedSet.has(l.source) && learnedSet.has(l.target);
+    const k = l.source < l.target ? l.source + '~' + l.target : l.target + '~' + l.source;
+    const i = pairIdx[k] || 0;
+    pairIdx[k] = i + 1;
+    const roundness = pairCount[k] > 1 ? 0.2 + i * 0.24 : 0.2;
+    const rel = l.relation || '关联';
+    return {
+      id: 'e' + idx,
+      from: l.source,
+      to: l.target,
+      title: escHtml(rel) + (bothLearned ? '（已点亮）' : '未点亮'),
+      width: bothLearned ? 1.8 : 1.2,
+      color: bothLearned ? { color: KG_DARK.linkOn, highlight: KG_DARK.emLine, hover: KG_DARK.emLine }
+                         : { color: KG_DARK.linkOff, highlight: KG_DARK.emLine, hover: KG_DARK.emLine },
+      dashes: rel === '前置知识点' ? [6, 4] : (rel === '可推导' ? [2, 3] : false),
+      smooth: { type: 'continuous', roundness: roundness, forceDirection: 'none' }
+    };
+  });
 
-  chart.setOption(option);
+  nodesDS = new vis.DataSet(nodeItems);
+  edgesDS = new vis.DataSet(edgeItems);
+  network.setData({ nodes: nodesDS, edges: edgesDS });
+  network.setOptions(DEFAULT_VIS_OPTIONS);
+  if (focusNode) {
+    network.selectNodes([focusNode]);
+    setTimeout(() => {
+      try { network.focus(focusNode, { scale: 1.3, animation: { duration: 400, easingFunction: 'easeInOutQuad' } }); } catch(e) {}
+    }, 80);
+  } else {
+    network.fit({ animation: { duration: 400 } });
+  }
 }
 
+function updateNodeColors() {
+  if (!nodesDS || !edgesDS) return;
+  const upd = [];
+  nodesDS.get().forEach(n => {
+    const isLearned = learnedSet.has(n.id);
+    const color = constellationColors[n._category] || KG_DARK.defColor;
+    upd.push({
+      id: n.id,
+      color: {
+        background: isLearned ? color : KG_DARK.nodeDimColor,
+        border: isLearned ? color : KG_DARK.nodeDimColor,
+        highlight: { background: '#fff', border: color },
+        hover: { background: '#fff', border: color }
+      },
+      font: { size: 11, color: isLearned ? KG_DARK.nodeLabel : KG_DARK.nodeDimLabel, face: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' },
+      shadow: isLearned ? { enabled: true, color: color, size: (n._degree && n._degree > 5) ? 18 : 10, x: 0, y: 0 } : { enabled: false }
+    });
+  });
+  nodesDS.update(upd);
+  const updE = [];
+  edgesDS.get().forEach(e => {
+    const bothLearned = learnedSet.has(e.from) && learnedSet.has(e.to);
+    updE.push({
+      id: e.id,
+      color: bothLearned ? { color: KG_DARK.linkOn, highlight: KG_DARK.emLine, hover: KG_DARK.emLine }
+                         : { color: KG_DARK.linkOff, highlight: KG_DARK.emLine, hover: KG_DARK.emLine },
+      width: bothLearned ? 1.8 : 1.2
+    });
+  });
+  edgesDS.update(updE);
+  try { network.redraw(); } catch(e) {}
+}
+
+// 初始化 vis-network（进入页面即渲染）
+network = new vis.Network(document.getElementById('chart'), { nodes: [], edges: [] }, DEFAULT_VIS_OPTIONS);
+
 // 点击节点
-chart.on('click', params => {
-  if (params.dataType === 'node') {
-    currentNodeId = params.data.id;
-    showNodeInfo(params.data.id, params.data.name);
-    fetch(`/api/kg/related/${params.data.id}?hops=1`)
+network.on('click', params => {
+  if (params.nodes && params.nodes.length) {
+    const id = params.nodes[0];
+    const node = nodesDS.get(id);
+    if (!node) return;
+    currentNodeId = id;
+    showNodeInfo(id, node.label);
+    fetch(`/api/kg/related/${id}?hops=1`)
       .then(r => r.json())
-      .then(data => renderGraph(data.nodes, data.links, params.data.id));
+      .then(data => renderGraph(data.nodes, data.links, id));
   }
 });
 
@@ -424,9 +473,7 @@ function toggleLearn() {
   saveLearned();
   updateProgress();
   showNodeInfo(currentNodeId, document.getElementById('nodeName').textContent);
-  fetch(`/api/kg/related/${currentNodeId}?hops=1`)
-    .then(r => r.json())
-    .then(data => renderGraph(data.nodes, data.links, currentNodeId));
+  updateNodeColors();
 }
 
 function closeInfo() {
@@ -461,7 +508,7 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
     });
 });
 
-window.addEventListener('resize', () => chart.resize());
+// vis-network 自动监听窗口大小变化，无需手动 redraw
 </script>
 </body>
 </html>

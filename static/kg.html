@@ -205,10 +205,10 @@ const DEFAULT_VIS_OPTIONS = {
     enabled: true,
     solver: 'forceAtlas2Based',
     forceAtlas2Based: {
-      gravitationalConstant: -60,
-      centralGravity: 0.005,
-      springLength: 120,
-      springConstant: 0.08,
+      gravitationalConstant: -120,
+      centralGravity: 0.002,
+      springLength: 160,
+      springConstant: 0.04,
       damping: 0.4,
       avoidOverlap: 0.8
     },
@@ -229,7 +229,7 @@ const DEFAULT_VIS_OPTIONS = {
   },
   nodes: { shape: 'dot', borderWidth: 1.2, scaling: { min: 10, max: 30 } },
   edges: {
-    smooth: { type: 'continuous', roundness: 0.2 },
+    smooth: { type: 'continuous', roundness: 0.8 },
     selectionWidth: 2.5,
     hoverWidth: 2.2,
     arrows: { to: { enabled: true, scaleFactor: 0.4 } }
@@ -339,7 +339,7 @@ function renderGraph(nodes, links, focusNode = null, iters = 130) {
     const k = l.source < l.target ? l.source + '~' + l.target : l.target + '~' + l.source;
     const i = pairIdx[k] || 0;
     pairIdx[k] = i + 1;
-    const roundness = pairCount[k] > 1 ? 0.2 + i * 0.24 : 0.2;
+    const roundness = pairCount[k] > 1 ? 0.8 + i * 0.3 : 0.8;
     const rel = l.relation || '关联';
     return {
       id: 'e' + idx,

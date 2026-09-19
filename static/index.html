@@ -1591,6 +1591,12 @@ svg{display:block}
   /* ==== 教案/PPT 联动：两个选项（① 生成教案模板 ② 按模板生成）（2026-09-12 一期） ==== */
   var CHAT_TPL_KEY = 'edu_chat_tpl';
   var PLAN_AUTO_KEY = 'edu_plan_auto';
+  /* 2026-09-19（应你的要求）：会话里**不再渲染**「下一步」计划卡片 —— 标题行、①②③ 按钮、提示行都不出现，
+     每条回答的操作行只留【复制】【重新生成】【生成文档】。
+     渲染函数与后端 options 事件都原样保留（后端一行未改），要恢复就把下面这行改回 true。
+     注：①②③ 里「生成模板 / 按模板生成 / 按模板填入」因此**在会话里没有入口了**，
+     教案模板相关操作改从「教案中心」走。 */
+  var PLAN_CARD_ON = false;
   var PLAN_FILL_PENDING = null;      // ②「按模板生成」完成后要自动填入教案中心的模板
   function planAutoOn(){ try{ return localStorage.getItem(PLAN_AUTO_KEY) !== '0'; }catch(e){ return true; } }
   function planAutoSet(on){ try{ if(on) localStorage.removeItem(PLAN_AUTO_KEY); else localStorage.setItem(PLAN_AUTO_KEY, '0'); }catch(e){} }
@@ -1607,6 +1613,8 @@ svg{display:block}
   }
 
   function renderPlanOptions(el, ev){
+    /* 2026-09-19：整卡关闭（见 PLAN_CARD_ON 说明）——不渲染标题行、①②③ 与提示行 */
+    if(!PLAN_CARD_ON) return;
     /* 设置里可以关掉自动提示（localStorage: edu_plan_auto，默认开） */
     if(!planAutoOn()) return;
     var opts = ev.options || [], gen = null, use = null, fill = null;
@@ -2383,8 +2391,6 @@ svg{display:block}
       '</div>'+
       '<div class="sec-h" style="margin-top:26px"><h3>教案</h3></div>'+
       '<div class="set-card">'+
-        '<div class="set-row"><div class="sl"><div class="t">教案选项自动提示</div><div class="s">对话涉及教案 / 课件 / PPT 时，给出「生成模板 · 按模板生成 · 填入教案中心」选项卡</div></div>'+
-        '<button class="switch blue'+(planAutoOn()?' on':'')+'" data-set="plan_auto"></button></div>'+
         '<div class="set-row"><div class="sl"><div class="t">导出位置</div><div class="s">对话与教案中心共用；留空 = 项目内 content/plans</div></div>'+
         '<span style="font-size:12px;color:var(--ink-500)">'+(dzOutDirGet() ? escHtml(dzOutDirGet()) : 'content/plans')+'</span></div>'+
       '</div>'+
@@ -2405,14 +2411,8 @@ svg{display:block}
     modal.querySelectorAll('.switch').forEach(function(t){
       t.addEventListener('click', function(){ t.classList.toggle('on'); });
     });
-    /* 真正生效的开关：教案选项自动提示（存 localStorage） */
-    modal.querySelectorAll('.switch[data-set="plan_auto"]').forEach(function(t){
-      t.addEventListener('click', function(){
-        var on = t.classList.contains('on');
-        planAutoSet(on);
-        showToast(on ? '已开启：对话涉及教案/PPT 时会给选项卡' : '已关闭：不再自动弹选项卡（可在设置里重新开启）', on);
-      });
-    });
+    /* 「教案选项自动提示」开关已随计划卡片一起下掉（2026-09-19）：卡片不再渲染，开关留着只会骗人。
+       planAutoOn()/planAutoSet() 仍保留，恢复卡片（PLAN_CARD_ON=true）时这里再把它加回来即可。 */
     modal.querySelectorAll('.seg button').forEach(function(b){
       b.addEventListener('click', function(){ b.parentElement.querySelectorAll('button').forEach(function(x){x.classList.toggle('active',x===b);}); });
     });

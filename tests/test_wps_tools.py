@@ -122,6 +122,53 @@ class TestSessionDocPreview(_EnvSandbox):
         self.assertEqual(r["stats"]["minutes"], 8)
         self.assertGreater(r["stats"]["blocks"], 0)
 
+    def test_preview_strips_agent_tag(self):
+        """历史会话兜底进来的正文带「**【Agent B · 教案 Agent】**」标签，必须摘掉。
+
+        不摘的后果：标题取到标签 → 退化成「未命名文档」；标签还会渲染进面板与导出文件。
+        注意 B/A 的标签**和正文粘在同一行**（`_tag()` 没带回车），换行那种也要能摘。
+        """
+        r = ws.api_session_doc_preview(ws.DocPreviewReq(
+            markdown="**【Agent B · 教案 Agent】**\n\n" + self.MD))
+        self.assertEqual(r["title"], "3.3 幂函数", "标题应取正文首个标题，而不是标签行")
+        self.assertTrue(r["markdown"].startswith("# 3.3 幂函数"), "回传正文不该带标签")
+        self.assertNotIn("Agent B", r["markdown"])
+        # 会话库里真实的样子：标签和首个标题粘在同一行
+        glued = ws.api_session_doc_preview(ws.DocPreviewReq(
+            markdown="**【Agent B · 教案 Agent】**# 3.3 幂函数\n\n**教学目标**\n- 一条\n"))
+        self.assertEqual(glued["title"], "3.3 幂函数", "同一行粘连时也要摘掉")
+        self.assertTrue(glued["markdown"].startswith("# 3.3 幂函数"))
+        # 三种标签（A / B / 总指挥）都要摘；正文中间的【…】不许动
+        for tag in ("**【Agent A · 课本教练（答疑）】**", "**【Agent B · 教案 Agent】**",
+                    "**【总指挥 · 监督 Agent】**"):
+            rr = ws.api_session_doc_preview(ws.DocPreviewReq(markdown=tag + self.MD))
+            self.assertNotIn("Agent", rr["markdown"].splitlines()[0], tag)
+            self.assertEqual(rr["title"], "3.3 幂函数", tag)
+        keep = ws.api_session_doc_preview(ws.DocPreviewReq(
+            markdown=self.MD + "\n正文里的【重点】不能动。\n"))
+        self.assertIn("正文里的【重点】不能动。", keep["markdown"], "正文内的【…】不属于标签")
+        self.assertEqual(ws._strip_agent_tag("**【重点】**正文"), "**【重点】**正文",
+                         "开头但不是 Agent 标签的【…】不动")
+
+    def test_history_meta_doc_is_cleaned(self):
+        """老会话里**已落库**的 meta.doc 也要清洗（前端历史重载是原样复用的）。
+
+        修复前生成的 payload 会把「**【Agent B · 教案 Agent】**」当正文、标题退化成「未命名文档」，
+        不清洗的话老会话永远带着这个瑕疵；不带标签的消息必须原对象返回（零成本）。
+        """
+        dirty = {"role": "assistant", "content": "x",
+                 "meta": {"mode": "B", "doc": {"title": "未命名文档", "markdown":
+                         "**【Agent B · 教案 Agent】**\n\n# 3.3 幂函数\n\n**教学目标**\n- 一条\n"}}}
+        clean = {"role": "assistant", "content": "y",
+                 "meta": {"mode": "B", "doc": {"title": "3.3 幂函数", "markdown": "# 3.3 幂函数\n"}}}
+        out = ws._clean_doc_meta(dirty)
+        self.assertEqual(out["meta"]["doc"]["title"], "3.3 幂函数")
+        self.assertNotIn("Agent B", out["meta"]["doc"]["markdown"])
+        self.assertTrue(out["meta"]["doc"]["markdown"].startswith("# 3.3 幂函数"))
+        self.assertIs(ws._clean_doc_meta(clean), clean, "干净的消息不该被重建")
+        self.assertEqual(ws._clean_doc_meta({"role": "user", "content": "hi"}),
+                         {"role": "user", "content": "hi"})
+
     def test_preview_still_works_when_wps_off(self):
         """★ 两条链路解耦：关掉 WPS 导出被拒，预览照常。"""
         cap.set_enabled("mcp", "wps-office", False)

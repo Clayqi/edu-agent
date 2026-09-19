@@ -299,7 +299,7 @@ def _last_plan_markdown(sid: str) -> str:
             continue
         text = m.get("content") or ""
         if (m.get("meta") or {}).get("mode") == "B" or "Agent B" in text[:60]:
-            return text
+            return _strip_agent_tag(text)
     return ""
 
 
@@ -555,6 +555,29 @@ def _tag(mode: str) -> str:
     return "**【Agent A · 课本教练（答疑）】**" if mode == "A" else "**【Agent B · 教案 Agent】**"
 
 
+_TAG_PREFIX_RE = re.compile(r"^(?:\*\*)?\s*【\s*(?:Agent\s*[ABS]\b|总指挥)[^】]*】\s*(?:\*\*)?[ \t]*")
+
+
+def _strip_agent_tag(md: str) -> str:
+    """摘掉正文**开头**那个 Agent 标签（`_tag()` 加的「**【Agent B · 教案 Agent】**」）。
+
+    会话里存的回答正文带这个标签，但它属于聊天装饰、不属于文档：不摘掉会渲染进右侧预览、
+    跟着进导出文件，还会让预览标题退化成「未命名文档」（首行不是标题，取不到题名）。
+
+    坑：mode B/A 的标签**后面没有换行**，和正文首个标题粘在同一行
+    （`**【Agent B · 教案 Agent】**# 3.3 幂函数`），所以按"行首前缀"摘，而不是"整行匹配"；
+    只认开头，且括号里必须是 Agent/总指挥，正文里的【…】不动。
+    """
+    s = str(md or "")
+    head = re.match(r"[ \t\r\n]*", s)          # 跳过开头的空白行
+    rest = s[head.end():]
+    hit = _TAG_PREFIX_RE.match(rest)
+    if not hit:
+        return s
+    return rest[hit.end():].lstrip("\r\n")
+
+
+
 def _sse(gen):
     def stream():
         for ev in gen:
@@ -738,11 +761,14 @@ def _doc_payload(md: str, title: str = "", grade: str = "") -> dict:
 
     形状沿用 wps 导出 payload 的字段命名，前端 4 个 Tab 共用这一份数据源。
     """
-    md = str(md or "")
+    md = _strip_agent_tag(str(md or ""))
     slides: list[dict] = []
+    title_from_md = ""
     if md.strip():
         try:
-            slides = wps_export.slides_from_markdown(md).get("slides") or []
+            data = wps_export.slides_from_markdown(md)
+            slides = data.get("slides") or []
+            title_from_md = str(data.get("title") or "")
         except Exception:  # noqa: BLE001 纯整理，解析失败不该让对话出错
             slides = []
     blocks = _plan_blocks(md) if md.strip() else []
@@ -753,7 +779,7 @@ def _doc_payload(md: str, title: str = "", grade: str = "") -> dict:
         except (TypeError, ValueError):
             pass
     return {
-        "title": title or "未命名文档",
+        "title": str(title or "").strip() or title_from_md or "未命名文档",
         "grade": grade,
         "markdown": md,
         "slides": slides,
@@ -825,7 +851,7 @@ def api_session_doc_preview(body: DocPreviewReq):
     """
     payload = body.payload if isinstance(body.payload, dict) else {}
     # markdown 优先取请求体，其次取 payload.markdown；都没有再用会话里最近一份教案兜底
-    md = str(body.markdown or payload.get("markdown") or "")
+    md = _strip_agent_tag(str(body.markdown or payload.get("markdown") or ""))
     if not md.strip():
         md = _last_plan_markdown(str(body.session_id or "").strip()
                                  or (_store.current_id() or ""))
@@ -834,18 +860,22 @@ def api_session_doc_preview(body: DocPreviewReq):
     slides = payload.get("slides") if isinstance(payload.get("slides"), list) else []
     blocks = payload.get("blocks") if isinstance(payload.get("blocks"), list) else []
     title = str(payload.get("title") or "").strip()
+    title_from_md = ""
     if md.strip():
-        if not slides:
-            try:
-                data = wps_export.slides_from_markdown(md)
-                title = title or str(data.get("title") or "")
+        try:
+            data = wps_export.slides_from_markdown(md)
+            title_from_md = str(data.get("title") or "")
+            if not slides:
                 slides = data.get("slides") or []
-            except Exception:  # noqa: BLE001 纯预览，解析失败不该 500
-                slides = []
+        except Exception:  # noqa: BLE001 纯预览，解析失败不该 500
+            slides = slides or []
         if not blocks:
             blocks = _plan_blocks(md)
+    # 标题优先级：payload 标题 > 正文首个标题 > 占位
+    # （历史会话兜底进来的正文原本带「**【Agent B · 教案 Agent】**」标签，
+    #   已由 _strip_agent_tag 摘掉，否则这里只会取到标签、退化成「未命名文档」）
     if not title:
-        title = "未命名文档"
+        title = title_from_md or "未命名文档"
 
     minutes = 0
     for s in slides:
@@ -885,13 +915,41 @@ def _plan_blocks(md: str) -> list[dict]:
     return out
 
 
+def _clean_doc_meta(msg: dict) -> dict:
+    """历史消息里已落库的 `meta.doc` 兜底清洗。
+
+    为什么需要：`meta.doc` 是**当时**那份代码算出来的、直接存进了会话库。修复前生成的
+    payload 会把正文开头的「**【Agent B · 教案 Agent】**」当成正文（标题因此退化成
+    「未命名文档」），前端做历史重载时是原样复用的——不清洗，老会话永远带着这个瑕疵。
+    只在真的带标签时才重算（不带标签时原对象返回，零成本）。
+    """
+    if not isinstance(msg, dict):
+        return msg
+    meta = msg.get("meta")
+    doc = meta.get("doc") if isinstance(meta, dict) else None
+    if not isinstance(doc, dict):
+        return msg
+    md = str(doc.get("markdown") or "")
+    if _strip_agent_tag(md) == md:
+        return msg
+    title = str(doc.get("title") or "").strip()
+    if title == "未命名文档":
+        title = ""
+    cleaned = dict(msg)
+    cleaned["meta"] = dict(meta)
+    cleaned["meta"]["doc"] = _doc_payload(_strip_agent_tag(md), title=title,
+                                          grade=str(doc.get("grade") or ""))
+    return cleaned
+
+
 @app.post("/api/session/get")
 def api_sess_get(body: dict):
     sess = _store.get(body.get("id", ""))
     if sess is None:
         return {"id": body.get("id", ""), "title": "新会话", "messages": [], "last_html": ""}
     return {"id": sess["id"], "title": sess["title"],
-            "messages": sess["messages"], "last_html": sess["last_html"]}
+            "messages": [_clean_doc_meta(m) for m in sess["messages"]],
+            "last_html": sess["last_html"]}
 
 
 @app.post("/api/session/del")

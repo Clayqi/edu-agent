@@ -301,30 +301,44 @@ function renderGraph(nodes, links, focusNode = null) {
       roam: true,
       draggable: true,
       data: seriesData,
-      links: links.map(l => {
-        const sourceLearned = learnedSet.has(l.source);
-        const targetLearned = learnedSet.has(l.target);
-        const bothLearned = sourceLearned && targetLearned;
-        
-        // 根据关系类型设置不同线样式
-        let lineType = 'solid';
-        if (l.relation === '前置知识点') lineType = 'dashed';
-        else if (l.relation === '可推导') lineType = 'dotted';
-        
-        return {
-          source: l.source,
-          target: l.target,
-          relation: l.relation,
-          lineStyle: {
-            color: bothLearned ? 'rgba(255, 255, 255, 0.5)' : 'rgba(150, 150, 200, 0.3)',
-            width: bothLearned ? 1.5 : 1,
-            curveness: 0.1,
-            type: lineType,
-            shadowBlur: bothLearned ? 5 : 0,
-            shadowColor: 'rgba(100, 150, 255, 0.3)'
-          }
-        };
-      }),
+      links: (() => {
+        const pairKey = l => l.source < l.target ? l.source + '~' + l.target : l.target + '~' + l.source;
+        const group = {};
+        links.forEach(l => { const g = pairKey(l); (group[g] = group[g] || []).push(l); });
+        const out = [];
+        for (const g in group) {
+          const arr = group[g];
+          arr.forEach((l, i) => {
+            const sourceLearned = learnedSet.has(l.source);
+            const targetLearned = learnedSet.has(l.target);
+            const bothLearned = sourceLearned && targetLearned;
+            
+            // 根据关系类型设置不同线样式
+            let lineType = 'solid';
+            if (l.relation === '前置知识点') lineType = 'dashed';
+            else if (l.relation === '可推导') lineType = 'dotted';
+            
+            // 同一对节点多条边时，弧形方向错开避免重叠
+            let curv = 0.18;
+            if (arr.length > 1) curv = 0.18 + (i - (arr.length - 1) / 2) * 0.16;
+            
+            out.push({
+              source: l.source,
+              target: l.target,
+              relation: l.relation,
+              lineStyle: {
+                color: bothLearned ? 'rgba(255, 255, 255, 0.5)' : 'rgba(150, 150, 200, 0.3)',
+                width: bothLearned ? 1.5 : 1.1,
+                curveness: curv,
+                type: lineType,
+                shadowBlur: bothLearned ? 5 : 0,
+                shadowColor: 'rgba(100, 150, 255, 0.3)'
+              }
+            });
+          });
+        }
+        return out;
+      })(),
       emphasis: {
         focus: 'adjacency',
         lineStyle: { 

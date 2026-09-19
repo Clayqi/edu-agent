@@ -759,6 +759,80 @@ def api_last_html(body: dict):
     return {"html": sess.get("last_html", "")}
 
 
+# ---------- 会话内文档预览（2026-09-12）----------
+# 与「WPS 落盘导出」是**两条独立链路**：
+#   · 本接口：payload / markdown → 结构化预览模型（标题 / 板块 / 幻灯片页 / 统计），
+#             **纯内存计算：不落盘、不调用 WPS MCP、不查 WPS 能力开关**；
+#   · /api/wps/export：同一份 payload / markdown → 落盘 docx / pptx，受 wps-office 开关约束。
+# 前端渲染与否由 skill 开关 `doc-session-preview` 决定（见 capabilities.session_preview_ready）。
+class DocPreviewReq(BaseModel):
+    payload: dict | None = None      # 编排台结构（可选）
+    markdown: str = ""               # 教案 Markdown（可选）
+    session_id: str = ""
+
+
+@app.post("/api/session/doc-preview")
+def api_session_doc_preview(body: DocPreviewReq):
+    """只做内存里的结构化整理，原样回传输入。无磁盘 IO、不调用 WPS MCP。"""
+    md = str(body.markdown or "")
+    # 没给 markdown 时，允许从会话里取最近一份教案（同样只读内存/库，不落盘）
+    if not md.strip():
+        md = _last_plan_markdown(str(body.session_id or "").strip()
+                                 or (_store.current_id() or ""))
+    payload = body.payload if isinstance(body.payload, dict) else {}
+
+    title = str(payload.get("title") or "").strip()
+    blocks: list[dict] = []
+    slides: list[dict] = []
+    if md.strip():
+        try:
+            data = wps_export.slides_from_markdown(md)
+            title = title or str(data.get("title") or "")
+            slides = data.get("slides") or []
+        except Exception:  # noqa: BLE001 纯预览，解析失败不该 500
+            slides = []
+        blocks = _plan_blocks(md)
+    if not title:
+        title = str(payload.get("title") or "未命名文档")
+
+    minutes = 0
+    for s in slides:
+        try:
+            minutes += int(s.get("minutes") or 0)
+        except (TypeError, ValueError):
+            pass
+    return {
+        "ok": True,
+        "enabled": capabilities.session_preview_ready(),   # 前端据此决定要不要渲染面板
+        "title": title,
+        "markdown": md,                                    # 原样回传
+        "payload": payload,                                # 原样回传
+        "blocks": blocks,
+        "slides": slides,
+        "stats": {"chars": len(md), "blocks": len(blocks),
+                  "slides": len(slides), "minutes": minutes},
+        "note": "内存预览：不落盘、不调用 WPS；需要落盘请走 /api/wps/export",
+    }
+
+
+def _plan_blocks(md: str) -> list[dict]:
+    """从教案 Markdown 里抽出板块清单（纯文本处理，不落盘）。"""
+    out: list[dict] = []
+    for raw in (md or "").splitlines():
+        st = raw.strip()
+        m = re.match(r"^\*\*(.+?)\*\*\s*$", st)
+        if m:
+            out.append({"title": m.group(1).strip(), "level": 2, "chars": 0})
+            continue
+        m = re.match(r"^(#{1,4})\s+(.+?)\s*$", st)
+        if m:
+            out.append({"title": m.group(2).strip(), "level": len(m.group(1)), "chars": 0})
+            continue
+        if out and st and not st.startswith("|"):
+            out[-1]["chars"] += len(st)
+    return out
+
+
 @app.post("/api/session/get")
 def api_sess_get(body: dict):
     sess = _store.get(body.get("id", ""))
@@ -955,7 +1029,9 @@ def api_mcp_status():
     """右栏「运行状态」面板用的轻量快照（不做工具握手）。"""
     snap = capabilities.snapshot(deep=False)
     return {"mcp": snap["mcp"], "skills": snap["skills"],
-            "wps_export_ready": capabilities.wps_available()[0]}
+            "wps_export_ready": capabilities.wps_available()[0],
+            # 会话内文档预览是否启用（skill: doc-session-preview；只影响会话页右侧预览面板）
+            "session_doc_preview_ready": capabilities.session_preview_ready()}
 
 
 # ---------- WPS 导出（教案中心 -> .docx / .pptx） ----------

@@ -22,6 +22,10 @@ sys.path.insert(0, str(_PROJ / "src"))
 from edu_agent import capabilities as cap          # noqa: E402
 from edu_agent import mcp_tools, wps_export        # noqa: E402
 
+# web_server 在 import 时会建 SessionStore，先把数据根指到临时目录，避免污染本机
+os.environ.setdefault("EDU_DATA_DIR", tempfile.mkdtemp(prefix="edu_test_data_"))  # noqa: E402
+from edu_agent import web_server as ws             # noqa: E402
+
 WPS_LIVE = os.getenv("EDU_TEST_WPS") == "1" and cap.wps_entry().exists()
 
 
@@ -54,6 +58,94 @@ class TestGate(_EnvSandbox):
     def test_default_on(self):
         self.assertTrue(cap.is_enabled("mcp", "wps-office"))
         self.assertTrue(cap.is_enabled("skill", "wps-word"))
+        self.assertTrue(cap.is_enabled("skill", "doc-session-preview"), "会话预览默认开启")
+
+
+class TestSessionDocPreview(_EnvSandbox):
+    """会话内文档预览：纯内存、不落盘、不碰 WPS，且与落盘导出解耦。
+
+    对应「会话内内存预览」与「WPS 落盘导出」两条链路的分离：
+    关掉 wps-office 导出被拒，但预览照常；关掉 doc-session-preview 预览不渲染，但导出照常。
+    """
+
+    MD = """# 3.3 幂函数
+
+**教学目标**
+- 理解幂函数的概念。
+
+**教学过程**
+### 情境导入（约 5 分钟）
+投影实例。
+### 课堂小结（约 3 分钟）
+回顾路径。
+"""
+
+    def test_capability_registered_and_builtin(self):
+        row = [s for s in cap.snapshot()["skills"] if s["id"] == "doc-session-preview"]
+        self.assertEqual(len(row), 1)
+        self.assertTrue(row[0]["builtin"], "内置能力（没有 skills/<id>/SKILL.md）")
+        self.assertTrue(row[0]["enabled"])
+        self.assertTrue(row[0]["active"], "不依赖 MCP，开启即生效")
+
+    def test_status_field(self):
+        self.assertTrue(cap.snapshot()["session_doc_preview_ready"])
+        cap.set_enabled("skill", "doc-session-preview", False)
+        self.assertFalse(cap.snapshot()["session_doc_preview_ready"])
+        self.assertFalse(cap.session_preview_ready())
+
+    def test_preview_is_pure_no_disk_no_wps(self):
+        """预览只做内存整理：不落盘、不调用 WPS 客户端。"""
+        before = set(p.name for p in wps_export.resolve_out_dir(None).glob("*")) \
+            if wps_export.resolve_out_dir(None).exists() else set()
+        called = []
+        orig = wps_export.mcp_tools.call_sequence
+        wps_export.mcp_tools.call_sequence = lambda *a, **k: called.append(a) or []
+        os.environ["WPS_MCP_ENTRY"] = str(Path(self._tmp.name) / "nope" / "index.js")
+        cap._CACHE.clear()
+        try:
+            r = ws.api_session_doc_preview(ws.DocPreviewReq(markdown=self.MD))
+        finally:
+            wps_export.mcp_tools.call_sequence = orig
+        self.assertTrue(r["ok"], r.get("error"))
+        self.assertEqual(called, [], "预览不得触发任何 MCP 调用")
+        after = set(p.name for p in wps_export.resolve_out_dir(None).glob("*")) \
+            if wps_export.resolve_out_dir(None).exists() else set()
+        self.assertEqual(before, after, "预览不得往导出目录写文件")
+
+    def test_preview_echoes_input(self):
+        r = ws.api_session_doc_preview(ws.DocPreviewReq(markdown=self.MD,
+                                                        payload={"title": "自定义标题"}))
+        self.assertEqual(r["markdown"], self.MD, "markdown 原样回传")
+        self.assertEqual(r["payload"], {"title": "自定义标题"}, "payload 原样回传")
+        self.assertEqual(r["title"], "自定义标题", "payload 标题优先")
+        self.assertEqual([s["name"] for s in r["slides"]], ["情境导入", "课堂小结"])
+        self.assertEqual(r["stats"]["minutes"], 8)
+        self.assertGreater(r["stats"]["blocks"], 0)
+
+    def test_preview_still_works_when_wps_off(self):
+        """★ 两条链路解耦：关掉 WPS 导出被拒，预览照常。"""
+        cap.set_enabled("mcp", "wps-office", False)
+        self.assertFalse(cap.wps_available()[0])
+        exp = wps_export.export({"title": "x", "steps": [{"name": "导入"}]}, kind="docx")
+        self.assertFalse(exp["ok"])
+        self.assertEqual(exp.get("gate"), "capability")
+        prev = ws.api_session_doc_preview(ws.DocPreviewReq(markdown=self.MD))
+        self.assertTrue(prev["ok"], "预览不该被 WPS 开关影响")
+
+    def test_export_still_works_when_preview_off(self):
+        """★ 反向解耦：关掉会话预览，导出链路一行不受影响。"""
+        cap.set_enabled("skill", "doc-session-preview", False)
+        self.assertFalse(cap.session_preview_ready())
+        prev = ws.api_session_doc_preview(ws.DocPreviewReq(markdown=self.MD))
+        self.assertTrue(prev["ok"], "接口仍可用")
+        self.assertFalse(prev["enabled"], "但会告诉前端：别渲染面板")
+        self.assertTrue(cap.is_enabled("mcp", "wps-office"), "WPS 开关未被连带关闭")
+
+    def test_status_endpoint_exposes_field(self):
+        st = ws.api_mcp_status()
+        self.assertIn("session_doc_preview_ready", st)
+        cap.set_enabled("skill", "doc-session-preview", False)
+        self.assertFalse(ws.api_mcp_status()["session_doc_preview_ready"])
 
     def test_toggle_persists(self):
         self.assertTrue(cap.set_enabled("mcp", "wps-office", False)["ok"])

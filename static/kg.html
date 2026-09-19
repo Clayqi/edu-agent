@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>高中数学知识星图</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+    background: #0a0a1a; 
+    height: 100vh; 
+    display: flex; 
+    flex-direction: column; 
+    color: #e0e0ff; 
+    overflow: hidden;
+  }
+  /* 星空背景 */
+  .stars {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .stars::before, .stars::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-image: 
+      radial-gradient(2px 2px at 20px 30px, #fff, transparent),
+      radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
+      radial-gradient(1px 1px at 50px 160px, #fff, transparent),
+      radial-gradient(2px 2px at 90px 40px, rgba(255,255,255,0.9), transparent),
+      radial-gradient(1px 1px at 130px 80px, #fff, transparent),
+      radial-gradient(2px 2px at 160px 120px, rgba(255,255,255,0.7), transparent),
+      radial-gradient(1px 1px at 200px 50px, #fff, transparent),
+      radial-gradient(2px 2px at 240px 180px, rgba(255,255,255,0.8), transparent);
+    background-size: 300px 300px;
+    animation: twinkle 5s ease-in-out infinite;
+  }
+  .stars::after {
+    background-size: 200px 200px;
+    background-position: 100px 50px;
+    opacity: 0.5;
+    animation-delay: 2.5s;
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 0.4; }
+  }
+
+  .header { 
+    background: rgba(10, 10, 40, 0.8); 
+    backdrop-filter: blur(10px);
+    padding: 16px 24px; 
+    border-bottom: 1px solid rgba(100, 100, 255, 0.2);
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between;
+    position: relative;
+    z-index: 10;
+  }
+  .header h1 { font-size: 18px; color: #fff; text-shadow: 0 0 20px rgba(100, 150, 255, 0.5); }
+  .header .back { color: #7ab8ff; text-decoration: none; font-size: 14px; }
+  .progress-bar { display: flex; align-items: center; gap: 12px; }
+  .progress-bar .label { font-size: 13px; color: #aaa; }
+  .progress-bar .bar { width: 160px; height: 8px; background: rgba(50, 50, 100, 0.5); border-radius: 4px; overflow: hidden; }
+  .progress-bar .fill { height: 100%; background: linear-gradient(90deg, #7ab8ff, #9dffb8); transition: width 0.3s; box-shadow: 0 0 10px rgba(100, 200, 255, 0.5); }
+  .progress-bar .percent { font-size: 13px; color: #9dffb8; font-weight: 600; }
+
+  .search-box { 
+    padding: 12px 24px; 
+    background: rgba(10, 10, 40, 0.6); 
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(100, 100, 255, 0.2);
+    display: flex; 
+    gap: 16px; 
+    align-items: center;
+    position: relative;
+    z-index: 10;
+  }
+  .search-box input { 
+    flex: 1; 
+    max-width: 400px; 
+    padding: 8px 12px; 
+    border: 1px solid rgba(100, 100, 255, 0.3); 
+    border-radius: 6px; 
+    font-size: 14px; 
+    outline: none; 
+    background: rgba(20, 20, 60, 0.6); 
+    color: #fff; 
+  }
+  .search-box input:focus { border-color: #7ab8ff; box-shadow: 0 0 10px rgba(100, 150, 255, 0.3); }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: #aaa; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+  
+  #chart { flex: 1; width: 100%; position: relative; z-index: 5; }
+  
+  .info-panel { 
+    position: absolute; 
+    top: 140px; 
+    right: 24px; 
+    background: rgba(15, 15, 50, 0.9); 
+    backdrop-filter: blur(15px);
+    padding: 16px; 
+    border-radius: 12px; 
+    box-shadow: 0 4px 30px rgba(0, 0, 100, 0.5); 
+    width: 280px; 
+    display: none; 
+    border: 1px solid rgba(100, 150, 255, 0.3);
+    z-index: 20;
+  }
+  .info-panel h3 { font-size: 16px; margin-bottom: 12px; color: #fff; text-shadow: 0 0 10px rgba(100, 150, 255, 0.5); }
+  .info-panel .prereq-title { font-size: 12px; color: #888; margin-bottom: 8px; }
+  .info-panel .prereq-item { 
+    padding: 6px 8px; 
+    background: rgba(30, 30, 80, 0.6); 
+    border-radius: 6px; 
+    margin: 4px 0; 
+    font-size: 13px; 
+    color: #7ab8ff; 
+    cursor: pointer; 
+    transition: all 0.2s;
+  }
+  .info-panel .prereq-item:hover { background: rgba(50, 50, 120, 0.8); box-shadow: 0 0 10px rgba(100, 150, 255, 0.3); }
+  .info-panel .close { position: absolute; top: 8px; right: 12px; cursor: pointer; color: #888; font-size: 18px; }
+  .mark-btn { 
+    width: 100%; 
+    padding: 10px; 
+    border: none; 
+    border-radius: 8px; 
+    background: linear-gradient(135deg, #667eea, #764ba2); 
+    color: #fff; 
+    font-size: 13px; 
+    cursor: pointer; 
+    margin-top: 12px;
+    transition: all 0.2s;
+  }
+  .mark-btn:hover { box-shadow: 0 0 20px rgba(100, 100, 255, 0.5); }
+  .mark-btn.learned { background: linear-gradient(135deg, #f093fb, #f5576c); }
+</style>
+</head>
+<body>
+  <div class="stars"></div>
+  
+  <div class="header">
+    <h1>✨ 高中数学知识星图</h1>
+    <div class="progress-bar">
+      <span class="label">点亮进度</span>
+      <div class="bar"><div class="fill" id="progressFill" style="width:0%"></div></div>
+      <span class="percent" id="progressPercent">0/0</span>
+    </div>
+    <a href="/" class="back">← 返回主页</a>
+  </div>
+  
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="搜索知识点，如：函数、集合、单调性...">
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#7ab8ff"></div>集合</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ffd700"></div>函数</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#98ff98"></div>不等式</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ff6b9d"></div>指数函数</div>
+    </div>
+  </div>
+  
+  <div id="chart"></div>
+  
+  <div class="info-panel" id="infoPanel">
+    <span class="close" onclick="closeInfo()">×</span>
+    <h3 id="nodeName"></h3>
+    <div style="font-size:11px;color:#888;margin-bottom:10px">
+      <span id="nodeChapter"></span> · <span id="nodeDegree"></span> 个连接
+    </div>
+    <div class="prereq-title">📚 前置知识点（学这个之前要先会）：</div>
+    <div id="prereqList" style="margin-bottom:12px"></div>
+    <div class="prereq-title">🎯 后继知识点（学完这个可以学）：</div>
+    <div id="successorList"></div>
+    <button class="mark-btn" id="markBtn" onclick="toggleLearn()">⭐ 点亮这颗星</button>
+  </div>
+
+<script>
+const chart = echarts.init(document.getElementById('chart'));
+let graphData = { nodes: [], links: [] };
+let learnedSet = new Set(JSON.parse(localStorage.getItem('kg_learned') || '[]'));
+let currentNodeId = null;
+
+// 星座配色
+const constellationColors = {
+  '第一章': '#7ab8ff',
+  '第二章': '#98ff98',
+  '第三章': '#ffd700',
+  '第四章': '#ff6b9d',
+  '初中衔接': '#c084fc'
+};
+
+// 加载图谱数据
+fetch('/api/kg/graph')
+  .then(r => r.json())
+  .then(data => {
+    // 检查URL参数，按教材过滤
+    const urlParams = new URLSearchParams(window.location.search);
+    const bookFilter = urlParams.get('book');
+    
+    if (bookFilter) {
+      // 按教材过滤节点（这里简单按章节名匹配，后面完善）
+      const bookChapterMap = {
+        '必修一': ['第一章', '第二章', '第三章', '第四章']
+      };
+      const allowedChapters = bookChapterMap[bookFilter] || [];
+      
+      const filteredNodes = data.nodes.filter(n => allowedChapters.includes(n.category));
+      const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
+      const filteredLinks = data.links.filter(l => 
+        filteredNodeIds.has(l.source) && filteredNodeIds.has(l.target)
+      );
+      
+      graphData = { nodes: filteredNodes, links: filteredLinks };
+      document.querySelector('h1').textContent = '✨ ' + bookFilter + ' 知识星图';
+    } else {
+      graphData = data;
+      document.querySelector('h1').textContent = '✨ 总知识星图';
+    }
+    
+    updateProgress();
+    renderGraph(graphData.nodes, graphData.links);
+  })
+  .catch(err => {
+    document.getElementById('chart').innerHTML = '<div style="padding:40px;text-align:center;color:#999">星图加载失败</div>';
+  });
+
+function saveLearned() {
+  localStorage.setItem('kg_learned', JSON.stringify([...learnedSet]));
+}
+
+function updateProgress() {
+  const total = graphData.nodes.length;
+  const learned = learnedSet.size;
+  const percent = total > 0 ? Math.round(learned / total * 100) : 0;
+  document.getElementById('progressFill').style.width = percent + '%';
+  document.getElementById('progressPercent').textContent = `${learned}/${total}`;
+}
+
+function renderGraph(nodes, links, focusNode = null) {
+  const seriesData = nodes.map(n => {
+    const isLearned = learnedSet.has(n.id);
+    const color = constellationColors[n.category] || '#fff';
+    // 根据度数自动计算大小（度数越高越大，核心节点更突出）
+    const degree = n.degree || 1;
+    let baseSize = 8 + Math.min(degree * 2, 12); // 8~20之间
+    if (focusNode === n.id) baseSize += 6;
+    
+    return {
+      id: n.id,
+      name: n.name,
+      category: n.category,
+      degree: degree,
+      symbolSize: baseSize,
+      itemStyle: {
+        color: isLearned ? color : '#666',
+        opacity: isLearned ? 1 : 0.6,
+        shadowBlur: isLearned ? (degree > 5 ? 25 : 15) : 0,
+        shadowColor: isLearned ? color : 'transparent',
+        shadowOffsetX: 0,
+        shadowOffsetY: 0
+      },
+      label: { 
+        show: true, 
+        fontSize: 12,
+        position: 'bottom',
+        color: isLearned ? '#ffffff' : '#888888',
+        textShadow: isLearned ? '0 0 6px ' + color : '0 1px 2px rgba(0,0,0,0.8)',
+        fontWeight: isLearned ? 'bold' : 'normal'
+      }
+    };
+  });
+
+  const option = {
+    backgroundColor: 'transparent',
+    tooltip: {
+      backgroundColor: 'rgba(10, 10, 40, 0.9)',
+      borderColor: 'rgba(100, 150, 255, 0.3)',
+      textStyle: { color: '#fff' },
+      formatter: params => {
+        if (params.dataType === 'node') {
+          const status = learnedSet.has(params.data.id) ? ' ✨已点亮' : ' ⭕未点亮';
+          return '<b>' + params.data.name + '</b>' + status;
+        }
+        return params.data.relation;
+      }
+    },
+    series: [{
+      type: 'graph',
+      layout: 'force',
+      force: { 
+        repulsion: 400, 
+        edgeLength: [100, 200],
+        gravity: 0.1
+      },
+      roam: true,
+      draggable: true,
+      data: seriesData,
+      links: links.map(l => {
+        const sourceLearned = learnedSet.has(l.source);
+        const targetLearned = learnedSet.has(l.target);
+        const bothLearned = sourceLearned && targetLearned;
+        
+        // 根据关系类型设置不同线样式
+        let lineType = 'solid';
+        if (l.relation === '前置知识点') lineType = 'dashed';
+        else if (l.relation === '可推导') lineType = 'dotted';
+        
+        return {
+          source: l.source,
+          target: l.target,
+          relation: l.relation,
+          lineStyle: {
+            color: bothLearned ? 'rgba(255, 255, 255, 0.5)' : 'rgba(150, 150, 200, 0.3)',
+            width: bothLearned ? 1.5 : 1,
+            curveness: 0.1,
+            type: lineType,
+            shadowBlur: bothLearned ? 5 : 0,
+            shadowColor: 'rgba(100, 150, 255, 0.3)'
+          }
+        };
+      }),
+      emphasis: {
+        focus: 'adjacency',
+        lineStyle: { 
+          width: 2.5,
+          color: 'rgba(255, 255, 255, 0.8)'
+        },
+        itemStyle: {
+          shadowBlur: 30
+        }
+      }
+    }]
+  };
+
+  chart.setOption(option);
+}
+
+// 点击节点
+chart.on('click', params => {
+  if (params.dataType === 'node') {
+    currentNodeId = params.data.id;
+    showNodeInfo(params.data.id, params.data.name);
+    fetch(`/api/kg/related/${params.data.id}?hops=1`)
+      .then(r => r.json())
+      .then(data => renderGraph(data.nodes, data.links, params.data.id));
+  }
+});
+
+function showNodeInfo(id, name) {
+  document.getElementById('nodeName').textContent = name;
+  document.getElementById('prereqList').innerHTML = '<div style="color:#666">加载中...</div>';
+  document.getElementById('successorList').innerHTML = '';
+  document.getElementById('nodeChapter').textContent = '';
+  document.getElementById('nodeDegree').textContent = '';
+  document.getElementById('infoPanel').style.display = 'block';
+  
+  const markBtn = document.getElementById('markBtn');
+  if (learnedSet.has(id)) {
+    markBtn.textContent = '💫 取消点亮';
+    markBtn.classList.add('learned');
+  } else {
+    markBtn.textContent = '⭐ 点亮这颗星';
+    markBtn.classList.remove('learned');
+  }
+
+  fetch(`/api/kg/node/${id}`)
+    .then(r => r.json())
+    .then(data => {
+      // 章节和连接数
+      document.getElementById('nodeChapter').textContent = data.chapter || '';
+      document.getElementById('nodeDegree').textContent = data.degree || 0;
+      
+      // 前置知识点
+      const prereqList = document.getElementById('prereqList');
+      if (!data.prerequisites || data.prerequisites.length === 0) {
+        prereqList.innerHTML = '<div style="color:#555;font-size:13px">无前置知识点</div>';
+      } else {
+        prereqList.innerHTML = data.prerequisites.map(p => {
+          const learned = learnedSet.has(p.id) ? ' ✨' : '';
+          return `<div class="prereq-item" onclick="jumpToNode('${p.id}', '${p.name}')">${p.name}${learned}</div>`;
+        }).join('');
+      }
+      
+      // 后继知识点
+      const succList = document.getElementById('successorList');
+      if (!data.successors || data.successors.length === 0) {
+        succList.innerHTML = '<div style="color:#555;font-size:13px">这是末端知识点，后面没有了</div>';
+      } else {
+        succList.innerHTML = data.successors.map(p => {
+          const learned = learnedSet.has(p.id) ? ' ✨' : '';
+          return `<div class="prereq-item" style="background:rgba(100,200,150,0.2);color:#98ff98" onclick="jumpToNode('${p.id}', '${p.name}')">${p.name}${learned}</div>`;
+        }).join('');
+      }
+    });
+}
+
+function toggleLearn() {
+  if (!currentNodeId) return;
+  if (learnedSet.has(currentNodeId)) {
+    learnedSet.delete(currentNodeId);
+  } else {
+    learnedSet.add(currentNodeId);
+  }
+  saveLearned();
+  updateProgress();
+  showNodeInfo(currentNodeId, document.getElementById('nodeName').textContent);
+  fetch(`/api/kg/related/${currentNodeId}?hops=1`)
+    .then(r => r.json())
+    .then(data => renderGraph(data.nodes, data.links, currentNodeId));
+}
+
+function closeInfo() {
+  document.getElementById('infoPanel').style.display = 'none';
+  renderGraph(graphData.nodes, graphData.links);
+}
+
+function jumpToNode(id, name) {
+  showNodeInfo(id, name);
+  fetch(`/api/kg/related/${id}?hops=1`)
+    .then(r => r.json())
+    .then(d => renderGraph(d.nodes, d.links, id));
+}
+
+// 搜索
+document.getElementById('searchInput').addEventListener('input', function(e) {
+  const q = e.target.value.trim();
+  if (!q) {
+    renderGraph(graphData.nodes, graphData.links);
+    return;
+  }
+  fetch(`/api/kg/search?q=${encodeURIComponent(q)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.results.length > 0) {
+        const first = data.results[0];
+        showNodeInfo(first.id, first.name);
+        fetch(`/api/kg/related/${first.id}?hops=1`)
+          .then(r => r.json())
+          .then(d => renderGraph(d.nodes, d.links, first.id));
+      }
+    });
+});
+
+window.addEventListener('resize', () => chart.resize());
+</script>
+</body>
+</html>

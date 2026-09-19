@@ -1,0 +1,16 @@
+# S1 基地依赖（pip install -r requirements.txt）
+langchain>=0.3
+langchain-openai>=0.3        # DeepSeek OpenAI 兼容
+langchain-chroma>=0.2
+chromadb
+pydantic>=2
+python-dotenv
+requests                     # Ollama /api/embed 直调 + siliconflow rerank
+fastapi
+uvicorn
+# gradio 已随 Gradio UI 退役（2026-10 一期收口，唯一 UI = web_server 5174）：
+# 如需重跑 legacy/api_gradio.py（语音/反馈/修正版演示壳）再单独安装 gradio faster-whisper numpy
+pymupdf                      # PDF 自动切节（pdf_import.py）
+python-docx                  # Agent B 模板认定：.docx -> TemplateSpec（template_spec.py）
+# 可选：rerank 本地精排（RERANK_ON=1 时启用）需要 sentence-transformers
+# sentence-transformers

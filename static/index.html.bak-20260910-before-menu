@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>教育 Agent · UnderstandAnything</title>
+<style>
+:root{
+  --ink-900:#1a1a1b; --ink-700:#3f3f46; --ink-600:#52525b; --ink-500:#71717a; --ink-400:#a1a1aa;
+  --line:#ececec; --line-strong:#d9d9d9;
+  --bg:#ffffff; --bg-soft:#fafafa; --bg-hover:#f4f4f4; --bg-active:#f1f1f0;
+  --blue:#3b82f6; --blue-soft:#eff6ff;
+  --green:#16a34a; --green-soft:#dcfce7; --green-500:#22c55e;
+  --red:#dc2626; --orange:#f97316; --amber:#b45309;
+  --dark:#1a1a1b;
+  --r-xs:6px; --r-sm:8px; --r-md:10px; --r-lg:14px; --r-xl:18px; --r-pill:999px;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 8px 30px rgba(0,0,0,.10);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","Inter","Helvetica Neue","Microsoft YaHei",system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--font);font-size:14px;color:var(--ink-900);background:var(--bg);-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font-family:var(--font);cursor:pointer}
+button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+svg{display:block}
+.hidden{display:none!important}
+
+/* ===== Window frame / top tabs ===== */
+.win{display:flex;flex-direction:column;height:100vh}
+.titlebar{display:flex;align-items:center;gap:2px;padding:6px 10px 0;background:#fff;position:relative}
+.wtab{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;font-size:13px;color:var(--ink-500);border-radius:8px 8px 0 0;position:relative}
+.wtab.active{color:var(--ink-900);font-weight:500;background:var(--bg);border:.5px solid var(--line);border-bottom:none}
+.wtab .win-dot{width:14px;height:14px;border-radius:4px;background:#f1f1f0;border:.5px solid var(--line);display:inline-flex;align-items:center;justify-content:center}
+.wtab .win-dot span{font-size:9px;color:var(--ink-500)}
+.titlebar-spacer{flex:1}
+.win-controls{display:flex;align-items:center;gap:4px;padding-right:6px}
+.wctl{width:36px;height:32px;border-radius:6px;border:none;background:transparent;color:var(--ink-600);display:inline-flex;align-items:center;justify-content:center}
+.wctl:hover{background:var(--bg-hover)}
+.wctl.close:hover{background:#e5484d;color:#fff}
+.wctl svg{width:14px;height:14px}
+
+/* ===== Shell ===== */
+.shell{display:flex;flex:1;min-height:0;background:var(--bg)}
+.sidebar{width:252px;flex:none;background:var(--bg);border-right:.5px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.side-brand{padding:14px 14px 10px}
+.side-brand .name{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.side-brand .ver{font-size:11px;color:var(--ink-500);margin-top:2px}
+.side-actions{padding:6px 10px 8px}
+.newtask{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:none;background:transparent;border-radius:var(--r-sm);font-size:13.5px;color:var(--ink-700);text-align:left}
+.newtask:hover{background:var(--bg-hover)}
+.newtask svg{width:15px;height:15px}
+.side-nav{padding:0 10px}
+.snav{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:none;background:transparent;border-radius:var(--r-sm);font-size:13.5px;color:var(--ink-700);text-align:left}
+.snav:hover{background:var(--bg-hover)}
+.snav.active{background:var(--bg-active);color:var(--ink-900);font-weight:500}
+.snav svg{width:15px;height:15px}
+.sec-label{padding:14px 14px 6px;font-size:11.5px;font-weight:600;color:var(--ink-500);letter-spacing:.01em}
+.proj{display:flex;align-items:center;gap:8px;width:100%;padding:7px 12px;border:none;background:transparent;border-radius:var(--r-sm);font-size:13px;color:var(--ink-600);text-align:left}
+.proj:hover{background:var(--bg-hover)}
+.proj .caret{width:12px;height:12px;flex:none;color:var(--ink-400);transition:transform .15s}
+.proj.open .caret{transform:rotate(90deg)}
+.proj .fold{width:15px;height:15px;color:var(--ink-500)}
+.proj-leaf{padding:6px 12px 6px 42px;font-size:13px;color:var(--ink-700);border:none;background:transparent;width:100%;text-align:left;border-radius:var(--r-sm);display:flex;align-items:center;gap:6px;min-width:0}
+.proj-leaf:hover{background:var(--bg-hover)}
+.proj-leaf.active{background:var(--bg-active);color:var(--ink-900);font-weight:500}
+.proj-leaf .ps-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proj-leaf .ps-x{display:none;flex:none;width:18px;height:18px;border-radius:5px;border:none;background:transparent;color:var(--ink-400);font-size:14px;line-height:1;align-items:center;justify-content:center;cursor:pointer}
+.proj-leaf:hover .ps-x{display:inline-flex}
+.proj-leaf .ps-x:hover{background:var(--bg-active);color:var(--red)}
+.proj-row{display:flex;align-items:center;gap:8px;width:100%;padding:7px 12px;border:none;background:transparent;border-radius:var(--r-sm);font-size:13px;color:var(--ink-700);text-align:left;cursor:pointer}
+.proj-row:hover{background:var(--bg-hover)}
+.proj-row .caret{width:12px;height:12px;flex:none;color:var(--ink-400);transition:transform .15s}
+.proj-row.open .caret{transform:rotate(90deg)}
+.proj-row .fold{width:15px;height:15px;flex:none;color:var(--ink-500)}
+.proj-row .pn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proj-row .pc{font-size:11px;color:var(--ink-400);flex:none}
+.proj-add-sess{padding:5px 12px 5px 42px;font-size:12.5px;color:var(--ink-500)}
+.proj-add-sess:hover{color:var(--ink-800)}
+.side-bottom{margin-top:auto;display:flex;align-items:center;gap:2px;padding:10px 12px;border-top:.5px solid var(--line)}
+.sb-btn{width:34px;height:34px;border-radius:var(--r-sm);border:none;background:transparent;color:var(--ink-600);display:flex;align-items:center;justify-content:center}
+.sb-btn:hover{background:var(--bg-hover)}
+.sb-btn.active{color:var(--ink-900)}
+.sb-btn svg{width:17px;height:17px}
+
+/* ===== Main ===== */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;position:relative;background:var(--bg)}
+.main-head{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:.5px solid var(--line)}
+.main-head .crumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-600)}
+.main-head .crumb b{color:var(--ink-900);font-weight:500}
+.branch-pill{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:var(--r-pill);background:var(--bg-soft);border:.5px solid var(--line);font-size:12.5px;color:var(--ink-700)}
+.branch-pill svg{width:13px;height:13px;color:var(--ink-500)}
+.mh-spacer{flex:1}
+.mh-right{display:flex;align-items:center;gap:10px}
+.role-seg{display:flex;background:var(--bg-soft);border:.5px solid var(--line);border-radius:var(--r-pill);padding:2px}
+.role-seg button{border:none;background:transparent;height:26px;padding:0 14px;border-radius:var(--r-pill);font-size:12.5px;color:var(--ink-600)}
+.role-seg button.active{background:var(--dark);color:#fff}
+.avt{width:30px;height:30px;border-radius:var(--r-pill);background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:500}
+.ai-chip{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:var(--r-pill);border:.5px solid var(--line);font-size:12px;color:var(--ink-600)}
+.ai-chip b{font-weight:600}
+.ai-chip .arrow{width:11px;height:11px;color:var(--ink-500)}
+
+/* ===== Scroll region ===== */
+.scroll{flex:1;min-height:0;overflow-y:auto}
+.view{display:none;height:100%}
+.view.active{display:flex;flex-direction:column}
+
+/* ===== Home / greeting / input ===== */
+.home{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 48px 120px;text-align:center}
+.home-mark{width:64px;height:64px;margin-bottom:28px}
+.home-mark svg{width:100%;height:100%}
+.home-greet{font-size:30px;font-weight:500;letter-spacing:-.02em;color:var(--ink-900)}
+.home-sub{font-size:14px;color:var(--ink-500);margin-top:12px}
+.home-input-wrap{display:flex;flex-direction:column;align-items:center;width:100%;max-width:760px;margin-top:44px}
+.home-input{width:100%;background:var(--bg);border:.5px solid var(--line-strong);border-radius:var(--r-xl);box-shadow:var(--shadow-md);padding:16px 18px;text-align:left;transition:border-color .15s}
+.home-input:focus-within{border-color:var(--ink-900)}
+.home-input textarea{width:100%;border:none;resize:none;outline:none;font-family:var(--font);font-size:15px;line-height:1.6;min-height:32px;background:transparent;color:var(--ink-900)}
+.home-input textarea::placeholder{color:var(--ink-400)}
+.home-toolbar{display:flex;align-items:center;gap:4px;margin-top:12px;padding-top:12px;border-top:.5px solid var(--line)}
+.htool{width:34px;height:34px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--ink-600)}
+.htool:hover{background:var(--bg-hover)}
+.htool svg{width:16px;height:16px}
+.access-tag{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 11px;border-radius:var(--r-pill);background:var(--bg-soft);border:.5px solid var(--line);font-size:12px;color:var(--amber)}
+.access-tag svg{width:13px;height:13px}
+.home-toolbar .spacer{flex:1}
+.model-pill{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:var(--r-pill);background:transparent;border:.5px solid var(--line);font-size:12.5px;color:var(--ink-700)}
+.model-pill:hover{background:var(--bg-hover)}
+.model-pill b{font-weight:500}
+.model-pill .caret{width:12px;height:12px;color:var(--ink-500)}
+.send-orb{width:34px;height:34px;border-radius:var(--r-pill);background:var(--bg-hover);color:var(--ink-600);display:flex;align-items:center;justify-content:center;border:none;transition:all .15s}
+.send-orb:hover{background:var(--dark);color:#fff}
+.send-orb svg{width:16px;height:16px}
+.home-chips{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;justify-content:center}
+.hchip{height:30px;padding:0 14px;border-radius:var(--r-pill);background:var(--bg-soft);border:.5px solid var(--line);font-size:13px;color:var(--ink-600)}
+.hchip:hover{background:var(--bg-hover)}
+
+/* ===== Import card / skill market cards ===== */
+.mk-head{padding:22px 34px 0}
+.mk-title{font-size:26px;font-weight:600;letter-spacing:-.02em}
+.mk-sub{font-size:13.5px;color:var(--ink-500);margin-top:6px}
+.mk-toolbar{display:flex;align-items:center;gap:8px;margin-top:16px}
+.search-pill{display:flex;align-items:center;gap:8px;height:38px;min-width:200px;padding:0 14px;border-radius:var(--r-pill);background:var(--bg-soft);border:.5px solid var(--line)}
+.search-pill input{border:none;background:transparent;outline:none;font-size:13.5px;width:100%;font-family:var(--font)}
+.search-pill svg{width:15px;height:15px;color:var(--ink-500)}
+.drop-pill{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:var(--r-pill);border:.5px solid var(--line);background:#fff;font-size:13.5px;color:var(--ink-700)}
+.drop-pill:hover{background:var(--bg-soft)}
+.drop-pill .caret{width:13px;height:13px;color:var(--ink-500)}
+.icon-pill{width:38px;height:38px;border-radius:var(--r-pill);border:.5px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;color:var(--ink-700)}
+.icon-pill:hover{background:var(--bg-soft)}
+.icon-pill svg{width:16px;height:16px}
+.mk-body{padding:18px 34px 40px}
+.mk-cat{margin-top:26px}
+.mk-cat-name{font-size:17px;font-weight:600;letter-spacing:-.01em}
+.mk-cat-desc{font-size:13px;color:var(--ink-500);margin-top:4px}
+.mk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.skill-card{position:relative;background:#fff;border:.5px solid var(--line);border-radius:var(--r-md);padding:16px 16px 16px;cursor:pointer;text-align:left;transition:border-color .15s,box-shadow .15s}
+.skill-card:hover{border-color:var(--line-strong);box-shadow:var(--shadow-sm)}
+.skill-card .sc-top{display:flex;align-items:center;gap:11px}
+.skill-icon{width:38px;height:38px;border-radius:var(--r-sm);background:var(--dark);color:#fff;display:flex;align-items:center;justify-content:center;flex:none;font-weight:600;font-size:15px}
+.skill-card .sc-title{font-size:14px;font-weight:600;text-align:left;line-height:1.3}
+.skill-card .sc-desc{font-size:12.5px;color:var(--ink-500);margin-top:10px;line-height:1.55;text-align:left}
+.check-orb{position:absolute;top:14px;right:14px;width:22px;height:22px;border-radius:var(--r-pill);background:var(--green-500);color:#fff;display:flex;align-items:center;justify-content:center}
+.check-orb svg{width:12px;height:12px}
+
+/* ===== Skill detail ===== */
+.sd{padding:26px 48px 50px}
+.sd-back{display:inline-flex;align-items:center;gap:6px;border:none;background:transparent;font-size:13px;color:var(--ink-600);margin-bottom:20px}
+.sd-back:hover{color:var(--ink-900)}
+.sd-back svg{width:14px;height:14px}
+.sd-hero{display:flex;gap:16px;align-items:flex-start}
+.sd-hero-icon{width:52px;height:52px;flex:none}
+.sd-hero-icon svg{width:100%;height:100%}
+.sd-tags{display:flex;gap:6px;align-items:center}
+.tag{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:var(--r-pill);background:var(--bg-soft);border:.5px solid var(--line);font-size:12px;color:var(--ink-600)}
+.tag.installed{background:var(--bg-hover);color:var(--ink-700)}
+.sd-title{font-size:30px;font-weight:600;letter-spacing:-.02em;margin-top:10px}
+.sd-desc{font-size:14.5px;line-height:1.7;color:var(--ink-700);margin-top:12px;max-width:640px}
+.sd-author{font-size:12.5px;color:var(--ink-400);margin-top:8px}
+.sd-sec{margin-top:34px}
+.sd-sec-title{font-size:16px;font-weight:600}
+.sd-sec-desc{font-size:13px;color:var(--ink-500);margin-top:4px}
+.sd-list{margin-top:16px;border:.5px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.sd-row{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:.5px solid var(--line)}
+.sd-row:last-child{border-bottom:none}
+.sd-row .r-icon{width:32px;height:32px;border-radius:var(--r-sm);background:var(--dark);color:#fff;display:flex;align-items:center;justify-content:center;flex:none;font-weight:600;font-size:14px}
+.sd-row .r-main{flex:1;min-width:0}
+.sd-row .r-name{font-size:13.5px;font-weight:500}
+.sd-row .r-desc{font-size:12px;color:var(--ink-500);margin-top:2px}
+.sd-row .r-tag{font-size:12px;color:var(--ink-600);background:var(--bg-soft);border:.5px solid var(--line);padding:4px 10px;border-radius:var(--r-pill)}
+
+/* ===== Generic list rows (textbook / API / table) ===== */
+.row-card{border:.5px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.lrow{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:.5px solid var(--line)}
+.lrow:last-child{border-bottom:none}
+.lrow.hoverable:hover{background:var(--bg-soft)}
+.lrow .li{width:38px;height:38px;border-radius:var(--r-sm);background:var(--bg-soft);display:flex;align-items:center;justify-content:center;color:var(--ink-700);flex:none}
+.lrow .li svg{width:18px;height:18px}
+.lrow .lm{flex:1;min-width:0}
+.lrow .lm .t{font-size:14px;font-weight:500}
+.lrow .lm .s{font-size:12.5px;color:var(--ink-500);margin-top:2px}
+.lrow .side{display:flex;align-items:center;gap:6px}
+.st-pill{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 12px;border-radius:var(--r-pill);background:var(--bg-soft);border:.5px solid var(--line);font-size:12px;color:var(--ink-600)}
+.st-pill .dot{width:6px;height:6px;border-radius:var(--r-pill);background:var(--ink-400)}
+.st-pill.green{background:var(--green-soft);color:var(--green);border-color:transparent}
+.st-pill.green .dot{background:var(--green)}
+.st-pill.amber{background:#ffedd5;color:var(--amber);border-color:transparent}
+.st-pill.amber .dot{background:var(--orange)}
+/* small pill buttons */
+.pill-btn{height:30px;padding:0 14px;border-radius:var(--r-pill);border:.5px solid var(--line);background:#fff;font-size:12.5px;color:var(--ink-700);display:inline-flex;align-items:center;gap:5px}
+.pill-btn:hover{background:var(--bg-soft)}
+.pill-btn.dark{background:var(--dark);color:#fff;border-color:var(--dark)}
+.pill-btn.ghost{border-color:transparent;background:var(--bg-hover)}
+.pill-btn.orange{color:var(--orange);border-color:transparent;background:#fff}
+.pill-btn.orange:hover{background:#fff7ed}
+.pill-btn.danger{color:var(--red);border-color:transparent;background:#fff}
+.pill-btn.danger:hover{background:#fef2f2}
+.pill-btn svg{width:14px;height:14px}
+/* generic action buttons in views (dark primary / ghost etc) */
+.ghost-btn{height:32px;padding:0 12px;border-radius:var(--r-sm);border:none;background:var(--bg-soft);color:var(--ink-700);font-size:13px;display:inline-flex;align-items:center;gap:5px}
+.ghost-btn:hover{background:var(--bg-hover)}
+.ghost-btn svg{width:14px;height:14px}
+
+/* ===== Section title rows ===== */
+.view-sec{padding:22px 34px 0}
+.view-h1{font-size:24px;font-weight:600;letter-spacing:-.02em}
+.view-sub{font-size:13px;color:var(--ink-500);margin-top:6px}
+.sec-h{margin-top:26px}
+.sec-h h3{font-size:15px;font-weight:600}
+.sec-h p{font-size:12.5px;color:var(--ink-500);margin-top:3px}
+
+/* ===== Toggle switch ===== */
+.switch{width:46px;height:26px;border-radius:var(--r-pill);background:var(--line-strong);position:relative;border:none;transition:background .18s;flex:none}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:var(--r-pill);background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .18s}
+.switch.on{background:var(--orange)}
+.switch.on::after{transform:translateX(20px)}
+.switch.blue.on{background:var(--blue)}
+
+/* ===== Settings sections ===== */
+.set-body{padding:22px 40px 60px;max-width:860px}
+.set-body .close-x{position:absolute;top:18px;right:22px}
+.set-h{font-size:26px;font-weight:600}
+.set-h-sub{font-size:13px;color:var(--ink-500);margin-top:6px}
+.set-card{margin-top:18px;border:.5px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:15px 18px;border-bottom:.5px solid var(--line)}
+.set-row:last-child{border-bottom:none}
+.set-row .sl{display:flex;flex-direction:column;gap:3px}
+.set-row .sl .t{font-size:14px;font-weight:500}
+.set-row .sl .s{font-size:12.5px;color:var(--ink-500)}
+.set-row .sr{display:flex;align-items:center;gap:10px}
+.text-input{height:34px;padding:0 12px;border:.5px solid var(--line-strong);border-radius:var(--r-sm);font-size:13px;font-family:var(--font);color:var(--ink-900);outline:none;min-width:200px}
+.text-input:focus{border-color:var(--ink-900)}
+.seg{display:flex;background:var(--bg-soft);border:.5px solid var(--line);border-radius:var(--r-pill);padding:2px}
+.seg button{border:none;background:transparent;height:26px;padding:0 14px;border-radius:var(--r-pill);font-size:12.5px;color:var(--ink-600)}
+.seg button.active{background:#fff;color:var(--ink-900);box-shadow:var(--shadow-sm)}
+/* API connection cards */
+.api-card{border:.5px solid var(--line);border-radius:var(--r-md);padding:14px 18px;margin-top:10px}
+.api-card.active{background:#fef2f2;border-color:#fecaca}
+.api-card .toprow{display:flex;align-items:center;justify-content:space-between}
+.api-card .name{font-size:14px;font-weight:600}
+.api-card .name .enable-dot{display:inline-block;width:8px;height:8px;border-radius:var(--r-pill);background:var(--orange);margin-left:8px}
+.api-card .meta{font-size:12.5px;color:var(--ink-500);margin-top:3px}
+.api-card .acts{display:flex;align-items:center;gap:6px}
+.newapi{display:flex;align-items:center;gap:12px;margin-top:14px;padding:4px 2px}
+.newapi .plus-orb{width:38px;height:38px;border-radius:var(--r-pill);border:.5px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;color:var(--ink-700)}
+.newapi .plus-orb:hover{background:var(--bg-soft)}
+.newapi .lbl{font-size:14px;font-weight:500}
+/* git graph */
+.git-graph{width:100%;border-collapse:collapse;font-size:13px}
+.git-graph th{text-align:left;font-weight:500;color:var(--ink-500);font-size:12px;padding:10px 14px;border-bottom:.5px solid var(--line)}
+.git-graph td{padding:10px 14px;border-bottom:.5px solid var(--line);vertical-align:middle}
+.git-graph td.g-col{width:40px}
+.graph-line{display:flex;align-items:center;gap:6px}
+.gdot{width:8px;height:8px;border-radius:var(--r-pill);background:#fff;border:2px solid var(--blue);flex:none}
+.gdot.gray{border-color:var(--ink-400)}
+.tag-pill{font-size:11px;background:var(--bg-hover);border:.5px solid var(--line);padding:2px 8px;border-radius:var(--r-pill);color:var(--ink-600)}
+.diff-pos{color:var(--green)} .diff-neg{color:var(--red)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--ink-500)}
+
+/* ===== Popover / modal ===== */
+.pop{position:absolute;background:#fff;border:.5px solid var(--line);border-radius:var(--r-md);box-shadow:var(--shadow-md);z-index:60;overflow:hidden}
+.pop-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:.5px solid var(--line)}
+.pop-head .ttl{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:7px}
+.pop-head .ttl svg{width:15px;height:15px}
+.pop-body{padding:6px}
+.git-item{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:none;background:transparent;border-radius:var(--r-sm);font-size:13.5px;color:var(--ink-800);text-align:left}
+.git-item:hover{background:var(--bg-hover)}
+.git-item svg{width:15px;height:15px;color:var(--ink-500)}
+.git-item .gt{flex:1}
+.git-item .diff{font-size:12px}
+.git-item .chev{width:13px;height:13px;color:var(--ink-400)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.28);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+.modal{width:100%;max-width:520px;max-height:86vh;overflow:auto;background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow-md);padding:22px 24px}
+.modal .m-title{font-size:16px;font-weight:600}
+.modal .m-sub{font-size:12.5px;color:var(--ink-500);margin-top:4px}
+.modal .m-close{position:absolute;top:18px;right:18px}
+.modal.m-wide{max-width:900px}
+.m-branch{display:flex;align-items:center;justify-content:space-between;margin-top:16px;border:.5px solid var(--line);border-radius:var(--r-sm);padding:10px 14px}
+.m-branch .diff{font-size:12px}
+.m-label{font-size:12px;color:var(--ink-500);margin-top:16px}
+.m-area{margin-top:8px;position:relative}
+.m-area textarea{width:100%;height:130px;border:.5px solid var(--line-strong);border-radius:var(--r-sm);padding:10px 34px 10px 12px;font-size:13px;font-family:var(--font);resize:none;outline:none}
+.m-area textarea:focus{border-color:var(--ink-900)}
+.m-area .gen{position:absolute;top:10px;right:10px;width:22px;height:22px;border:none;background:transparent;color:var(--ink-500)}
+.m-area .gen svg{width:14px;height:14px}
+.m-check{display:flex;align-items:center;justify-content:space-between;margin-top:14px;font-size:13px;color:var(--ink-700)}
+.m-check .ck{display:flex;align-items:center;gap:8px}
+.m-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:22px}
+
+/* ===== Side panel (right quadrant) ===== */
+.sidepanel{width:300px;flex:none;border-left:.5px solid var(--line);background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.sp-title{font-size:15px;font-weight:600}
+.sp-sub{font-size:12.5px;color:var(--ink-500);margin-top:4px}
+.quad{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:26px}
+.qbtn{width:76px;height:76px;border-radius:var(--r-pill);border:.5px solid var(--line);background:transparent;color:var(--ink-800);display:flex;align-items:center;justify-content:center;position:relative}
+.qbtn:hover{background:var(--bg-soft)}
+.qbtn svg{width:22px;height:22px}
+.qbtn .qb-tag{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:var(--r-pill);background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600}
+.qbtn.fill{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+/* small buttons inside content */
+.icon-ghost{width:28px;height:28px;border-radius:var(--r-sm);border:none;background:transparent;color:var(--ink-500);display:inline-flex;align-items:center;justify-content:center}
+.icon-ghost:hover{background:var(--bg-hover);color:var(--ink-900)}
+.icon-ghost svg{width:15px;height:15px}
+</style>
+</head>
+<body>
+<div class="win">
+
+  <!-- ===== Title tabs ===== -->
+  <div class="titlebar">
+    <div class="wtab active"><span class="win-dot"><span>▤</span></span>主界面</div>
+    <div class="wtab"><span class="win-dot"><span>◇</span></span>UnderstandAnything</div>
+    <div class="wtab">Yan Work GUI</div>
+    <div class="titlebar-spacer"></div>
+    <div class="win-controls">
+      <button class="wctl" title="最小化"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
+      <button class="wctl" title="最大化"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14" rx="1"/></svg></button>
+      <button class="wctl close" title="关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+  </div>
+
+  <div class="shell">
+
+    <!-- ===== Sidebar ===== -->
+    <aside class="sidebar">
+      <div class="side-brand">
+        <div class="name">教育 Agent</div>
+        <div class="ver">v1.4.0</div>
+      </div>
+      <div class="side-actions">
+        <button class="newtask" id="newChatBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          新建任务
+        </button>
+      </div>
+      <div class="side-nav">
+        <button class="snav active" data-view="market">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5l1 2 2-1 2 1 2-1 2 1 2-1 2 1 2-1 1 2"/><path d="M5 7v12h14V7"/></svg>
+          Skill 市场
+        </button>
+        <button class="snav" data-view="services">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>
+          MCP 服务
+        </button>
+      </div>
+
+      <div class="sec-label">教育能力</div>
+      <div class="side-nav">
+        <button class="snav" data-view="chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>
+          <span data-ro="teacher">教案中心</span><span data-ro="student">AI 答疑</span>
+        </button>
+        <button class="snav" data-view="library" data-ro="teacher">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5v13z"/></svg>
+          教材库
+        </button>
+        <button class="snav" data-view="lesson" data-ro="student">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12l-10-7L2 12l10 7 10-7z"/><path d="M6 13v5l6 4 6-4v-5"/></svg>
+          我的课程
+        </button>
+        <button class="snav" data-view="question">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><path d="M9 12h6"/></svg>
+          <span data-ro="teacher">我的题库</span><span data-ro="student">我的练习</span>
+        </button>
+      </div>
+
+      <div class="sec-label" style="display:flex;align-items:center;justify-content:space-between;padding-right:14px">项目
+        <button id="projAdd" title="新增项目" style="width:22px;height:22px;border-radius:6px;border:none;background:transparent;color:var(--ink-500);display:inline-flex;align-items:center;justify-content:center;font-size:17px;line-height:1;cursor:pointer">+</button>
+      </div>
+      <div class="side-nav" id="projectBox" style="overflow-y:auto;max-height:42vh;min-height:0"></div>
+
+      <div class="side-bottom">
+        <button class="sb-btn" id="btnSettings" title="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg></button>
+        <button class="sb-btn" id="btnDark" title="外观"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg></button>
+        <button class="sb-btn" title="帮助"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.9.7c0 1.5-2.4 2-2.4 3.3M12 17h.01"/></svg></button>
+        <div class="mh-spacer"></div>
+        <div class="role-seg" id="roleSeg">
+          <button class="active" data-role="teacher">教师</button>
+          <button data-role="student">学生</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ===== Main ===== -->
+    <main class="main">
+      <div class="main-head">
+        <div class="crumb" id="crumb"><b>主界面</b></div>
+        <button class="branch-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/></svg>new-chat</button>
+        <div class="mh-spacer"></div>
+        <div class="mh-right">
+          <button class="wctl" title="工具栏" style="width:30px;height:30px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>
+          <div class="avt" id="avat">师</div>
+          <button class="ai-chip">y-an<b> AI</b><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+          <button class="wctl" title="侧边面板" id="btnSidePanel" style="width:30px;height:30px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
+        </div>
+      </div>
+
+      <div class="scroll">
+
+        <!-- ===== Skill market ===== -->
+        <div class="view active" id="view-market">
+          <div class="mk-head">
+            <div class="mk-title">Skill 市场</div>
+            <div class="mk-sub">查找、安装并管理「教育 Agent」可调用的能力。</div>
+            <div class="mk-toolbar">
+              <div class="search-pill">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+                <input placeholder="搜索 Skill" id="skillSearch">
+              </div>
+              <button class="drop-pill">全部<svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+              <button class="icon-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+              <div class="mh-spacer"></div>
+            </div>
+          </div>
+          <div class="mk-body" id="marketBody"></div>
+        </div>
+
+        <!-- ===== Skill detail ===== -->
+        <div class="view" id="view-skill">
+          <div class="sd" id="skillDetail"></div>
+        </div>
+
+        <!-- ===== Chat / Lesson (teacher) & 答疑 (student) ===== -->
+        <div class="view" id="view-chat">
+          <div class="home" id="home">
+            <div class="home-mark"><svg viewBox="0 0 64 64" fill="none"><path d="M14 18h36M14 28h36M14 38h22" stroke="#1a1a1b" stroke-width="5" stroke-linecap="round"/><circle cx="46" cy="46" r="9" fill="#3b82f6"/><path d="M46 42l0 8M42 46l8 0" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg></div>
+            <div class="home-greet" id="greet">晚上好，王老师</div>
+            <div class="home-sub" id="homeSub">你负责想象，我负责写 · 优先依据教材回答</div>
+            <div class="home-input-wrap">
+              <div class="home-input">
+                <textarea id="chatInput" rows="1" placeholder="描述你想生成的教案、题目或教学问题…"></textarea>
+                <div class="home-toolbar">
+                  <button class="htool" title="附件"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 20h16"/></svg></button>
+                  <span class="access-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>完全访问</span>
+                  <div class="spacer" style="flex:1"></div>
+                  <button class="model-pill" id="modelPill"><b id="modelName">deepseek-v4-pro</b> 更智能<svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+                  <button class="send-orb" id="sendOrb" title="发送"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+                </div>
+              </div>
+              <div class="home-chips" id="homeChips"></div>
+            </div>
+          </div>
+          <div class="hidden" id="chatLive" style="height:100%;display:flex;flex-direction:column;min-height:0">
+            <div id="chatMsgBox" style="flex:1;overflow-y:auto;padding:24px 48px 12px;display:flex;flex-direction:column;gap:16px;min-height:0"></div>
+            <div style="padding:6px 48px 22px;flex:none">
+              <div class="home-input">
+                <textarea id="chatInput2" rows="1" placeholder="继续提问…（Enter 发送，Shift+Enter 换行）"></textarea>
+                <div class="home-toolbar">
+                  <div class="spacer" style="flex:1"></div>
+                  <button class="send-orb" id="sendOrb2" title="发送"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Library (teacher) ===== -->
+        <div class="view" id="view-library">
+          <div class="view-sec">
+            <div class="view-h1">教材库</div>
+            <div class="view-sub">上传 → 解析 → 向量化 → 检索 · RAG 知识源</div>
+            <div class="mk-toolbar">
+              <div class="search-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input placeholder="搜索教材"></div>
+              <button class="drop-pill">全部<svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+              <div class="mh-spacer"></div>
+              <button class="pill-btn dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 20h16"/></svg>上传教材</button>
+            </div>
+          </div>
+          <div class="view-sec" style="padding-top:18px">
+            <div class="row-card">
+              <div class="lrow"><div class="li"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5v13z"/></svg></div><div class="lm"><div class="t">高中数学 · 必修第二册（人教A版）</div><div class="s">数学 · 高中 · 人教版 · 空间几何、统计概率</div></div><span class="st-pill green"><span class="dot"></span>已就绪</span><div class="side"><button class="pill-btn">设为知识源</button><button class="pill-btn">查看章节</button><button class="pill-btn" data-ro="teacher">授权管理</button><button class="pill-btn danger" data-ro="teacher">删除</button></div></div>
+              <div class="lrow"><div class="li"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5v13z"/></svg></div><div class="lm"><div class="t">高中物理 · 必修第一册</div><div class="s">物理 · 高中 · 人教版 · 运动学</div></div><span class="st-pill amber"><span class="dot"></span>解析中 60%</span><div class="side"><button class="pill-btn" disabled>设为知识源</button></div></div>
+              <div class="lrow"><div class="li"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5v13z"/></svg></div><div class="lm"><div class="t">高中化学 · 必修第一册</div><div class="s">化学 · 高中 · 人教版 · 物质及其变化</div></div><span class="st-pill amber"><span class="dot"></span>解析失败</span><div class="side"><button class="pill-btn">重试</button><button class="pill-btn danger">删除</button></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Lesson / course (student) ===== -->
+        <div class="view" id="view-lesson">
+          <div class="view-sec">
+            <div class="view-h1">我的课程</div>
+            <div class="view-sub">学生学习闭环 · 学习计划</div>
+          </div>
+          <div class="view-sec" style="padding-top:18px">
+            <div class="row-card">
+              <div class="lrow"><div class="lm"><div class="t">当前进度 · 必修二 空间几何（第 1/3 课时）</div><div class="s">薄弱知识点：三视图还原、组合体体积计算</div></div><div class="side"><button class="pill-btn dark">继续学习</button><button class="pill-btn">生成学习计划</button><button class="pill-btn">错题本</button></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Question ===== -->
+        <div class="view" id="view-question">
+          <div class="view-sec">
+            <div class="view-h1" id="qTitle">我的题库</div>
+            <div class="view-sub" id="qSub">题库 · 生成 / 校验 / 评价</div>
+          </div>
+          <div class="view-sec" style="padding-top:18px">
+            <div class="row-card" data-ro="teacher" id="qTeacher">
+              <div class="lrow"><div class="lm"><div class="t">出题与组卷</div><div class="s">按知识点生成题目 · 批量校验 · 组卷导出</div></div><div class="side"><button class="pill-btn dark">生成题目</button><button class="pill-btn">批量校验</button><button class="pill-btn">组卷</button><button class="pill-btn">导出试卷</button></div></div>
+              <div class="lrow" style="align-items:flex-start"><div class="lm" style="padding:6px 0"><div class="t" style="font-size:14px">1. 选择题：棱柱的侧面一定是（ ）</div><div class="s">A. 平行四边形　B. 矩形　C. 正方形　D. 菱形</div><div class="side" style="margin-top:8px"><button class="pill-btn">查看解析</button><button class="pill-btn">难度评价</button></div></div></div>
+            </div>
+            <div class="row-card" data-ro="student" id="qStudent">
+              <div class="lrow"><div class="lm"><div class="t">今日练习</div><div class="s">1. 选择题：棱柱的侧面一定是（ ）　A. 平行四边形　B. 矩形　C. 正方形　D. 菱形</div></div></div>
+              <div class="lrow"><div class="side"><button class="pill-btn dark">提交答案</button><button class="pill-btn">加入错题本</button><button class="pill-btn">查看解析</button><button class="pill-btn">再练一组</button></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== MCP / Services ===== -->
+        <div class="view" id="view-services">
+          <div class="view-sec">
+            <div class="view-h1">MCP 服务</div>
+            <div class="view-sub">连接与管理外部能力服务（教材 / 文件 / 用户服务）。</div>
+          </div>
+          <div class="view-sec" style="padding-top:18px">
+            <div class="row-card">
+              <div class="lrow"><div class="li"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg></div><div class="lm"><div class="t">教材服务</div><div class="s">教材章节 / 知识块 / 向量化检索</div></div><span class="st-pill green"><span class="dot"></span>已连接</span><div class="side"><button class="pill-btn">配置</button></div></div>
+              <div class="lrow"><div class="li"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5v13z"/></svg></div><div class="lm"><div class="t">文件服务</div><div class="s">PDF 上传 / 解析 / 分发</div></div><span class="st-pill green"><span class="dot"></span>已连接</span><div class="side"><button class="pill-btn">配置</button></div></div>
+              <div class="lrow"><div class="li"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg></div><div class="lm"><div class="t">用户服务</div><div class="s">角色 / 权限 / 授权管理</div></div><span class="st-pill"><span class="dot"></span>未连接</span><div class="side"><button class="pill-btn dark">连接</button></div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- ===== Side panel ===== -->
+    <aside class="sidepanel" id="sidePanel">
+      <div class="sp-title">侧边面板</div>
+      <div class="sp-sub">执行其他操作</div>
+      <div class="quad">
+        <button class="qbtn" title="终端"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l6 6-6 6M12 18h8"/></svg></button>
+        <button class="qbtn fill" title="文档"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/></svg><span class="qb-tag">新</span></button>
+        <button class="qbtn" title="联网"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z"/></svg></button>
+        <button class="qbtn" title="对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg></button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- Side panel toggle handled via class -->
+
+<script>
+(function(){
+  var role = 'teacher';
+  var currentView = 'market';
+
+  /* ==== Role separation CSS rules applied dynamically ==== */
+  function applyRoleTag(){
+    // We rely on body attribute styling? Instead toggle per-element.
+    document.querySelectorAll('[data-ro]').forEach(function(el){
+      var show = (el.dataset.ro === role);
+      el.style.display = show ? '' : 'none';
+    });
+    document.getElementById('avat').textContent = (role==='teacher')?'师':'生';
+  }
+
+  /* ==== View switching ==== */
+  var views = ['market','skill','chat','library','lesson','question','services'];
+  function switchView(v){
+    currentView = v;
+    views.forEach(function(id){
+      var el = document.getElementById('view-'+id);
+      if(el) el.classList.toggle('active', id===v);
+    });
+    document.querySelectorAll('.snav[data-view]').forEach(function(n){
+      n.classList.toggle('active', n.dataset.view===v);
+    });
+    document.querySelectorAll('.proj-leaf[data-view]').forEach(function(n){
+      n.classList.toggle('active', n.dataset.view===v);
+    });
+    var crumbText = {market:'Skill 市场',skill:'Skill 详情',chat:'新对话',library:'教材库',lesson:'我的课程',question:'我的题库',services:'MCP 服务'}[v]||'主界面';
+    document.getElementById('crumb').innerHTML = '<b>'+crumbText+'</b>';
+    if(v==='chat'){ updateGreeting(); }
+  }
+
+  document.querySelectorAll('.snav[data-view]').forEach(function(n){
+    n.addEventListener('click', function(){ switchView(n.dataset.view); });
+  });
+  document.querySelectorAll('.proj-leaf[data-view]').forEach(function(n){
+    n.addEventListener('click', function(){ switchView(n.dataset.view); });
+  });
+  document.getElementById('newChatBtn').addEventListener('click', function(){
+    switchView('chat');
+    newChatIn(DEFAULT_PROJ);
+  });
+
+  /* ==== Role switch ==== */
+  document.querySelectorAll('#roleSeg button').forEach(function(b){
+    b.addEventListener('click', function(){
+      role = b.dataset.role;
+      document.querySelectorAll('#roleSeg button').forEach(function(x){ x.classList.toggle('active', x===b); });
+      applyRoleTag();
+      // role-specific copy
+      if(role==='teacher'){
+        document.getElementById('homeSub').textContent = '你负责想象，我负责写 · 优先依据教材回答';
+      } else {
+        document.getElementById('homeSub').textContent = '我是你的 AI 学习助手，可以答疑、梳理知识点、分析错题或出练习。';
+      }
+      buildChips();
+      updateGreeting();
+      // guard: if a student lands on teacher view, redirect
+      if(role==='student' && (currentView==='library')) switchView('chat');
+      if(role==='teacher' && (currentView==='lesson')) switchView('chat');
+    });
+  });
+
+  /* ==== Greeting (time based) ==== */
+  function greetingText(){
+    var h = new Date().getHours();
+    var g = h<6?'夜深了':(h<12?'早上好':(h<18?'下午好':'晚上好'));
+    return g + '，' + (role==='teacher'?'王老师':'同学');
+  }
+  function updateGreeting(){
+    document.getElementById('greet').textContent = greetingText();
+  }
+
+  /* ==== Skill market data ==== */
+  var marketData = [
+    {cat:'教学辅助', desc:'编写、理解、审阅与维护教学方案与教案。', skills:[
+      {icon:'教', title:'教案设计规范', desc:'减少默认假设、过度工程化，降低修改过的教案，确保贴近教材与学情。'},
+      {icon:'K', title:'教案精简器', desc:'简化并精炼教案：提升清晰度、一致性与可维护性，严格控制篇幅。'},
+      {icon:'C', title:'知识图谱设计', desc:'以课程模块为单元，梳理并可视化章节结构，辅助教学设计。'},
+      {icon:'G', title:'教材结构图谱', desc:'用本地教材图谱快速理解章节、知识点、例题与练习之间的关联。'},
+      {icon:'D', title:'错题诊断', desc:'面向疑难错题与知识盲区，定位错误原因，给出针对性讲评。'},
+      {icon:'P', title:'教案审查', desc:'仅在你明确选择时审查教案与差异，并给出可删减建议。'},
+      {icon:'P', title:'教案复核', desc:'用 LSP 语法、引用、诊断与符号辅助，检查教案结构一致性。'},
+      {icon:'S', title:'试题解析', desc:'给出结构化解析，覆盖知识点、难度与错因分析。'},
+      {icon:'U', title:'Understand Anything', desc:'用本地图谱理解任意教案、题目或教学文档结构。'},
+    ]},
+    {cat:'UI 美化', desc:'动效、交互和界面质量提升。', skills:[
+      {icon:'E', title:'板书动效', desc:'高保真课堂板书动效还原，支持逐帧演示与页面切换。'},
+      {icon:'C', title:'课堂画板', desc:'制作可交互的几何画板，支持拖拽、翻转与组合演示。'},
+      {icon:'L', title:'Liquid Glass 反应', desc:'制作高质量润色课件，支持教学演示与交互设计。'},
+    ]}
+  ];
+
+  var checkSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4"><path d="M20 6L9 17l-5-5"/></svg>';
+
+  function buildMarket(filter){
+    var html = '';
+    marketData.forEach(function(cat){
+      var skills = cat.skills.filter(function(s){ return !filter || s.title.indexOf(filter)>-1; });
+      if(!skills.length) return;
+      html += '<div class="mk-cat"><div class="mk-cat-name">'+cat.cat+'</div><div class="mk-cat-desc">'+cat.desc+'</div>';
+      html += '<div class="mk-grid">';
+      skills.forEach(function(s){
+        html += '<button class="skill-card" data-skill="'+s.title+'">'+
+          '<span class="check-orb">'+checkSvg+'</span>'+
+          '<div class="sc-top"><div class="skill-icon">'+s.icon+'</div><div class="sc-title">'+s.title+'</div></div>'+
+          '<div class="sc-desc">'+s.desc+'</div></button>';
+      });
+      html += '</div></div>';
+    });
+    document.getElementById('marketBody').innerHTML = html || '<div class="mk-cat"><div class="mk-cat-desc">没有匹配的 Skill。</div></div>';
+    document.querySelectorAll('.skill-card').forEach(function(c){
+      c.addEventListener('click', function(){ openSkill(c.dataset.skill); });
+    });
+  }
+
+  /* ==== Skill detail ==== */
+  function openSkill(title){
+    var s=null, cat='';
+    marketData.forEach(function(c){ c.skills.forEach(function(x){ if(x.title===title){s=x;cat=c.cat;} }); });
+    if(!s) return;
+    var modules = [
+      {icon:'H', name: s.title+' CLI', desc:'内部配套：脚手架、检查、预览、渲染、转录与指令集', code:'teaching-cli'},
+      {icon:'G', name:'GSAP 支持', desc:'内部配套：可寻址动效、时间线、缓动与性能规则', code:'gsap'},
+      {icon:'R', name:s.title+' Registry', desc:'内部配套：发现、安装并接入教学资源区块', code:'teaching-registry'},
+      {icon:'W', name:'教案转课件', desc:'内部配套：将教案抓取、脚本、分镜、配音与构建成完整教学流程', code:'lesson-to-slides'},
+    ];
+    var html = '<button class="sd-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>返回 Skill 市场</button>';
+    html += '<div class="sd-hero"><div class="sd-hero-icon"><svg viewBox="0 0 52 52" fill="none"><rect x="6" y="6" width="40" height="40" rx="14" fill="#3b82f6"/><path d="M18 20h16M18 28h16M18 36h10" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg></div>'+
+      '<div><div class="sd-tags"><span class="tag">'+cat+'</span><span class="tag installed">已安装</span></div>'+
+      '<div class="sd-title">'+s.title+'</div>'+
+      '<div class="sd-desc">'+s.desc+'。用于创建、检查、预览并渲染教学方案，支持字幕、配音、音频响应与教案转课件。</div>'+
+      '<div class="sd-author">Yan Agent · 教育版</div></div></div>';
+    html += '<div class="sd-sec"><div class="sd-sec-title">包含的 Skill</div><div class="sd-sec-desc">以下模块会随该能力一起提供。</div><div class="sd-list">';
+    modules.forEach(function(m){
+      html += '<div class="sd-row"><div class="r-icon">'+m.icon+'</div><div class="r-main"><div class="r-name">'+m.name+'</div><div class="r-desc">'+m.desc+'</div><div class="s" style="font-size:11.5px;color:var(--ink-400);margin-top:2px">'+m.code+'</div></div><span class="r-tag">已安装</span></div>';
+    });
+    html += '</div></div>';
+    document.getElementById('skillDetail').innerHTML = html;
+    document.querySelector('.sd-back').addEventListener('click', function(){ switchView('market'); });
+    switchView('skill');
+  }
+
+  /* ==== Side panel toggle ==== */
+  document.getElementById('btnSidePanel').addEventListener('click', function(){
+    document.getElementById('sidePanel').style.display = document.getElementById('sidePanel').style.display==='none'?'':'none';
+  });
+
+  /* ==== Home chips (role aware, click to fill) ==== */
+  function buildChips(){
+    var chips = (role==='teacher')
+      ? ['生成教案','出一组题','总结本章','教材分析']
+      : ['教材问答','总结本章','错题分析','再练一组'];
+    var html = '';
+    chips.forEach(function(c){ html += '<button class="hchip" data-c="'+c+'">'+c+'</button>'; });
+    document.getElementById('homeChips').innerHTML = html;
+    document.querySelectorAll('.hchip').forEach(function(ch){
+      ch.addEventListener('click', function(){
+        document.getElementById('chatInput').value = '“'+ch.dataset.c+'” 相关的教学任务';
+        document.getElementById('chatInput').focus();
+      });
+    });
+  }
+
+  /* ==== Chat send/stop — 真实后端对接 (2026-09-10, 保留原视觉) ==== */
+  var inConversation = false;
+  var chatLive = document.getElementById('chatLive');
+  var msgBox = document.getElementById('chatMsgBox');
+  var home = document.getElementById('home');
+  var CUR = null, BUSY = false, lastQ = '', thinkEl = null;
+
+  function escHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function mdLight(s){
+    var t = escHtml(s);
+    t = t.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+    t = t.replace(/^### (.*)$/gm, '<div style="font-size:15px;font-weight:600;margin:8px 0 4px">$1</div>');
+    t = t.replace(/^## (.*)$/gm, '<div style="font-size:16px;font-weight:600;margin:10px 0 4px">$1</div>');
+    t = t.replace(/^# (.*)$/gm, '<div style="font-size:17px;font-weight:700;margin:10px 0 4px">$1</div>');
+    t = t.replace(/^- (.*)$/gm, '<div style="padding-left:14px">• $1</div>');
+    t = t.replace(/^&gt; (.*)$/gm, '<div style="border-left:3px solid var(--line-strong);padding-left:10px;color:var(--ink-600)">$1</div>');
+    t = t.replace(/\n/g, '<br>');
+    return t;
+  }
+  function scrollChat(){ msgBox.scrollTop = msgBox.scrollHeight; }
+  function bubbleUser(text){
+    var m = document.createElement('div');
+    m.style.cssText='display:flex;gap:12px;align-items:flex-start';
+    m.innerHTML = '<div class="avt" style="background:var(--bg-soft);color:var(--ink-800)">'+(role==='teacher'?'师':'生')+'</div><div style="flex:1;background:var(--bg-soft);border-radius:12px;padding:12px 16px;font-size:14px;line-height:1.65"></div>';
+    m.querySelector('div[style*="flex:1"]').textContent = text;
+    msgBox.appendChild(m); scrollChat();
+  }
+  function bubbleAiStart(){
+    var ai = document.createElement('div');
+    ai.style.cssText='display:flex;gap:12px;align-items:flex-start';
+    var body = document.createElement('div');
+    body.style.cssText='flex:1;min-width:0;font-size:14px;line-height:1.7;word-break:break-word';
+    ai.appendChild(body);
+    var av = document.createElement('div'); av.className='avt'; av.style.background='var(--dark)'; av.textContent='AI';
+    ai.insertBefore(av, body);
+    msgBox.appendChild(ai); scrollChat();
+    return body;
+  }
+  function showThink(text){
+    if(!thinkEl){
+      thinkEl = document.createElement('div');
+      thinkEl.style.cssText='display:flex;gap:12px;align-items:flex-start';
+      var av = document.createElement('div'); av.className='avt'; av.style.background='var(--dark)'; av.textContent='AI';
+      var inner = document.createElement('div'); inner.style.flex='1'; inner.className='thinkInner';
+      thinkEl.appendChild(av); thinkEl.appendChild(inner);
+      msgBox.appendChild(thinkEl);
+    }
+    thinkEl.querySelector('.thinkInner').innerHTML = '<span class="st-pill amber"><span class="dot"></span>'+escHtml(text||'正在思考…')+'</span>';
+    scrollChat();
+  }
+  function hideThink(){ if(thinkEl){ thinkEl.remove(); thinkEl=null; } }
+  function showErr(text){
+    hideThink();
+    var e = document.createElement('div');
+    e.style.cssText='display:flex;gap:12px;align-items:flex-start';
+    e.innerHTML = '<div class="avt" style="background:#dc2626;color:#fff">!</div><div style="flex:1;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 14px;font-size:13px">'+escHtml(text)+'</div>';
+    msgBox.appendChild(e); scrollChat();
+  }
+  function addCites(el, cites){
+    if(!cites || !cites.length) return;
+    var row = document.createElement('div');
+    row.style.cssText='margin-top:10px;display:flex;gap:6px;flex-wrap:wrap';
+    cites.forEach(function(c,i){
+      var sp = document.createElement('span'); sp.className='st-pill green';
+      sp.innerHTML = '<sup>['+(i+1)+']</sup> '+escHtml((c.book||'')+' '+(c.chapter||'')+(c.section?' '+c.section:'')+' P'+(c.page||'?'));
+      row.appendChild(sp);
+    });
+    el.appendChild(row);
+  }
+  function addActions(el, raw){
+    var row = document.createElement('div');
+    row.style.cssText='margin-top:10px;display:flex;gap:6px;flex-wrap:wrap';
+    var cp = document.createElement('button'); cp.className='pill-btn'; cp.textContent='复制';
+    cp.onclick = function(){ if(navigator.clipboard) navigator.clipboard.writeText(raw).then(function(){ cp.textContent='已复制'; setTimeout(function(){ cp.textContent='复制'; },1500); }); };
+    var rg = document.createElement('button'); rg.className='pill-btn'; rg.textContent='重新生成';
+    rg.onclick = function(){ if(BUSY || !lastQ) return; sendText(lastQ); };
+    row.appendChild(cp); row.appendChild(rg);
+    el.appendChild(row);
+  }
+  function resetToHome(){
+    inConversation = false;
+    home.classList.remove('hidden');
+    chatLive.classList.add('hidden');
+  }
+  function enterConversation(){
+    if(!inConversation){ inConversation = true; home.classList.add('hidden'); chatLive.classList.remove('hidden'); }
+  }
+  function loadHistory(sid){
+    fetch('/api/session/get',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:sid})})
+      .then(function(r){ return r.json(); }).then(function(d){
+        var msgs = (d && d.messages) || [];
+        if(!msgs.length){ resetToHome(); return; }
+        enterConversation();
+        msgBox.innerHTML='';
+        msgs.forEach(function(m){
+          var c = (m.content||'').replace(/^【\*{2}.*?\*{2}】\s*/,'');
+          if(!c) return;
+          if(m.role==='user'){ bubbleUser(c); }
+          else { var b = bubbleAiStart(); b.innerHTML = mdLight(c); }
+        });
+        scrollChat();
+      }).catch(function(){ resetToHome(); });
+  }
+  /* ===== 项目树：多项目 + 会话 + 删除（归属存 localStorage；后端会话平铺不动） ===== */
+  var PROJS_KEY = 'edu_proj_v1', DEFAULT_PROJ = '高中教学';
+  function lsGet(k, d){ try{ var v = JSON.parse(localStorage.getItem(k)); return (v===null||v===undefined)?d:v; }catch(e){ return d; } }
+  function lsSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+
+  function buildTree(){
+    var box = document.getElementById('projectBox');
+    if(!box) return;
+    fetch('/api/sessions').then(function(r){ return r.json(); }).then(function(d){
+      var list = (d && d.list) || [];
+      var cur = d && d.current;
+      var byId = {};
+      list.forEach(function(s){ byId[s.id] = s; });
+      var projs = lsGet(PROJS_KEY, {});
+      projs[DEFAULT_PROJ] = projs[DEFAULT_PROJ] || [];
+      // 清洗失效 sid + 未归属会话归默认项目
+      var claimed = {};
+      Object.keys(projs).forEach(function(pn){
+        projs[pn] = (projs[pn]||[]).filter(function(sid){ if(byId[sid]){ claimed[sid]=1; return true; } return false; });
+      });
+      list.forEach(function(s){ if(!claimed[s.id]) projs[DEFAULT_PROJ].push(s.id); });
+      lsSet(PROJS_KEY, projs);
+      var open = lsGet(PROJS_KEY+'_open', {});
+      if(open[DEFAULT_PROJ]===undefined) open[DEFAULT_PROJ] = 1;
+      var names = [DEFAULT_PROJ].concat(Object.keys(projs).filter(function(n){ return n!==DEFAULT_PROJ; }));
+      var html = '';
+      names.forEach(function(pn){
+        var sids = projs[pn] || [];
+        var isOpen = !!open[pn];
+        html += '<div class="proj-row'+(isOpen?' open':'')+'" data-p="'+escHtml(pn)+'" title="'+escHtml(pn)+'">'+
+          '<svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>'+
+          '<svg class="fold" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>'+
+          '<span class="pn">'+escHtml(pn)+'</span><span class="pc">'+sids.length+'</span></div>';
+        if(isOpen){
+          html += '<button class="proj-leaf proj-add-sess" data-p="'+escHtml(pn)+'">＋ 新对话</button>';
+          sids.forEach(function(sid){
+            var t = byId[sid];
+            var label = (t && t.title && t.title!=='新会话') ? t.title : '新对话';
+            html += '<button class="proj-leaf proj-sess'+(sid===cur?' active':'')+'" data-sid="'+escHtml(sid)+'" data-p="'+escHtml(pn)+'">'+
+              '<span class="ps-t">'+escHtml(label)+'</span><span class="ps-x" title="删除对话">×</span></button>';
+          });
+        }
+      });
+      box.innerHTML = html;
+      box.querySelectorAll('.proj-row').forEach(function(r){
+        r.addEventListener('click', function(){
+          var pn = r.dataset.p, o = lsGet(PROJS_KEY+'_open', {});
+          o[pn] = r.classList.toggle('open') ? 1 : 0;
+          lsSet(PROJS_KEY+'_open', o);
+          buildTree();
+        });
+      });
+      box.querySelectorAll('.proj-add-sess').forEach(function(b){
+        b.addEventListener('click', function(){ if(BUSY) return; newChatIn(b.dataset.p); });
+      });
+      box.querySelectorAll('.proj-sess').forEach(function(b){
+        b.addEventListener('click', function(e){
+          if(e.target.classList.contains('ps-x')){ delSess(b.dataset.sid, b.dataset.p); return; }
+          if(BUSY) return;
+          CUR = b.dataset.sid;
+          switchView('chat');
+          loadHistory(b.dataset.sid);
+          buildTree();
+        });
+      });
+    }).catch(function(){});
+  }
+  function newChatIn(pn){
+    fetch('/api/session/new',{method:'POST'}).then(function(r){ return r.json(); }).then(function(d){
+      var projs = lsGet(PROJS_KEY, {});
+      (projs[pn] = projs[pn] || []).push(d.id);
+      lsSet(PROJS_KEY, projs);
+      var o = lsGet(PROJS_KEY+'_open', {}); o[pn] = 1; lsSet(PROJS_KEY+'_open', o);
+      CUR = d.id;
+      msgBox.innerHTML='';
+      resetToHome();
+      switchView('chat');
+      buildTree();
+    }).catch(function(){});
+  }
+  function addProject(){
+    var name = window.prompt('新项目名称：','新项目');
+    name = (name||'').trim();
+    if(!name) return;
+    var projs = lsGet(PROJS_KEY, {});
+    if(projs[name]){ window.alert('同名项目已存在'); return; }
+    projs[name] = [];
+    lsSet(PROJS_KEY, projs);
+    var o = lsGet(PROJS_KEY+'_open', {}); o[name] = 1; lsSet(PROJS_KEY+'_open', o);
+    buildTree();
+  }
+  function delSess(sid, pn){
+    if(!window.confirm('删除这个对话？')) return;
+    fetch('/api/session/del',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:sid})})
+      .then(function(r){ return r.json(); }).then(function(d){
+        var projs = lsGet(PROJS_KEY, {});
+        if(projs[pn]) projs[pn] = projs[pn].filter(function(x){ return x!==sid; });
+        lsSet(PROJS_KEY, projs);
+        if(CUR===sid){ CUR = (d && d.current) || null; msgBox.innerHTML=''; resetToHome(); }
+        buildTree();
+      }).catch(function(){});
+  }
+  var projAddBtn = document.getElementById('projAdd');
+  if(projAddBtn) projAddBtn.addEventListener('click', addProject);
+  function sendText(val){
+    enterConversation();
+    bubbleUser(val);
+    document.getElementById('chatInput').value='';
+    lastQ = val;
+    showThink('正在检索教材 · 可取消');
+    BUSY = true;
+    var doFetch = function(sid){
+      return fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({text:val,session_id:sid||CUR||'',preset:'auto',template_id:'default',corpus:'textbook'})})
+        .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.body.getReader(); })
+        .then(function(reader){ return streamRead(reader); });
+    };
+    var p = CUR ? doFetch(CUR) : fetch('/api/session/new',{method:'POST'}).then(function(r){return r.json();})
+        .then(function(d){ CUR = d.id; return doFetch(CUR); });
+    p.catch(function(e){ hideThink(); showErr('网络错误：'+(e.message||'连接失败')+'。服务是否在运行？'); BUSY=false; });
+  }
+  function bindComposer(inputId, orbId){
+    var input = document.getElementById(inputId);
+    var orb = document.getElementById(orbId);
+    var fire = function(){ if(BUSY) return; var v=(input.value||'').trim(); if(!v) return; sendText(v); input.value=''; };
+    if(orb) orb.addEventListener('click', fire);
+    if(input) input.addEventListener('keydown', function(e){
+      if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); fire(); }
+    });
+  }
+  bindComposer('chatInput','sendOrb');
+  bindComposer('chatInput2','sendOrb2');
+  function streamRead(reader){
+    hideThink();
+    var bodyEl = bubbleAiStart();
+    var dec = new TextDecoder(), buf='', lastEvt=Date.now(), raw='';
+    var wt = setInterval(function(){
+      if(Date.now()-lastEvt>8000){ showThink('仍在思考，已等待 '+Math.round((Date.now()-lastEvt)/1000)+'s…'); }
+    },3000);
+    function pump(){
+      return reader.read().then(function(res){
+        if(res.done){ clearInterval(wt); BUSY=false; return; }
+        buf += dec.decode(res.value,{stream:true}); lastEvt=Date.now();
+        var i;
+        while((i=buf.indexOf('\n\n'))>=0){
+          var line = buf.slice(0,i); buf = buf.slice(i+2);
+          if(line.indexOf('data: ')===0){
+            try { var ev = JSON.parse(line.slice(6)); handleEv(ev); } catch(e){}
+          }
+        }
+        return pump();
+      });
+    }
+    function handleEv(ev){
+      var t = ev.t;
+      if(t==='session'){ CUR = ev.id; }
+      else if(t==='status'){ if(thinkEl) showThink(ev.text||'正在处理…'); }
+      else if(t==='d'){ hideThink(); raw += ev.text||''; bodyEl.innerHTML = mdLight(raw); scrollChat(); }
+      else if(t==='done'){
+        hideThink();
+        if(ev.text && ev.text!==raw){ raw = ev.text; bodyEl.innerHTML = mdLight(raw); }
+        addCites(bodyEl, ev.citations||[]);
+        addActions(bodyEl, raw);
+        scrollChat();
+        buildTree();
+      }
+      else if(t==='error'){ hideThink(); showErr(ev.text||'请求出错'); }
+    }
+    return pump();
+  }
+
+  /* ==== Model selector ==== */
+  var models = ['deepseek-v4-pro','deepseek-r1','deepseek-v3'];
+  document.getElementById('modelPill').addEventListener('click', function(){
+    var i = models.indexOf(document.getElementById('modelName').textContent);
+    document.getElementById('modelName').textContent = models[(i+1)%models.length];
+  });
+
+  /* ==== Settings modal (常规) ==== */
+  var overlay = null, modal = null;
+  function openModal(body, wide){
+    closeModal();
+    overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    modal = document.createElement('div');
+    modal.className = 'modal' + (wide?' m-wide':'');
+    modal.innerHTML = body;
+    overlay.appendChild(modal);
+    overlay.addEventListener('click', function(e){ if(e.target===overlay) closeModal(); });
+    document.body.appendChild(overlay);
+    wireModal();
+  }
+  function closeModal(){ if(overlay) overlay.remove(); overlay=null; }
+  function wireModal(){
+    var cs = modal.querySelectorAll('.m-close');
+    cs.forEach(function(c){ c.addEventListener('click', closeModal); });
+  }
+
+  /* ==== 常规 settings ==== */
+  document.getElementById('btnSettings').addEventListener('click', function(){
+    var body = '<button class="m-close wctl" style="position:static;float:right;width:32px;height:32px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'+
+      '<div class="set-h" style="font-size:22px">常规</div>'+
+      '<div class="sec-h"><h3>外观与语言</h3></div>'+
+      '<div class="set-card">'+
+        '<div class="set-row"><div class="sl"><div class="t">主题</div><div class="s">选择教育 Agent 的界面外观</div></div><button class="switch blue on"></button></div>'+
+        '<div class="set-row"><div class="sl"><div class="t">语言</div><div class="s">选择教育 Agent 的界面语言</div></div><div class="seg"><button class="active">中文</button><button>English</button></div></div>'+
+      '</div>'+
+      '<div class="sec-h" style="margin-top:26px"><h3>用户</h3></div>'+
+      '<div class="set-card"><div class="set-row"><div class="sl"><div class="t">用户名</div><div class="s">让教育 Agent 记住你的名字</div></div><input class="text-input" value="王老师"></div></div>'+
+      '<div class="sec-h" style="margin-top:26px"><h3>权限</h3></div>'+
+      '<div class="set-card">'+
+        '<div class="set-row"><div class="sl"><div class="t">读取文件</div><div class="s">允许读取工作区与上传的文件</div></div><button class="switch on"></button></div>'+
+        '<div class="set-row"><div class="sl"><div class="t">写入文件</div><div class="s">允许创建或修改文件</div></div><button class="switch on"></button></div>'+
+        '<div class="set-row"><div class="sl"><div class="t">执行命令</div><div class="s">允许运行 Shell 命令（谨慎）</div></div><button class="switch on"></button></div>'+
+        '<div class="set-row"><div class="sl"><div class="t">联网检索</div><div class="s">允许在线检索补充教材外资料</div></div><button class="switch"></button></div>'+
+      '</div>';
+    openModal(body);
+    wireToggles();
+  });
+
+  function wireToggles(){
+    modal.querySelectorAll('.switch').forEach(function(t){
+      t.addEventListener('click', function(){ t.classList.toggle('on'); });
+    });
+    modal.querySelectorAll('.seg button').forEach(function(b){
+      b.addEventListener('click', function(){ b.parentElement.querySelectorAll('button').forEach(function(x){x.classList.toggle('active',x===b);}); });
+    });
+  }
+
+  /* ==== API 连接 ==== */
+  var apiBtn = null; // not bound to nav; expose via data? We'll add a callback through settings? Keep simple: click brand version? 
+  // Expose as a function and hook the "MCP 服务" -> no. We'll bind via a hidden trigger: clicking .mk-sub no. Provide via settings bottom? Add to sidebar? Keep accessible:
+  // We'll attach API settings open to a keyboard? Simpler: add an "API 连接" row into MCP view's actions is complex. Provide via settings modal footer:
+  function openApi(){
+    var body = '<button class="m-close wctl" style="position:static;float:right;width:32px;height:32px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'+
+      '<div class="set-h" style="font-size:22px">API 连接</div>'+
+      '<div class="set-h-sub">自建任意数量的 API 连接。填写名称、Base URL 和 API Key，一键测试并拉取模型列表。</div>'+
+      '<div class="sec-h"><h3>我的连接</h3></div>';
+    var conns = [
+      {n:'基元', m:'17 个 API 模型 · 硅基流动', active:false},
+      {n:'日日新', m:'5 个 API 模型 · 日日新', active:false},
+      {n:'DeepSeek官方', m:'3 个 API 模型 · DeepSeek - DSML', active:true},
+      {n:'glm', m:'9 个 API 模型 · 13 个 GLM 官方补充 · GLM - 智谱', active:false},
+      {n:'Agnes', m:'8 个 API 模型 · Agnes', active:false},
+    ];
+    body += '<div>';
+    conns.forEach(function(c){
+      body += '<div class="api-card'+(c.active?' active':'')+'"><div class="toprow"><div class="name">'+c.n+(c.active?'<span class="enable-dot"></span>':'')+'</div><div class="acts"><button class="pill-btn">删除</button><button class="pill-btn">快速测试</button><button class="pill-btn ghost">+</button><button class="pill-btn'+(c.active?' orange':'')+'">'+(c.active?'已启用':'启用')+'</button></div></div><div class="meta">'+c.m+'</div></div>';
+    });
+    body += '</div>'+
+      '<div class="newapi"><div class="plus-orb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></div><div class="lbl">新建连接</div></div>'+
+      '<div class="sec-h" style="margin-top:26px"><h3>图像 / 视频模型选择</h3></div>'+
+      '<div class="set-h-sub">选择用于生成图片 / 视频的模型。</div>'+
+      '<div class="set-card"><div class="set-row"><div class="sl"><div class="t">生成图像模型选择</div><div class="s">用于课件配图 / 板书示意</div></div><div class="seg"><button class="active">API</button></div></div></div>';
+    openModal(body, true);
+    wireToggles();
+  }
+
+  /* ==== Git 工具 popover ==== */
+  document.getElementById('avat').addEventListener('click', function(){ openGitPop(); });
+  var gitPop = null;
+  function openGitPop(){
+    if(gitPop){ gitPop.remove(); gitPop=null; return; }
+    gitPop = document.createElement('div');
+    gitPop.className='pop';
+    gitPop.style.top='66px';gitPop.style.right='220px';gitPop.style.width='300px';
+    gitPop.innerHTML = '<div class="pop-head"><div class="ttl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/></svg>Git 工具</div><button class="icon-ghost" style="width:26px;height:26px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v4h-4"/></svg></button></div>'+
+      '<div class="pop-body">'+
+        '<button class="git-item" data-g="commit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5v13z"/></svg><span class="gt">更改</span><span class="diff"><span class="diff-pos">+19466</span> <span class="diff-neg">-12857</span></span></button>'+
+        '<button class="git-item" data-g="branch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/></svg><span class="gt">main</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></button>'+
+        '<button class="git-item" data-g="push"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12l16-8-6 16-3-6-7-2z"/></svg><span class="gt">提交或推送</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></button>'+
+      '</div>';
+    document.body.appendChild(gitPop);
+    gitPop.querySelectorAll('.git-item').forEach(function(it){
+      it.addEventListener('click', function(){
+        var g = it.dataset.g;
+        gitPop.remove(); gitPop=null;
+        if(g==='push'||g==='commit') openCommitModal();
+        if(g==='branch') openGitGraph();
+      });
+    });
+    document.addEventListener('click', outsideDismiss);
+  }
+  function outsideDismiss(e){
+    if(gitPop && !gitPop.contains(e.target) && e.target!==document.getElementById('avat')){ gitPop.remove(); gitPop=null; document.removeEventListener('click',outsideDismiss); }
+  }
+
+  /* ==== 提交或推送 modal ==== */
+  function openCommitModal(){
+    var body = '<div class="m-title">提交或推送</div><div class="m-sub">选择目标分支并处理当前工作区的修改。</div>'+
+      '<div class="m-branch"><div class="branch-pill" style="background:var(--bg-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/></svg>main</div><div class="diff"><span class="diff-pos">+19466</span> <span class="diff-neg">-12857</span></div></div>'+
+      '<div class="m-label">提交信息</div>'+
+      '<div class="m-area"><textarea placeholder="留空将自动生成"></textarea><button class="gen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v4h-4"/></svg></button></div>'+
+      '<div class="m-check"><div class="ck"><button class="wctl" style="width:20px;height:20px;border-radius:5px;border:.5px solid var(--line-strong);background:var(--orange);color:#fff;display:inline-flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width:12px;height:12px"><path d="M20 6L9 17l-5-5"/></svg></button>包含未暂存的更改</div><span style="color:var(--ink-500);font-size:12.5px">107 个文件</span></div>'+
+      '<div class="m-foot"><button class="pill-btn dark" style="height:34px;padding:0 22px">提交</button><button class="pill-btn" style="height:34px;padding:0 18px">提交并推送</button><button class="pill-btn" style="height:34px;padding:0 18px">推送</button></div>';
+    openModal(body);
+  }
+
+  /* ==== Git 图谱 modal ==== */
+  function openGitGraph(){
+    var commits = [
+      {d:'feat: model manager panel with per-model enable switches',date:'08/08 04:58',a:'yan-user',h:'76165c4'},
+      {d:'feat: group quick model switcher by provider with search',date:'08/08 04:28',a:'yan-user',h:'7faf1a62'},
+      {d:'fix: always show delete button for custom providers even when unconfigured',date:'08/08 04:08',a:'yan-user',h:'6341ead8'},
+      {d:'fix: anthropic gateway compatibility (volcano ark verified)',date:'08/08 04:04',a:'yan-user',h:'5ac6418'},
+      {d:'feat: support custom OpenAI/Anthropic-compatible providers',date:'08/08 03:51',a:'yan-user',h:'6b5a930'},
+      {d:'fix: stabilize Yan Agent v1.4.0 runtime',date:'08/07 19:28',a:'666-gy',h:'417c74b'},
+      {d:'Create .nojekyll',date:'08/07 15:50',a:'Yanzi',h:'9d1408d'},
+      {d:'Add files via upload',date:'08/07 15:31',a:'Yanzi',h:'bbb d39f'.replace(' ','')},
+      {d:'release: Yan Agent v1.4.0',date:'08/07 15:32',a:'666-gy',h:'1229a99'},
+      {d:'release: Yan Agent v1.3.2',date:'07/23 18:32',a:'666-gy',h:'8cd1858',tag:true},
+      {d:'docs: update v1.3.1 release links',date:'07/22 18:30',a:'666-gy',h:'8cc1952'},
+    ];
+    var rows='';
+    commits.forEach(function(c,i){
+      var gray = (i>4)?'gray':'';
+      rows += '<tr><td class="g-col"><div class="graph-line"><span class="gdot '+gray+'"></span></div></td><td>'+(c.tag?'<span class="tag-pill">tag v1.3.2</span> ':'')+c.d+'</td><td class="mono">'+c.date+'</td><td class="mono">'+c.a+'</td><td class="mono">'+c.h+'</td></tr>';
+    });
+    var body = '<div class="m-title" style="display:flex;align-items:center;gap:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M4 6h16M4 12h10M4 18h7"/></svg>Git 图谱</div>'+
+      '<div class="m-sub" style="margin-top:8px"></div>'+
+      '<div style="position:relative;margin-top:16px"><button class="wctl" style="position:absolute;right:0;top:-4px;width:30px;height:30px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>'+
+      '<div style="margin-top:16px;border:.5px solid var(--line);border-radius:10px;overflow:auto;max-height:70vh"><table class="git-graph"><thead><tr><th style="width:40px">简</th><th>描述</th><th style="width:120px">日期</th><th style="width:90px">作者</th><th style="width:90px">提交</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    openModal(body, true);
+  }
+
+  /* ==== Search filter ==== */
+  document.getElementById('skillSearch').addEventListener('input', function(e){ buildMarket(e.target.value.trim()); });
+
+  /* init */
+  applyRoleTag();
+  buildMarket('');
+  buildChips();
+  updateGreeting();
+  /* 载入后端当前会话（真实数据；空则留在欢迎态） */
+  fetch('/api/sessions').then(function(r){ return r.json(); }).then(function(d){
+    if(d && d.current){
+      fetch('/api/session/get',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:d.current})})
+        .then(function(r){ return r.json(); }).then(function(s){
+          if(s && s.messages && s.messages.length){
+            CUR = d.current;
+            switchView('chat');
+            loadHistory(d.current);
+          }
+        }).catch(function(){});
+    }
+    buildTree();
+  }).catch(function(){});
+})();
+</script>
+</body>
+</html>

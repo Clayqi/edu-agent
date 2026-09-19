@@ -1,0 +1,152 @@
+[
+  {
+    "q": "集合的含义是什么？",
+    "ok": true,
+    "coverage": "high",
+    "conf": 0.67,
+    "cites": 3,
+    "issues": [],
+    "answer_len": 554,
+    "degraded": false
+  },
+  {
+    "q": "集合之间有哪些基本关系？",
+    "ok": true,
+    "coverage": "high",
+    "conf": 0.71,
+    "cites": 1,
+    "issues": [],
+    "answer_len": 602,
+    "degraded": false
+  },
+  {
+    "q": "并集、交集、补集分别是怎样定义的？",
+    "ok": true,
+    "coverage": "medium",
+    "conf": 0.58,
+    "cites": 2,
+    "issues": [],
+    "answer_len": 416,
+    "degraded": false
+  },
+  {
+    "q": "充分条件和必要条件是什么意思？",
+    "ok": true,
+    "coverage": "medium",
+    "conf": 0.6,
+    "cites": 3,
+    "issues": [],
+    "answer_len": 538,
+    "degraded": false
+  },
+  {
+    "q": "全称量词命题和存在量词命题的否定怎么表示？",
+    "ok": true,
+    "coverage": "high",
+    "conf": 0.76,
+    "cites": 3,
+    "issues": [],
+    "answer_len": 491,
+    "degraded": false
+  },
+  {
+    "q": "基本不等式是什么？什么时候取等号？",
+    "ok": true,
+    "coverage": "high",
+    "conf": 0.7,
+    "cites": 2,
+    "issues": [],
+    "answer_len": 344,
+    "degraded": false
+  },
+  {
+    "q": "一元二次不等式怎么解？和二次函数有什么关系？",
+    "ok": true,
+    "coverage": "high",
+    "conf": 0.77,
+    "cites": 2,
+    "issues": [],
+    "answer_len": 872,
+    "degraded": false
+  },
+  {
+    "q": "函数的概念是什么？什么是定义域和值域？",
+    "ok": true,
+    "coverage": "high",
+    "conf": 0.7,
+    "cites": 2,
+    "issues": [],
+    "answer_len": 370,
+    "degraded": false
+  },
+  {
+    "q": "怎么判断一个函数在某区间上的单调性？",
+    "ok": true,
+    "coverage": "high",
+    "conf": 0.72,
+    "cites": 2,
+    "issues": [],
+    "answer_len": 447,
+    "degraded": false
+  },
+  {
+    "q": "什么是幂函数？它有哪些性质？",
+    "ok": true,
+    "coverage": "high",
+    "conf": 0.67,
+    "cites": 2,
+    "issues": [],
+    "answer_len": 624,
+    "degraded": false
+  },
+  {
+    "q": "指数函数的图象和性质有哪些？",
+    "ok": true,
+    "coverage": "high",
+    "conf": 0.72,
+    "cites": 3,
+    "issues": [],
+    "answer_len": 595,
+    "degraded": false
+  },
+  {
+    "q": "对数的运算有哪些运算法则？",
+    "ok": true,
+    "coverage": "high",
+    "conf": 0.64,
+    "cites": 1,
+    "issues": [],
+    "answer_len": 388,
+    "degraded": false
+  },
+  {
+    "q": "对数函数的定义和性质是什么？",
+    "ok": true,
+    "coverage": "high",
+    "conf": 0.65,
+    "cites": 1,
+    "issues": [],
+    "answer_len": 209,
+    "degraded": false
+  },
+  {
+    "q": "任意角的三角函数是怎么定义的？",
+    "ok": true,
+    "coverage": "high",
+    "conf": 0.69,
+    "cites": 1,
+    "issues": [],
+    "answer_len": 521,
+    "degraded": false
+  },
+  {
+    "q": "正弦函数、余弦函数的图象与性质有哪些？",
+    "ok": true,
+    "coverage": "high",
+    "conf": 0.77,
+    "cites": 6,
+    "issues": [],
+    "answer_len": 867,
+    "degraded": false
+  }
+]

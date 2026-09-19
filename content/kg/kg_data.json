@@ -1,0 +1,314 @@
+{
+  "nodes": [
+    {
+      "id": "set",
+      "name": "集合",
+      "chapter": "第一章",
+      "type": "concept"
+    },
+    {
+      "id": "set_def",
+      "name": "集合的定义",
+      "chapter": "第一章",
+      "type": "concept"
+    },
+    {
+      "id": "set_rel",
+      "name": "集合间的基本关系",
+      "chapter": "第一章",
+      "type": "concept"
+    },
+    {
+      "id": "set_op",
+      "name": "集合的基本运算",
+      "chapter": "第一章",
+      "type": "concept"
+    },
+    {
+      "id": "subset",
+      "name": "子集与真子集",
+      "chapter": "第一章",
+      "type": "concept"
+    },
+    {
+      "id": "equal",
+      "name": "集合相等",
+      "chapter": "第一章",
+      "type": "concept"
+    },
+    {
+      "id": "union",
+      "name": "并集",
+      "chapter": "第一章",
+      "type": "concept"
+    },
+    {
+      "id": "intersect",
+      "name": "交集",
+      "chapter": "第一章",
+      "type": "concept"
+    },
+    {
+      "id": "complement",
+      "name": "补集",
+      "chapter": "第一章",
+      "type": "concept"
+    },
+    {
+      "id": "function",
+      "name": "函数",
+      "chapter": "第三章",
+      "type": "concept"
+    },
+    {
+      "id": "func_def",
+      "name": "函数的概念",
+      "chapter": "第三章",
+      "type": "concept"
+    },
+    {
+      "id": "domain",
+      "name": "定义域",
+      "chapter": "第三章",
+      "type": "concept"
+    },
+    {
+      "id": "range",
+      "name": "值域",
+      "chapter": "第三章",
+      "type": "concept"
+    },
+    {
+      "id": "func_expr",
+      "name": "函数的表示方法",
+      "chapter": "第三章",
+      "type": "concept"
+    },
+    {
+      "id": "monotonic",
+      "name": "函数的单调性",
+      "chapter": "第三章",
+      "type": "concept"
+    },
+    {
+      "id": "mono_inc",
+      "name": "增函数",
+      "chapter": "第三章",
+      "type": "concept"
+    },
+    {
+      "id": "mono_dec",
+      "name": "减函数",
+      "chapter": "第三章",
+      "type": "concept"
+    },
+    {
+      "id": "extremum",
+      "name": "函数的最大（小）值",
+      "chapter": "第三章",
+      "type": "concept"
+    },
+    {
+      "id": "parity",
+      "name": "函数的奇偶性",
+      "chapter": "第三章",
+      "type": "concept"
+    },
+    {
+      "id": "even_func",
+      "name": "偶函数",
+      "chapter": "第三章",
+      "type": "concept"
+    },
+    {
+      "id": "odd_func",
+      "name": "奇函数",
+      "chapter": "第三章",
+      "type": "concept"
+    },
+    {
+      "id": "quadratic",
+      "name": "二次函数",
+      "chapter": "初中衔接",
+      "type": "concept"
+    },
+    {
+      "id": "parabola",
+      "name": "抛物线",
+      "chapter": "初中衔接",
+      "type": "concept"
+    },
+    {
+      "id": "inequality",
+      "name": "不等式",
+      "chapter": "第二章",
+      "type": "concept"
+    },
+    {
+      "id": "basic_ineq",
+      "name": "基本不等式",
+      "chapter": "第二章",
+      "type": "concept"
+    },
+    {
+      "id": "exp_func",
+      "name": "指数函数",
+      "chapter": "第四章",
+      "type": "concept"
+    },
+    {
+      "id": "exp_power",
+      "name": "n次方根与分数指数幂",
+      "chapter": "第四章",
+      "type": "concept"
+    },
+    {
+      "id": "exp_prop",
+      "name": "指数幂的运算性质",
+      "chapter": "第四章",
+      "type": "concept"
+    }
+  ],
+  "edges": [
+    {
+      "source": "set",
+      "target": "set_def",
+      "relation": "包含"
+    },
+    {
+      "source": "set",
+      "target": "set_rel",
+      "relation": "包含"
+    },
+    {
+      "source": "set",
+      "target": "set_op",
+      "relation": "包含"
+    },
+    {
+      "source": "set_rel",
+      "target": "subset",
+      "relation": "包含"
+    },
+    {
+      "source": "set_rel",
+      "target": "equal",
+      "relation": "包含"
+    },
+    {
+      "source": "set_op",
+      "target": "union",
+      "relation": "包含"
+    },
+    {
+      "source": "set_op",
+      "target": "intersect",
+      "relation": "包含"
+    },
+    {
+      "source": "set_op",
+      "target": "complement",
+      "relation": "包含"
+    },
+    {
+      "source": "subset",
+      "target": "equal",
+      "relation": "可推导"
+    },
+    {
+      "source": "function",
+      "target": "func_def",
+      "relation": "包含"
+    },
+    {
+      "source": "function",
+      "target": "func_expr",
+      "relation": "包含"
+    },
+    {
+      "source": "function",
+      "target": "monotonic",
+      "relation": "包含"
+    },
+    {
+      "source": "function",
+      "target": "parity",
+      "relation": "包含"
+    },
+    {
+      "source": "func_def",
+      "target": "domain",
+      "relation": "包含"
+    },
+    {
+      "source": "func_def",
+      "target": "range",
+      "relation": "包含"
+    },
+    {
+      "source": "monotonic",
+      "target": "mono_inc",
+      "relation": "包含"
+    },
+    {
+      "source": "monotonic",
+      "target": "mono_dec",
+      "relation": "包含"
+    },
+    {
+      "source": "monotonic",
+      "target": "extremum",
+      "relation": "可推导"
+    },
+    {
+      "source": "parity",
+      "target": "even_func",
+      "relation": "包含"
+    },
+    {
+      "source": "parity",
+      "target": "odd_func",
+      "relation": "包含"
+    },
+    {
+      "source": "quadratic",
+      "target": "function",
+      "relation": "前置知识点"
+    },
+    {
+      "source": "parabola",
+      "target": "quadratic",
+      "relation": "前置知识点"
+    },
+    {
+      "source": "set",
+      "target": "function",
+      "relation": "前置知识点"
+    },
+    {
+      "source": "inequality",
+      "target": "range",
+      "relation": "前置知识点"
+    },
+    {
+      "source": "basic_ineq",
+      "target": "extremum",
+      "relation": "可推导"
+    },
+    {
+      "source": "exp_power",
+      "target": "exp_func",
+      "relation": "前置知识点"
+    },
+    {
+      "source": "exp_prop",
+      "target": "exp_func",
+      "relation": "前置知识点"
+    },
+    {
+      "source": "func_def",
+      "target": "exp_func",
+      "relation": "前置知识点"
+    }
+  ]
+}

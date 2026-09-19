@@ -763,6 +763,7 @@ svg{display:block}
     if(v==='library'){ libRender(); }
     if(v==='kg'){ window.__kgEnter && window.__kgEnter(); }
   }
+  window.switchView = switchView;
 
   document.querySelectorAll('.snav[data-view]').forEach(function(n){
     n.addEventListener('click', function(){ switchView(n.dataset.view); });
@@ -1012,7 +1013,7 @@ svg{display:block}
         '<div style="height:100%;width:' + totalPct + '%;background:linear-gradient(90deg,#1890ff,#52c41a);border-radius:5px;transition:width 0.3s"></div>' +
         '</div>' +
         '<div style="display:flex;gap:10px">' +
-        '<button class="pill-btn" style="background:#1890ff;color:#fff" onclick="window.location.href=\'/kg.html\'">' +
+        '<button class="pill-btn" style="background:#1890ff;color:#fff" onclick="switchView(\'kg\')">' +
         '<svg viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' style=\'width:13px;height:13px;vertical-align:-2px;margin-right:5px\'><circle cx=\'6\' cy=\'6\' r=\'3\'/><circle cx=\'18\' cy=\'6\' r=\'3\'/><circle cx=\'12\' cy=\'18\' r=\'3\'/><path d=\'M8 7l3 9M16 7l-3 9M9 6h6\'/></svg>打开总知识图谱星图</button>' +
         '</div></div>';
       
@@ -1031,7 +1032,7 @@ svg{display:block}
         '<div class="lib-detail" style="display:none;border-top:.5px solid var(--line);background:var(--bg-soft)">' +
           '<div style="padding:12px 18px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-bottom:.5px solid var(--line);padding-bottom:10px;margin-bottom:8px">' +
             '<button class="pill-btn' + (curCorpus === 'textbook' ? ' dark' : '') + '" id="libUseTextbook" style="height:28px">' + (curCorpus === 'textbook' ? '✓ 当前知识源' : '设为知识源') + '</button>' +
-            '<button class="pill-btn" style="background:#e6f7ff;color:#1890ff;height:28px" onclick="window.location.href=\'/kg.html?book=必修一\'">📊 本教材知识图谱</button>' +
+            '<button class="pill-btn" style="background:#e6f7ff;color:#1890ff;height:28px" onclick="switchView(\'kg\')">📊 本教材知识图谱</button>' +
             '<div style="flex:1"></div>' +
             '<div style="display:flex;align-items:center;gap:6px">' +
             '<span style="font-size:11px;color:var(--ink-400)">本教材进度</span>' +
@@ -1123,11 +1124,8 @@ svg{display:block}
       var ub = document.getElementById('libUseTextbook');
       if(ub) ub.onclick = function(e){ e.stopPropagation(); curCorpus = 'textbook'; syncToolbars(); libRender(); showToast('知识范围：教材'); };
       var up = 
-  // 知识图谱按钮跳转 + 学习进度更新
+  // 学习进度更新
   setTimeout(function(){
-    var kgBtn = document.getElementById('libKg');
-    if(kgBtn) kgBtn.onclick = function(){ window.location.href = '/kg.html'; };
-    
     // 更新学习进度
     var learned = JSON.parse(localStorage.getItem('kg_learned') || '[]');
     fetch('/api/kg/graph')

@@ -238,6 +238,54 @@ svg{display:block}
 
 /* ===== Section title rows ===== */
 .view-sec{padding:22px 34px 0}
+/* ===== 教案 × PPT 可视化编排工作台 ===== */
+.dz-grid{display:grid;grid-template-columns:minmax(340px,1fr) minmax(300px,1fr);gap:16px;padding:16px 34px 40px;align-items:start}
+.dz-col{min-width:0}
+.dz-h{font-size:13px;font-weight:600;color:var(--ink-700);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.dz-stat{font-size:11.5px;font-weight:400;color:var(--ink-400)}
+.dz-step{border:.5px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin-bottom:8px;background:#fff}
+.dz-step .r1{display:flex;gap:8px;align-items:center}
+.dz-step .idx{width:22px;height:22px;border-radius:999px;background:var(--blue-soft);color:var(--blue);font-size:11.5px;display:flex;align-items:center;justify-content:center;flex:none}
+.dz-step input.name{flex:1;min-width:0;height:28px;border:.5px solid var(--line);border-radius:6px;padding:0 8px;font-size:13px;font-family:inherit;color:var(--ink-800)}
+.dz-step input.min{width:58px;height:28px;border:.5px solid var(--line);border-radius:6px;padding:0 6px;font-size:12.5px;text-align:center;font-family:inherit;color:var(--ink-800)}
+.dz-step textarea{width:100%;margin-top:8px;border:.5px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12.5px;line-height:1.55;resize:vertical;min-height:54px;font-family:inherit;color:var(--ink-700)}
+.dz-ops{display:flex;gap:4px}
+.dz-ops button{width:24px;height:24px;border-radius:6px;border:.5px solid var(--line);background:#fff;color:var(--ink-500);font-size:12px;line-height:1;cursor:pointer}
+.dz-ops button:hover{background:var(--bg-hover)}
+.dz-slides{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px}
+/* ===== 模板工作台（导入自有教案模板 -> 全量编辑） ===== */
+#tplEditor{padding:12px 0 40px}
+.tpl-blk{background:#fff;border:.5px solid var(--line);border-radius:var(--r-md);padding:12px 14px;margin-bottom:10px}
+.tpl-blk-head{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.tpl-blk-head .tpl-title{flex:1;min-width:170px;height:32px;font-weight:600}
+.tpl-para{border:.5px dashed transparent;border-radius:8px;padding:6px 8px;line-height:1.8;font-size:14px;min-height:26px;outline:none;white-space:pre-wrap}
+.tpl-para:hover{border-color:var(--line)}
+.tpl-para:focus{border-color:var(--blue);background:#fafbff}
+.tpl-el{position:relative;margin:3px 0}
+.tpl-el-ops{display:none;gap:2px;position:absolute;right:2px;top:2px;background:#fff;border:.5px solid var(--line);border-radius:8px;padding:2px;z-index:5}
+.tpl-el:hover .tpl-el-ops{display:flex}
+.tpl-ops{border:none;background:transparent;color:var(--ink-500);cursor:pointer;font-size:11.5px;padding:2px 7px;border-radius:6px;line-height:1.6}
+.tpl-ops:hover{background:var(--bg-soft);color:var(--ink-800)}
+.tpl-table{width:100%;border-collapse:collapse;font-size:13px;margin:4px 0}
+.tpl-table td{border:.5px solid var(--line);padding:5px 7px;vertical-align:top}
+.tpl-table td:focus{outline:2px solid var(--blue);outline-offset:-2px;background:#fafbff}
+.tpl-img{font-size:12px;color:var(--ink-400);background:var(--bg-soft);border-radius:6px;padding:4px 8px;display:inline-block}
+.tpl-hint{font-size:12px;color:var(--ink-400);margin:4px 2px}
+.tpl-lvl{height:30px;width:70px;font-size:12px}
+.tpl-tb.on{background:var(--dark);color:#fff}
+.dz-slide{border:.5px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:#fff;cursor:pointer}
+.dz-slide:hover{border-color:var(--line-strong)}
+.dz-slide .mini{aspect-ratio:16/9;background:linear-gradient(160deg,#fbfcff,#eef2ff);border-bottom:.5px solid var(--line);padding:9px 11px;box-sizing:border-box;display:flex;flex-direction:column;gap:4px;position:relative;overflow:hidden;min-height:0}
+.dz-slide .mini .t{font-size:11.5px;font-weight:700;color:var(--ink-900);line-height:1.25;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.dz-slide .mini ul{margin:0 0 0 13px;padding:0;font-size:9.5px;line-height:1.45;color:var(--ink-600)}
+.dz-slide .mini ul li{margin:0}
+.dz-slide .mini .pn{position:absolute;right:8px;bottom:6px;font-size:9.5px;font-weight:600;color:var(--blue)}
+.dz-slide .body{padding:6px 10px 8px}
+.dz-slide .n{font-size:10.5px;color:var(--ink-400)}
+.dz-slide .t{font-size:12.5px;font-weight:600;margin-top:2px;color:var(--ink-800)}
+.dz-slide .body ul{margin:6px 0 0 14px;padding:0;font-size:11.5px;color:var(--ink-600);line-height:1.5}
+
 /* ===== 教育能力分组伸缩（2026-09-10）===== */
 #eduCapHead{cursor:pointer;user-select:none}
 #eduCapNav{overflow:hidden;max-height:340px;opacity:1;transition:max-height .18s ease,opacity .18s ease}
@@ -364,6 +412,12 @@ svg{display:block}
 .icon-ghost:hover{background:var(--bg-hover);color:var(--ink-900)}
 .icon-ghost svg{width:15px;height:15px}
 
+    /* 右下角常驻入口：导入 / 查看 / 收起文档 */
+    #docPanelFab{position:fixed;right:18px;bottom:18px;z-index:60;border:.5px solid var(--line-strong);
+      background:var(--dark);color:#fff;border-radius:999px;padding:9px 16px;font-size:12.5px;font-family:var(--font);
+      box-shadow:var(--shadow-md);cursor:pointer}
+    #docPanelFab:hover{opacity:.9}
+
     /* ===== 会话内文档预览面板（右侧，可拖拽调宽；内存渲染，不落盘）===== */
     #docPanel{position:fixed;top:74px;right:14px;bottom:14px;width:var(--docp-w,460px);
       min-width:320px;max-width:min(920px,74vw);background:var(--bg);border:.5px solid var(--line-strong);
@@ -397,8 +451,9 @@ svg{display:block}
     .dp-rows{display:flex;flex-direction:column;gap:6px}
     .dp-row{display:flex;gap:8px;align-items:baseline;font-size:12.5px;border-bottom:.5px dashed var(--line);padding-bottom:5px}
     .dp-row .m{color:var(--ink-400);font-size:11.5px}
-    #view-chat.dp-open #chatMsgBox{padding-right:calc(var(--docp-w,460px) + 34px)}
-    #view-chat.dp-open .home{padding-right:calc(var(--docp-w,460px) + 34px)}
+    body.dp-open #view-chat #chatMsgBox{padding-right:calc(var(--docp-w,460px) + 34px)}
+    body.dp-open #view-chat .home{padding-right:calc(var(--docp-w,460px) + 34px)}
+    body.dp-open #view-design{padding-right:calc(var(--docp-w,460px) + 18px)}
     /* 下载：一个按钮 + 悬停菜单（hover 即弹出；点击也能开，兼容触屏） */
     .dp-dl{position:relative;display:inline-flex}
     .dp-menu{display:none;position:absolute;right:0;top:calc(100% + 5px);min-width:216px;z-index:70;
@@ -470,6 +525,10 @@ svg{display:block}
         </button>
       </div>
       <div class="side-nav" id="eduCapNav">
+        <button class="snav" data-view="design" data-view-student="chat" data-ro-swap="1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>
+          <span data-ro="teacher">教案中心</span><span data-ro="student">AI 答疑</span>
+        </button>
         <button class="snav" data-view="library" data-ro="teacher">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5v13z"/></svg>
           教材库
@@ -577,6 +636,10 @@ svg{display:block}
               </div>
             </div>
           </div>
+
+
+        </div>
+
           <!-- ===== 会话内文档预览（内存渲染：不落盘、不调用 WPS；导出才走 /api/wps/export）===== -->
           <aside id="docPanel" style="display:none">
             <div id="docPanelGrip" title="拖动调整宽度（双击复位）"></div>
@@ -585,7 +648,6 @@ svg{display:block}
               <span class="dp-title" id="docPanelTitle">文档预览</span>
               <span class="dp-stat" id="docPanelStat"></span>
               <span style="flex:1"></span>
-              <button class="pill-btn dp-mini" id="docPanelImport" title="导入 .docx 到预览（不建模板，可预览与下载）">导入</button>
               <!-- 下载：三个出口合并成一个按钮，鼠标悬停弹出要选的下载方式 -->
               <span class="dp-dl" id="docPanelDown">
                 <button class="pill-btn dp-mini dark" id="docPanelDownBtn" title="下载这份文档（鼠标悬停选择格式）">下载<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" style="margin-left:3px;vertical-align:-1px"><path d="M6 9l6 6 6-6"/></svg></button>
@@ -609,8 +671,8 @@ svg{display:block}
             <div class="dp-bd" id="docPanelBody"></div>
             <div class="dp-ft" id="docPanelRes"></div>
           </aside>
-
-        </div>
+          <!-- 右下角常驻入口：没有文档=「导入文档」；有文档=「查看/收起文档」 -->
+          <button id="docPanelFab" title="导入或查看文档">导入文档</button>
 
         <!-- ===== Library (teacher) ===== -->
         <div class="view" id="view-library">
@@ -631,6 +693,52 @@ svg{display:block}
         </div>
 
         <!-- ===== Lesson × PPT design workbench (教案中心入口，2026-09-10) ===== -->
+        <div class="view" id="view-design">
+          <div class="view-sec">
+            <div class="view-h1">教案 × PPT 编排</div>
+            <div class="view-sub">左边编排这节课的环节，右边即时生成对应的 PPT 页面——改哪边两边一起变</div>
+          </div>
+          <div class="view-sec" style="padding-top:14px">
+            <!-- 模板：只保留「导入」（其余模板编辑能力已按要求移除） -->
+            <div class="row-card" id="tplBar" style="padding:10px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <span style="font-size:12.5px;color:var(--ink-600);flex:none;font-weight:600">教案模板</span>
+              <button class="pill-btn" id="tplImport" title="导入你的 .docx：解析后可预览、可下载成 Word / PPT（不再进模板库）">导入 .docx</button>
+              <span style="font-size:11.5px;color:var(--ink-400)">导入的文档在右侧预览面板里查看与下载；模板的编辑 / 新建 / 保存 / 删除已移除</span>
+            </div>
+            <input type="file" id="tplFile" accept=".docx" style="display:none">          </div>
+          <div class="view-sec" style="padding-top:14px" id="dzEditBar">
+            <div class="row-card" style="padding:14px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <input class="text-input" id="dzTitle" placeholder="课题，例：3.3 幂函数" style="width:230px;height:34px">
+              <input class="text-input" id="dzGrade" placeholder="学情/课时，例：重点班 45 分钟" style="width:220px;height:34px">
+              <button class="pill-btn dark" id="dzSkeleton">生成骨架</button>
+              <button class="pill-btn" id="dzAddStep">＋ 添加环节</button>
+              <span style="flex:1"></span>
+              <button class="pill-btn" id="dzSave">保存</button>
+              <button class="pill-btn" id="dzExport">导出 HTML</button>
+              <button class="pill-btn" id="dzPreview">预览 PPT</button>
+              <button class="pill-btn" id="dzExportWps" title="经 WPS 文字导出 .docx">导出 Word · WPS</button>
+              <button class="pill-btn dark" id="dzExportPpt" title="本地生成 .pptx 并用 WPS 演示打开">生成 PPT · WPS</button>
+            </div>
+            <div class="row-card" style="margin-top:8px;padding:10px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <span style="font-size:12.5px;color:var(--ink-500);flex:none">导出位置</span>
+              <input class="text-input" id="dzOutDir" placeholder="留空 = content/plans（项目内）" style="flex:1;min-width:240px;height:32px;font-family:ui-monospace,Consolas,monospace;font-size:12px">
+              <button class="pill-btn" id="dzPickDir" style="flex:none">选择…</button>
+              <span id="dzExportResult" style="font-size:12px;color:var(--ink-500);flex:none"></span>
+            </div>
+          </div>
+          <div class="dz-grid">
+            <div class="dz-col">
+              <div class="dz-h">教案结构 <span id="dzStat" class="dz-stat"></span></div>
+              <div id="dzSteps"></div>
+            </div>
+            <div class="dz-col">
+              <div class="dz-h">PPT 幻灯片 <span id="dzSlideStat" class="dz-stat"></span>
+                <span style="font-weight:400;color:var(--ink-400);font-size:11.5px">（点卡片跳到对应环节）</span></div>
+              <div id="dzSlides" class="dz-slides"></div>
+            </div>
+          </div>
+        </div>
+
         <!-- ===== Question ===== -->
         <div class="view" id="view-question">
           <div class="view-sec">
@@ -701,7 +809,7 @@ svg{display:block}
   }
 
   /* ==== View switching ==== */
-  var views = ['market','skill','chat','library','lesson','question','services'];
+  var views = ['market','skill','chat','library','lesson','question','services','design'];
   function switchView(v){
     currentView = v;
     views.forEach(function(id){
@@ -714,12 +822,13 @@ svg{display:block}
     document.querySelectorAll('.proj-leaf[data-view]').forEach(function(n){
       n.classList.toggle('active', n.dataset.view===v);
     });
-    var crumbText = {market:'Skill 市场',skill:'Skill 详情',chat:'新对话',library:'教材库',lesson:'我的课程',question:'我的题库',services:'MCP 服务'}[v]||'主界面';
+    var crumbText = {market:'Skill 市场',skill:'Skill 详情',chat:'新对话',library:'教材库',lesson:'我的课程',question:'我的题库',services:'MCP 服务',design:'教案中心'}[v]||'主界面';
     if(v==='chat') crumbText = convLabel(CUR_TITLE);   /* 聊天页显示当前对话名称 */
     document.getElementById('crumb').innerHTML = '<b>'+escHtml(crumbText)+'</b>';
     if(v==='chat'){ updateGreeting(); }
     if(v==='library'){ libRender(); }
-   if(v==='services'){ svcRender(); }
+    if(v==='design'){ dzRender(); }        /* 教案中心：进页面就重画编排台 */
+    if(v==='services'){ svcRender(); }
     if(v==='market'){ if(!(CAP.skills||[]).length){ capLoad().then(function(){ buildMarket(marketFilter); }); } }
   }
 
@@ -865,8 +974,13 @@ svg{display:block}
     return {cls:'', text:'不可用'};
   }
   function capSyncDesignBtn(){
-    /* 下载菜单里的两个落盘项：WPS 未就绪时灰显（仍可点，点了会说清原因；HTML 与预览不受影响） */
+    /* WPS 未就绪时：编排台的「导出 Word · WPS」置灰 + 面板下载菜单的落盘项灰显（仍可点，点了会说清原因） */
     var off = !CAP.wps_export_ready;
+    var w = document.getElementById('dzExportWps');
+    if(w){
+      w.style.opacity = off ? '.55' : '';
+      w.title = off ? 'WPS Office 服务未就绪（到「MCP 服务」开启）' : '经 WPS 文字导出 .docx';
+    }
     document.querySelectorAll('#docPanelMenu [data-dl]').forEach(function(b){
       if(b.dataset.dl === 'html') return;          /* HTML 直接下载，不依赖 WPS */
       b.classList.toggle('dp-off', !!off);
@@ -1651,10 +1765,10 @@ svg{display:block}
             if((m.meta && m.meta.mode) === 'B' || /Agent\s*B/.test(c.slice(0, 60))) planBodies.push(c);
           }
         });
-        /* 恢复历史时不要自动弹面板（会盖住会话），只把最近一份备好，用户点开即可 */
+        /* 恢复历史时不自动弹面板（会盖住会话），但把最近一份**备好并亮起右下角入口**，
+           老师随时点一下就能看（刷新页面后也有入口，不再"关掉就找不回来"）。 */
         if(planBodies.length){
-          var lastMd = planBodies[planBodies.length - 1];
-          window.__docpHistory = { md: lastMd, html: d.last_html || '' };
+          docpArm(planBodies[planBodies.length - 1], d.last_html || '');
         }
         scrollChat();
         if(spView==='docs') spRenderDocs();
@@ -2047,8 +2161,9 @@ svg{display:block}
         lastCites = ev.citations || [];
         addCites(bodyEl, lastCites);
         addActions(bodyEl, raw);
-        /* 文档类回答：唤起会话页右侧的内存预览面板（开关关掉则不渲染；导出不受影响） */
-        if(ev.mode === 'B' || /Agent\s*B/.test(raw.slice(0, 80))) docpFromAnswer(raw, ev.html || '');
+        /* 文档类回答：唤起会话页右侧的内存预览面板（开关关掉则不渲染；导出不受影响）。
+           判定：Agent B 直出 / 正文带 Agent B 标记 / 服务端落了 HTML（总指挥 S 出的教案也走这条）。 */
+        if(ev.mode === 'B' || ev.html || /Agent\s*B/.test(raw.slice(0, 80))) docpFromAnswer(raw, ev.html || '');
         /* ② 按模板生成完成后：自动把这份教案按板块填进模板并载入教案中心（不抢视图） */
         if(PLAN_FILL_PENDING){
           var pf = PLAN_FILL_PENDING; PLAN_FILL_PENDING = null;
@@ -2377,6 +2492,174 @@ svg{display:block}
     head.addEventListener('click', function(e){ if(e.target && e.target.closest && e.target.closest('#eduCapToggle')) return; flip(); });
   })();
 
+  /* ==== 教案 × PPT 可视化编排（教案中心入口，2026-09-10）====
+     左栏每行 = 一个教学环节（名称/分钟/要点）；右栏每张 = 一页 PPT（与环节一一对应）。
+     两边同一个数据模型 DZ 驱动：改左边右边即时变，点右卡片跳回左边对应环节。
+     数据落 localStorage（edu_design_v1），可导出独立 HTML。 */
+  var DZ_KEY = 'edu_design_v1';
+  var DZ = null;
+  function dzBlank(){
+    return { title:'', grade:'', steps:[
+      { name:'导入', minutes:5, points:'情境/问题引入\n回顾上一节' },
+      { name:'新知讲授', minutes:15, points:'核心概念与定义\n关键结论与注意点' },
+      { name:'例题精讲', minutes:10, points:'课本例题（逐步讲解）\n变式一题' },
+      { name:'随堂练习', minutes:10, points:'课本练习（当堂完成）\n错因点评' },
+      { name:'小结', minutes:5, points:'知识框架\n易错点提醒' }
+    ] };
+  }
+  function dzSanitize(o){
+    if(!o || typeof o !== 'object' || !Array.isArray(o.steps) || !o.steps.length) return dzBlank();
+    return {
+      title: String(o.title || ''), grade: String(o.grade || ''),
+      steps: o.steps.map(function(s){
+        return { name: String((s && s.name) || '环节'),
+                 minutes: Math.max(1, parseInt(s && s.minutes, 10) || 5),
+                 points: String((s && s.points) || '') };
+      })
+    };
+  }
+  function dzLoad(){
+    try{ var raw = localStorage.getItem(DZ_KEY); if(raw) return dzSanitize(JSON.parse(raw)); }catch(e){}
+    return dzBlank();
+  }
+  function dzPersist(){ try{ localStorage.setItem(DZ_KEY, JSON.stringify(DZ)); }catch(e){} }
+  function dzTotal(){ return DZ.steps.reduce(function(a, s){ return a + (parseInt(s.minutes, 10) || 0); }, 0); }
+  function dzBullets(s){ return String(s.points || '').split('\n').map(function(x){ return x.trim(); }).filter(Boolean); }
+  function dzRenderSlides(){
+    var sb = document.getElementById('dzSlides'); if(!sb) return;
+    var h = '';
+    DZ.steps.forEach(function(s, i){
+      var b = dzBullets(s).slice(0, 2);
+      h += '<div class="dz-slide" data-i="'+i+'" title="点一下跳到左边第 '+(i+1)+' 个环节">' +
+        '<div class="mini">' +
+          '<div class="t">'+escHtml(s.name)+'</div>' +
+          (b.length ? '<ul>'+b.map(function(x){ return '<li>'+escHtml(x)+'</li>'; }).join('')+'</ul>'
+                    : '<ul><li style="color:var(--ink-400)">（未填要点）</li></ul>') +
+        '</div>' +
+        '<div class="body"><div class="n">第 '+(i+1)+' 页 · '+(parseInt(s.minutes, 10) || 0)+' 分钟</div></div>' +
+        '</div>';
+    });
+    sb.innerHTML = h;
+    var ss = document.getElementById('dzSlideStat'); if(ss) ss.textContent = '共 '+DZ.steps.length+' 页';
+    var st = document.getElementById('dzStat'); if(st) st.textContent = '共 '+DZ.steps.length+' 个环节 · '+dzTotal()+' 分钟';
+  }
+  function dzRender(){
+    if(!DZ) DZ = dzLoad();
+    var tEl = document.getElementById('dzTitle'), gEl = document.getElementById('dzGrade');
+    if(tEl && tEl.value !== DZ.title) tEl.value = DZ.title;
+    if(gEl && gEl.value !== DZ.grade) gEl.value = DZ.grade;
+    var box = document.getElementById('dzSteps'); if(!box) return;
+    var h = '';
+    DZ.steps.forEach(function(s, i){
+      h += '<div class="dz-step" data-i="'+i+'"><div class="r1">' +
+        '<span class="idx">'+(i+1)+'</span>' +
+        '<input class="name" data-i="'+i+'" data-f="name" value="'+escHtml(s.name)+'" placeholder="环节名，例：新知讲授">' +
+        '<input class="min" type="number" min="1" data-i="'+i+'" data-f="minutes" value="'+(parseInt(s.minutes, 10) || 0)+'">' +
+        '<span style="font-size:11.5px;color:var(--ink-400)">分钟</span><span style="flex:1"></span>' +
+        '<span class="dz-ops">' +
+          '<button data-act="up" data-i="'+i+'" title="上移">↑</button>' +
+          '<button data-act="down" data-i="'+i+'" title="下移">↓</button>' +
+          '<button data-act="del" data-i="'+i+'" title="删除">✕</button>' +
+        '</span></div>' +
+        '<textarea data-i="'+i+'" data-f="points" placeholder="这一环节的要点（每行一条，会成为 PPT 上的要点）">'+escHtml(s.points)+'</textarea>' +
+        '</div>';
+    });
+    box.innerHTML = h;
+    dzRenderSlides();
+    dzPersist();
+  }
+  function dzExportPpt(){ dzExportRun('pptx', document.getElementById('dzExportPpt')); }
+  function dzPreviewPPT(){ expPreviewSlides(DZ.steps.map(function(s){
+      return { name: s.name, minutes: parseInt(s.minutes, 10) || 0, bullets: dzBullets(s) };
+    }), DZ.title || 'PPT 预览', ''); }
+  (function dzBind(){
+    var box = document.getElementById('dzSteps'),
+        sl = document.getElementById('dzSlides'),
+        tEl = document.getElementById('dzTitle'),
+        gEl = document.getElementById('dzGrade');
+    if(!box) return;
+    DZ = dzLoad();
+    function syncInputs(){
+      if(tEl){ DZ.title = tEl.value; }
+      if(gEl){ DZ.grade = gEl.value; }
+      dzPersist();
+    }
+    if(tEl){
+      tEl.value = DZ.title;
+      tEl.addEventListener('input', function(){ DZ.title = tEl.value; dzPersist(); });
+    }
+    if(gEl){
+      gEl.value = DZ.grade;
+      gEl.addEventListener('input', function(){ DZ.grade = gEl.value; dzPersist(); });
+    }
+    box.addEventListener('input', function(e){
+      var el = e.target;
+      if(!el || !el.dataset || !el.dataset.f) return;
+      var i = parseInt(el.dataset.i, 10);
+      if(!(i >= 0 && i < DZ.steps.length)) return;
+      DZ.steps[i][el.dataset.f] = el.value;
+      dzRenderSlides();     /* 只重画右栏，避免左边输入框失焦/光标跳 */
+      dzPersist();
+    });
+    box.addEventListener('click', function(e){
+      var b = e.target && e.target.closest ? e.target.closest('button[data-act]') : null;
+      if(!b) return;
+      var i = parseInt(b.dataset.i, 10), a = b.dataset.act, t;
+      if(a === 'up' && i > 0){ t = DZ.steps[i-1]; DZ.steps[i-1] = DZ.steps[i]; DZ.steps[i] = t; }
+      else if(a === 'down' && i < DZ.steps.length - 1){ t = DZ.steps[i+1]; DZ.steps[i+1] = DZ.steps[i]; DZ.steps[i] = t; }
+      else if(a === 'del'){
+        if(DZ.steps.length <= 1){ showToast('至少保留一个环节', false); return; }
+        DZ.steps.splice(i, 1);
+      }
+      dzRender();
+    });
+    if(sl) sl.addEventListener('click', function(e){
+      var c = e.target && e.target.closest ? e.target.closest('.dz-slide') : null;
+      if(!c) return;
+      var i = parseInt(c.dataset.i, 10);
+      var row = document.querySelector('#dzSteps .dz-step[data-i="'+i+'"]');
+      if(!row) return;
+      if(row.scrollIntoView) row.scrollIntoView({ block:'center' });
+      var inp = row.querySelector('input.name'); if(inp) inp.focus();
+      row.style.borderColor = 'var(--blue)';
+      setTimeout(function(){ row.style.borderColor = ''; }, 900);
+    });
+    var add = document.getElementById('dzAddStep');
+    if(add) add.addEventListener('click', function(){
+      DZ.steps.push({ name:'新环节', minutes:5, points:'' });
+      dzRender();
+      var rows = document.querySelectorAll('#dzSteps .dz-step');
+      var last = rows[rows.length - 1];
+      if(last){ if(last.scrollIntoView) last.scrollIntoView({ block:'center' }); var inp = last.querySelector('input.name'); if(inp){ inp.focus(); inp.select(); } }
+    });
+    var sk = document.getElementById('dzSkeleton');
+    if(sk) sk.addEventListener('click', function(){
+      syncInputs();
+      DZ.steps = dzBlank().steps;
+      dzRender();
+      showToast('已生成 5 个环节骨架：' + DZ.steps.map(function(s){ return s.name; }).join(' → '));
+    });
+    var sv = document.getElementById('dzSave');
+    if(sv) sv.addEventListener('click', function(){ syncInputs(); dzPersist(); showToast('已保存（本机浏览器）'); });
+    var ex = document.getElementById('dzExport');
+    if(ex) ex.addEventListener('click', function(){ syncInputs(); dzExportHTML(); });
+    var exw = document.getElementById('dzExportWps');
+    if(exw) exw.addEventListener('click', function(){ syncInputs(); dzExportWps(); });
+    var exp = document.getElementById('dzExportPpt');
+    if(exp) exp.addEventListener('click', function(){ syncInputs(); dzExportPpt(); });
+    var pk = document.getElementById('dzPickDir');
+    if(pk) pk.addEventListener('click', function(){
+      openDirPicker(function(dir){ dzOutDirSet(dir); showToast('导出位置：' + dir); },
+                    { title:'选择导出位置',
+                      sub:'Word / PPT 将保存到该目录（不存在会自动创建）；留空则存到项目内 content/plans',
+                      start: dzOutDirGet() || undefined });
+    });
+    syncOutDirInput();
+
+    var pv = document.getElementById('dzPreview');
+    if(pv) pv.addEventListener('click', function(){ syncInputs(); dzPreviewPPT(); });
+    dzRender();
+  })();
   /* ==== 导出/预览共用层：教案中心（编排台 · 模板工作台）与对话导出条都走这里 ==== */
   /* 结果条：文件名 + 目录 + 「下载到本机」 */
   function expResultHtml(r){
@@ -2474,6 +2757,56 @@ svg{display:block}
   function dzOutDirSet(v){ try{ if(v) localStorage.setItem(DZ_OUT_KEY, v); else localStorage.removeItem(DZ_OUT_KEY); }catch(e){} syncOutDirInput(); }
   function syncOutDirInput(){ var el = document.getElementById('dzOutDir'); if(el) el.value = dzOutDirGet(); }
   /* ==== 教案模板工作台：导入自有 .docx -> 全量编辑（板块/段落/表格/格式）-> 导出或存模板 ==== */
+  function dzExportHTML(){
+    var steps = DZ.steps.map(function(s, i){
+      var b = dzBullets(s);
+      return '<section class="s"><h3>'+(i+1)+'. '+escHtml(s.name)+'　<span class="m">'+(parseInt(s.minutes, 10) || 0)+' 分钟</span></h3>' +
+        (b.length ? '<ul>'+b.map(function(x){ return '<li>'+escHtml(x)+'</li>'; }).join('')+'</ul>' : '<p class="m">（未填要点）</p>') + '</section>';
+    }).join('');    var slides = DZ.steps.map(function(s, i){
+      var b = dzBullets(s);
+      return '<div class="slide"><div class="num">'+(i+1)+'</div><div class="st">'+escHtml(s.name)+'</div>' +
+        (b.length ? '<ul>'+b.slice(0,5).map(function(x){ return '<li>'+escHtml(x)+'</li>'; }).join('')+'</ul>' : '') + '</div>';
+    }).join('');
+    var html = '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>' +
+      escHtml(DZ.title || '教案') + '</title><style>' +
+      'body{font-family:"Microsoft YaHei",system-ui,sans-serif;margin:0;padding:32px 40px;color:#18181b;background:#fff}' +
+      'h1{font-size:24px;margin:0 0 4px}h2{font-size:16px;margin:34px 0 10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb}' +
+      '.m{font-size:13px;color:#71717a;font-weight:400}.s{margin:14px 0;padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px}' +
+      '.s h3{font-size:15px;margin:0 0 6px}ul{margin:6px 0 0 20px;padding:0;line-height:1.65;font-size:14px}' +
+      '.deck{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}' +
+      '.slide{border:1px solid #e5e7eb;border-radius:12px;padding:14px;background:linear-gradient(160deg,#fafbff,#eef2ff)}' +
+      '.slide .num{width:26px;height:26px;border-radius:999px;background:#3b82f6;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px}' +
+      '.slide .st{font-size:15px;font-weight:600;margin:8px 0 4px}</style></head><body>' +
+      '<h1>'+escHtml(DZ.title || '未命名课题')+'</h1><div class="m">'+escHtml(DZ.grade || '') +
+      '　·　共 '+DZ.steps.length+' 个环节 / '+dzTotal()+' 分钟</div>' +
+      '<h2>一、教案</h2>' + steps +
+      '<h2>二、PPT 大纲（每页对应一个环节）</h2><div class="deck">' + slides + '</div>' +
+      '<p class="m" style="margin-top:28px">导出自 edu-agent 教案 × PPT 编排台</p></body></html>';
+    if(expDownloadHtml(html, (DZ.title || '教案') + '-教案与PPT大纲.html')) showToast('已导出 HTML（下载里找）');
+  }
+  /* 教案 -> WPS 文字 .docx / 本地生成 .pptx（开关与「MCP 服务」同源：关掉即拒绝）
+     注意：syncInputs 是 dzBind() 内的局部函数，这里不能调；由点击包装负责同步输入框。 */
+  var DZ_OUT_KEY = 'edu_dz_outdir';
+  function dzOutDirGet(){ try{ return localStorage.getItem(DZ_OUT_KEY) || ''; }catch(e){ return ''; } }
+  function dzOutDirSet(v){ try{ if(v) localStorage.setItem(DZ_OUT_KEY, v); else localStorage.removeItem(DZ_OUT_KEY); }catch(e){} syncOutDirInput(); }
+  function syncOutDirInput(){ var el = document.getElementById('dzOutDir'); if(el) el.value = dzOutDirGet(); }
+  function dzResult(html){ var el = document.getElementById('dzExportResult'); if(el) el.innerHTML = html; }
+  function dzPayload(){
+    return { title: DZ.title || '未命名课题', grade: DZ.grade || '',
+             steps: (DZ.steps || []).map(function(s){
+               return { name: s.name, minutes: s.minutes, bullets: dzBullets(s) };
+             }) };
+  }
+  function dzExportRun(kind, btn){
+    try{
+      var p = dzPayload();
+      if(!p.steps.length){ showToast('先在教案中心生成骨架或添加环节', false); return; }
+      dzResult('处理中…');
+      showToast(kind === 'pptx' ? '正在生成 PPT，请稍候…' : '正在经 WPS 导出 Word，请稍候…');
+      expViaServer({ payload: p, kind: kind, btn: btn, onResult: dzResult });
+    }catch(err){ showToast('异常：' + (err && err.message ? err.message : err), false); }
+  }
+  function dzExportWps(){ dzExportRun('docx', document.getElementById('dzExportWps')); }
   /* ==== 会话内文档预览面板 ==================================================
      两条链路严格分开（对应「会话内内存预览」与「WPS 落盘导出」）：
        · 预览：纯内存渲染，不落盘、不调用 WPS、不看 WPS 开关；
@@ -2602,10 +2935,11 @@ svg{display:block}
     if(!DOCP.kind) DOCP.kind = 'md';
     DOCP_ON = true;
     var p = docpEl('docPanel'); if(p) p.style.display = 'flex';
-    var vc = docpEl('view-chat'); if(vc) vc.classList.add('dp-open');
+    document.body.classList.add('dp-open');
     /* 导入的文档默认看「文档」页签 */
     if(DOCP.kind === 'rich') DOCP_TAB = 'doc';
     docpTabSet(DOCP_TAB);
+    docpSyncFab();
   }
   /* 打开一份富文档（导入的 .docx / ③按板块填入的结果） */
   function docpOpenRich(rich, title, extra){
@@ -2624,10 +2958,30 @@ svg{display:block}
                stats: { chars: chars, blocks: blocks.length, slides: 0 },
                report: (extra && extra.report) || null });
   }
-  /* 重新展示当前文档（计划卡片上的「在右侧预览里查看」用） */
+  /* 重新展示当前文档（右下角入口 / 计划卡片上的「在右侧预览里查看」用） */
   function docpReveal(){
-    if(DOCP){ docpOpen(DOCP); }
-    else { showToast('还没有可预览的文档：先让教案 Agent 出一份，或点「导入」', false); }
+    if(!DOCP){ showToast('还没有可预览的文档：问一句教案（如「帮我备一节 3.3 幂函数的课」），或点面板里的「导入」', false); return; }
+    if(DOCP_ON) docpClose(); else docpOpen(DOCP);
+  }
+  /* 右下角常驻入口：没有文档时是「导入文档」，有文档时是「查看/收起文档」
+     —— 保证「关掉面板」「刷新页面」「只想导入自己的 .docx」三种情况都有入口 */
+  function docpSyncFab(){
+    var f = docpEl('docPanelFab'); if(!f) return;
+    f.style.display = '';
+    f.textContent = !DOCP ? '导入文档' : (DOCP_ON ? '收起文档' : '查看文档');
+    f.title = !DOCP ? '导入一份 .docx 到右侧预览（也能下载成 Word / PPT）'
+                    : ('预览《' + (DOCP.title || '文档') + '》');
+  }
+  /* 备好一份文档但**不弹面板**（历史恢复用）：拿到预览模型、亮起右下角入口 */
+  function docpArm(md, htmlName){
+    if(!md || !String(md).trim()) return;
+    spJson('/api/session/doc-preview', 'POST', { markdown: md, session_id: CUR || '' }).then(function(d){
+      if(!d || !d.ok || !d.enabled) return;
+      d.html = htmlName || '';
+      DOCP = d;
+      if(!DOCP.kind) DOCP.kind = 'md';
+      docpSyncFab();
+    }).catch(function(){});
   }
   /* 导入 .docx：解析成富结构后**只进预览**（不建模板、不落模板库） */
   function docpImportFile(file){
@@ -2644,7 +2998,8 @@ svg{display:block}
   function docpClose(){
     DOCP_ON = false;
     var p = docpEl('docPanel'); if(p) p.style.display = 'none';
-    var vc = docpEl('view-chat'); if(vc) vc.classList.remove('dp-open');
+    document.body.classList.remove('dp-open');
+    docpSyncFab();      /* 收起后右下角入口亮起，随时能再打开 */
   }
   /* AI 输出文档后自动唤起：把 payload/markdown 交给纯内存接口，原样拿回预览模型。
      开关以**接口返回的 enabled** 为准（服务端唯一真相源）——不先等 capLoad()，
@@ -2704,22 +3059,38 @@ svg{display:block}
     document.querySelectorAll('.dp-tab').forEach(function(b){
       b.addEventListener('click', function(){ docpTabSet(b.dataset.dp); });
     });
-    /* 导入 .docx：只进预览，不进模板库 */
-    var ib = docpEl('docPanelImport'), ifile = docpEl('docPanelFile');
-    if(ib && ifile){
-      ib.addEventListener('click', function(){ ifile.click(); });
+    /* 导入 .docx：只进预览，不进模板库。
+       隐藏 input 常驻（教案中心的「导入 .docx」与右下角入口都用它），所以 change 必须独立绑定。 */
+    var ifile = docpEl('docPanelFile');
+    if(ifile){
       ifile.addEventListener('change', function(){
         if(ifile.files && ifile.files[0]) docpImportFile(ifile.files[0]);
         ifile.value = '';
       });
     }
+    /* 右下角常驻入口：没有文档时=「导入文档」，有文档时=「查看/收起文档」 */
+    var fab = docpEl('docPanelFab');
+    if(fab) fab.addEventListener('click', function(){
+      if(!DOCP){ if(ifile) ifile.click(); return; }   /* 空态直接开文件选择，解决"想导入却没有入口" */
+      if(DOCP_ON) docpClose(); else docpOpen(DOCP);
+    });
+    docpSyncFab();
     window.addEventListener('resize', function(){ if(DOCP_ON) docpApplyWidth(docpWidth()); });
   }
-  /* ==== 启动初始化（会话文档预览面板 + 导出位置）==== */
+  /* ==== 启动初始化（会话文档预览面板 + 导出位置；编排台由 dzBind 自调用初始化）==== */
   (function appInit(){
     syncOutDirInput();
     planOptsInit();
     docpInit();
+    /* 模板「导入 .docx」：仍然只进右侧预览（不建模板、不进模板库） */
+    var tImport = document.getElementById('tplImport'), tFile = document.getElementById('tplFile');
+    if(tImport && tFile){
+      tImport.addEventListener('click', function(){ tFile.click(); });
+      tFile.addEventListener('change', function(){
+        if(tFile.files && tFile.files[0]) docpImportFile(tFile.files[0]);
+        tFile.value = '';
+      });
+    }
   })();
 })();
 </script>

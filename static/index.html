@@ -424,25 +424,16 @@ svg{display:block}
     .dp-word th{background:var(--bg-soft);font-weight:600}
     .dp-word img{max-width:100%}
 
-    /* 收起态：面板自己缩成右缘一条竖把手（不再另设悬浮按钮 —— 右侧任何时候只有一条框，
-       入口与预览窗口都在面板里）。点它展开；展开后由标题栏的 × 收回。
-       放在 #docPanel 基础样式之后，才能覆盖它的 width / min-width / top。 */
-    #docPanel.dp-collapsed{width:30px;min-width:0;max-width:none;right:0;top:38%;bottom:auto;
-      border-radius:9px 0 0 9px;cursor:pointer;box-shadow:var(--shadow-md)}
-    #docPanel.dp-collapsed > *{display:none}
-    #docPanel.dp-collapsed > #docPanelStrip{display:block}
-    #docPanelStrip{display:none;width:100%;border:0;background:var(--dark);color:#fff;cursor:pointer;
-      writing-mode:vertical-rl;letter-spacing:2px;font-size:12px;font-family:var(--font);
-      padding:14px 0;line-height:1}
-    #docPanelStrip:hover{opacity:.9}
+    /* 「文档」视图：侧边面板在这一视图下变宽（可拖左边缘调宽，宽度记在 --docp-w），
+       预览、编辑、下载都在面板里 —— 不再有第二块浮动的文档窗口。 */
+    .sidepanel.sp-doc{width:var(--docp-w,560px);min-width:320px;max-width:min(920px,70vw);position:relative}
+    .sidepanel.sp-doc #spBody{overflow:hidden;display:flex;flex-direction:column;margin-top:12px}
+    #docPanelGrip{display:none;position:absolute;left:0;top:0;bottom:0;width:8px;cursor:col-resize;z-index:3}
+    .sidepanel.sp-doc #docPanelGrip{display:block}
+    .sidepanel.sp-doc #docPanelGrip:hover,.sidepanel.dp-drag #docPanelGrip{background:var(--blue);opacity:.18}
+    .sidepanel.dp-drag,.sidepanel.dp-drag *{cursor:col-resize;user-select:none}
 
     /* ===== 会话内文档预览面板（右侧，可拖拽调宽；内存渲染，不落盘）===== */
-    #docPanel{position:fixed;top:74px;right:14px;bottom:14px;width:var(--docp-w,460px);
-      min-width:320px;max-width:min(920px,74vw);background:var(--bg);border:.5px solid var(--line-strong);
-      border-radius:14px;box-shadow:var(--shadow-md);display:flex;flex-direction:column;z-index:40;overflow:hidden}
-    #docPanel.dp-drag,#docPanel.dp-drag *{cursor:col-resize;user-select:none}
-    #docPanelGrip{position:absolute;left:0;top:0;bottom:0;width:8px;cursor:col-resize;z-index:3}
-    #docPanelGrip:hover,#docPanel.dp-drag #docPanelGrip{background:var(--blue);opacity:.18}
     /* 编辑工具栏（文档页签）：改完同步到 Markdown / 幻灯片 / 导出 */
     .dp-fmt{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 12px;border-bottom:.5px solid var(--line);flex:none}
     .dp-fmt button{height:26px;min-width:30px;padding:0 8px;font-size:12px;border:.5px solid var(--line-strong);
@@ -494,9 +485,10 @@ svg{display:block}
     .dp-rows{display:flex;flex-direction:column;gap:6px}
     .dp-row{display:flex;gap:8px;align-items:baseline;font-size:12.5px;border-bottom:.5px dashed var(--line);padding-bottom:5px}
     .dp-row .m{color:var(--ink-400);font-size:11.5px}
-    body.dp-open #view-chat #chatMsgBox{padding-right:calc(var(--docp-w,460px) + 34px)}
-    body.dp-open #view-chat .home{padding-right:calc(var(--docp-w,460px) + 34px)}
-    body.dp-open #view-design{padding-right:calc(var(--docp-w,460px) + 18px)}
+    /* 面板停靠后由 .shell 的 flex 自动让位，不再需要给会话/教案中心补右内边距 */
+    body.dp-open #view-chat #chatMsgBox,
+    body.dp-open #view-chat .home,
+    body.dp-open #view-design{padding-right:0}
     /* 下载：一个按钮 + 悬停菜单（hover 即弹出；点击也能开，兼容触屏） */
     .dp-dl{position:relative;display:inline-flex}
     .dp-menu{display:none;position:absolute;right:0;top:calc(100% + 5px);min-width:216px;z-index:70;
@@ -512,9 +504,8 @@ svg{display:block}
     .dp-menu button:disabled{cursor:not-allowed}
     .dp-menu button.dp-off{opacity:.5}
     .dp-menu button:disabled:hover,.dp-menu button.dp-off:hover{background:none}
-    /* 面板本身不裁剪，否则悬停菜单会被 overflow:hidden 切掉；滚动区自己带圆角 */
-    #docPanel{overflow:visible}
-    .dp-bd{border-radius:0 0 13px 13px}
+    /* 面板本身不裁剪，否则悬停菜单会被切掉（停靠态没有圆角，滚动区也不用圆角） */
+    .dp-bd{border-radius:0}
 
 </style>
 <!-- 侧边面板的多格式渲染库：CDN 主用，加载失败自动落回本地 vendor（离线不白屏） -->
@@ -545,7 +536,7 @@ svg{display:block}
     <aside class="sidebar">
       <div class="side-brand">
         <div class="name">教育 Agent</div>
-        <div class="ver">v1.13.0</div>
+        <div class="ver">v1.14.0</div>
         <button class="side-toggle" id="btnSideToggle" title="收起侧边栏">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M3 4h6v16H3z" fill="currentColor" stroke="none" opacity=".18"/></svg>
         </button>
@@ -688,53 +679,6 @@ svg{display:block}
 
         </div>
 
-          <!-- ===== 会话内文档预览（内存渲染：不落盘、不调用 WPS；导出才走 /api/wps/export）=====
-               收起态 = 面板自己缩成右缘的一条竖把手（#docPanelStrip），不再另设悬浮按钮：
-               右侧任何时候只有一条框，入口与预览窗口都在面板里。 -->
-          <aside id="docPanel" class="dp-collapsed">
-            <button id="docPanelStrip" title="查看 / 导入文档">导入文档</button>
-            <div id="docPanelGrip" title="拖动调整宽度（双击复位）"></div>
-            <input type="file" id="docPanelFile" accept=".docx" style="display:none">
-            <div class="dp-hd">
-              <span class="dp-title" id="docPanelTitle">文档预览</span>
-              <span class="dp-stat" id="docPanelStat"></span>
-              <span style="flex:1"></span>
-              <!-- 导入：面板自己的入口（收起时用左缘那条把手） -->
-              <button class="pill-btn dp-mini" id="docPanelImport" title="导入一份 .docx 到面板里看、改、下载">导入</button>
-              <!-- 下载：三个出口合并成一个按钮，鼠标悬停弹出要选的下载方式 -->
-              <span class="dp-dl" id="docPanelDown">
-                <button class="pill-btn dp-mini dark" id="docPanelDownBtn" title="下载这份文档（鼠标悬停选择格式）">下载<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" style="margin-left:3px;vertical-align:-1px"><path d="M6 9l6 6 6-6"/></svg></button>
-                <div class="dp-menu" id="docPanelMenu">
-                  <button data-dl="docx"><b>Word（.docx）</b><span>经 WPS 导出 · 落盘</span></button>
-                  <button data-dl="pptx"><b>PPT（.pptx）</b><span>本地生成 · 每环节一页</span></button>
-                  <button data-dl="html"><b>HTML</b><span>网页版 · 直接下载</span></button>
-                </div>
-              </span>
-              <button class="pill-btn dp-mini" id="docPanelDir" title="导出位置（与教案中心共用同一个记忆）">位置</button>
-              <button class="dp-x" id="docPanelClose" title="收起预览（缩成右缘把手，随时能再打开）">×</button>
-            </div>
-            <div class="dp-tabs">
-              <button class="dp-tab dp-on" data-dp="doc">文档</button>
-              <button class="dp-tab" data-dp="md">Markdown</button>
-              <button class="dp-tab" data-dp="slides">幻灯片</button>
-              <button class="dp-tab" data-dp="outline">结构</button>
-              <span style="flex:1"></span>
-              <span class="dp-note">右侧为内存预览效果，实际排版以导出 WPS 文件为准</span>
-            </div>
-            <!-- 文档 Tab 的编辑工具栏（只在「文档」页签出现；改完同步到 Markdown / 幻灯片 / 导出） -->
-            <div class="dp-fmt" id="docPanelFmt" style="display:none">
-              <button data-fmt="bold" title="加粗"><b>B</b></button>
-              <button data-fmt="italic" title="斜体"><i>I</i></button>
-              <button data-fmt="h2" title="大标题">H2</button>
-              <button data-fmt="h3" title="小标题">H3</button>
-              <button data-fmt="ul" title="项目符号">• 列表</button>
-              <button data-fmt="ol" title="编号列表">1. 列表</button>
-              <button data-fmt="clear" title="清除格式">清格式</button>
-              <span class="dp-fmt-tip" id="docPanelFmtTip">可直接在下面改；改动会同步到 Markdown、幻灯片与导出</span>
-            </div>
-            <div class="dp-bd" id="docPanelBody"></div>
-            <div class="dp-ft" id="docPanelRes"></div>
-          </aside>
 
         <!-- ===== Library (teacher) ===== -->
         <div class="view" id="view-library">
@@ -836,8 +780,13 @@ svg{display:block}
       </div>
     </main>
 
+
+
     <!-- ===== Side panel ===== -->
     <aside class="sidepanel" id="sidePanel">
+      <!-- 文档视图用的拖拽手柄与隐藏 input 常驻面板（视图内容会随切换重建，这两个不能跟着重建） -->
+      <div id="docPanelGrip" title="拖动调整宽度（双击复位）"></div>
+      <input type="file" id="docPanelFile" accept=".docx" style="display:none">
       <div style="text-align:left;width:100%">
         <div class="sp-title">侧边面板</div>
         <div class="sp-sub">运行状态 · 引用 · 知识源 · 会话</div>
@@ -847,6 +796,8 @@ svg{display:block}
         <button class="qbtn" data-v="docs" title="引用来源"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/></svg><span class="qbl">引用</span></button>
         <button class="qbtn" data-v="web" title="知识源"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z"/></svg><span class="qbl">知识源</span></button>
         <button class="qbtn" data-v="chat" title="当前会话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg><span class="qbl">会话</span></button>
+        <!-- 文档：会话里的教案 / 导入的 .docx 都在这块面板里预览、编辑、下载 -->
+        <button class="qbtn" data-v="doc" title="文档：会话教案与导入的 .docx"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h8l5 5v15H6z"/><path d="M14 2v5h5M9 12h6M9 16h6"/></svg><span class="qbl">文档</span><span class="qb-tag" id="spDocTag" style="display:none">1</span></button>
       </div>
       <div id="spBody"></div>
     </aside>
@@ -1399,10 +1350,71 @@ svg{display:block}
     document.querySelectorAll('#spQuad .qbtn').forEach(function(b){
       b.classList.toggle('fill', b.dataset.v === v);
     });
+    /* 文档视图要把面板放宽、并让正文自己滚动（其余视图保持 300px 的窄栏） */
+    var sp = document.getElementById('sidePanel');
+    if(sp) sp.classList.toggle('sp-doc', v === 'doc');
     if(v==='term') spRenderTerm();
     else if(v==='docs') spRenderDocs();
     else if(v==='web') spRenderWeb();
+    else if(v==='doc') spRenderDoc();            /* ← 文档预览/编辑就在这块侧边面板里 */
     else if(v==='chat') spRenderChat();
+  }
+  /* 「文档」视图：标题行 + 四个页签 + 编辑工具栏 + 正文 + 结果行，全部渲染进 #spBody。
+     注意 id 与面板渲染层共用（docPanelTitle/Body/…），所以切换视图只是重建容器，渲染逻辑不变。 */
+  function spRenderDoc(){
+    if(!docpEnabled()){
+      spBody.innerHTML = '<div class="sp-h">文档</div><div class="sp-empty">会话文档预览已关闭' +
+        '（设置 → Skill 市场 →「会话文档预览」可开）<br>导出链路不受影响。</div>';
+      return;
+    }
+    var has = !!DOCP;
+    spBody.innerHTML =
+      '<div class="dp-hd" style="padding:0 0 8px;border-bottom:0">' +
+        '<span class="dp-title" id="docPanelTitle">' + escHtml(has ? (DOCP.title || '文档') : '文档') + '</span>' +
+        '<span class="dp-stat" id="docPanelStat"></span><span style="flex:1"></span>' +
+        '<button class="pill-btn dp-mini" id="docPanelImport" title="导入一份 .docx：可看、可改、可下载">导入</button>' +
+        '<span class="dp-dl" id="docPanelDown">' +
+          '<button class="pill-btn dp-mini dark" id="docPanelDownBtn" title="下载这份文档（鼠标悬停选择格式）">下载' +
+          '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" ' +
+          'style="margin-left:3px;vertical-align:-1px"><path d="M6 9l6 6 6-6"/></svg></button>' +
+          '<div class="dp-menu" id="docPanelMenu">' +
+            '<button data-dl="docx"><b>Word（.docx）</b><span>经 WPS 导出 · 落盘</span></button>' +
+            '<button data-dl="pptx"><b>PPT（.pptx）</b><span>本地生成 · 每环节一页</span></button>' +
+            '<button data-dl="html"><b>HTML</b><span>网页版 · 直接下载</span></button>' +
+          '</div>' +
+        '</span>' +
+        '<button class="pill-btn dp-mini" id="docPanelDir" title="导出位置（与教案中心共用同一个记忆）">位置</button>' +
+      '</div>' +
+      '<div class="dp-tabs" style="padding-left:0;padding-right:0">' +
+        '<button class="dp-tab' + (DOCP_TAB === 'doc' ? ' dp-on' : '') + '" data-dp="doc">文档</button>' +
+        '<button class="dp-tab' + (DOCP_TAB === 'md' ? ' dp-on' : '') + '" data-dp="md">Markdown</button>' +
+        '<button class="dp-tab' + (DOCP_TAB === 'slides' ? ' dp-on' : '') + '" data-dp="slides">幻灯片</button>' +
+        '<button class="dp-tab' + (DOCP_TAB === 'outline' ? ' dp-on' : '') + '" data-dp="outline">结构</button>' +
+        '<span style="flex:1"></span>' +
+        '<span class="dp-note">右侧为内存预览效果，实际排版以导出 WPS 文件为准</span>' +
+      '</div>' +
+      '<div class="dp-fmt" id="docPanelFmt" style="display:none;padding-left:0;padding-right:0">' +
+        '<button data-fmt="bold" title="加粗"><b>B</b></button>' +
+        '<button data-fmt="italic" title="斜体"><i>I</i></button>' +
+        '<button data-fmt="h2" title="大标题">H2</button>' +
+        '<button data-fmt="h3" title="小标题">H3</button>' +
+        '<button data-fmt="ul" title="项目符号">• 列表</button>' +
+        '<button data-fmt="ol" title="编号列表">1. 列表</button>' +
+        '<button data-fmt="clear" title="清除格式">清格式</button>' +
+        '<span class="dp-fmt-tip" id="docPanelFmtTip">可直接在下面改；改动会同步到 Markdown、幻灯片与导出</span>' +
+      '</div>' +
+      '<div class="dp-bd" id="docPanelBody" style="padding:12px 0 16px"></div>' +
+      '<div class="dp-ft" id="docPanelRes"></div>';
+    docpWireView();                      /* 每次重建容器都要重新接线 */
+    if(has) docpRender();
+    else {
+      var bd = docpEl('docPanelBody');
+      if(bd) bd.innerHTML = '<div class="dp-empty">这里还没有文档。<br>' +
+        '· 问一句教案（例：帮我备一节 3.3 幂函数的课）→ 自动出现在这里；<br>' +
+        '· 或点上面【导入】放一份 .docx 进来。<br>' +
+        '文档可以直接改，改完的排版与内容用于导出。</div>';
+    }
+    docpUpdateStat();
   }
   document.querySelectorAll('#spQuad .qbtn').forEach(function(b){
     b.addEventListener('click', function(){ spRender(b.dataset.v); });
@@ -1867,7 +1879,7 @@ svg{display:block}
         /* 恢复历史时不自动弹面板（会盖住会话），但把最近一份**备好并亮起右侧把手**，
            老师随时点一下就能看（刷新页面后也有入口，不再"关掉就找不回来"）。 */
         if(lastDoc){
-          if(docpEnabled()){ DOCP = lastDoc; DOCP.kind = DOCP.kind || 'md'; docpSyncEdge(); }
+          if(docpEnabled()){ DOCP = lastDoc; DOCP.kind = DOCP.kind || 'md'; docpSyncQuad(); }
         } else if(planBodies.length){
           docpArm(planBodies[planBodies.length - 1], d.last_html || '');
         }
@@ -3237,7 +3249,7 @@ svg{display:block}
     if(se) se.textContent = (DOCP.kind === 'rich')
       ? ('导入文档 · ' + (st.blocks || (DOCP.blocks || []).length) + ' 板块')
       : ((st.chars || 0) + ' 字 · ' + (st.slides || 0) + ' 页');
-    docpSyncEdge();
+    docpSyncQuad();
   }
   /* ==== 编辑层：预览文档可以直接改 ============================================
      数据源仍是 **markdown**：文档页签改了 → 转回 markdown；Markdown 页签改了 → 直接用。
@@ -3423,30 +3435,25 @@ svg{display:block}
     DOCP.blocks = DOCP.blocks || [];
     DOCP.docHtml = null;          /* 新文档：丢掉上一份的编辑态 */
     docpEditLoad();               /* 同一份文档的改动（刷新后）取回来 */
-    docpSyncEdge();
+    docpSyncQuad();
     if(DOCP_ON) docpRender();
   }
   /* skill 关闭：面板内容清空（面板本体、拖拽、收起、【下载▾】都保留可用） */
   function docpClear(){
     DOCP = null;
     DOCP_ON = false;
-    docpCollapse();
-    var bd = docpEl('docPanelBody');
-    if(bd) bd.innerHTML = '<div class="dp-empty">会话文档预览已关闭（Skill 市场可开）：' +
-                          '面板不再接收文档，导出按钮仍可用</div>';
-    var ti = docpEl('docPanelTitle'); if(ti) ti.textContent = '文档预览';
-    var se = docpEl('docPanelStat'); if(se) se.textContent = '';
-    docpSyncEdge();
+    document.body.classList.remove('dp-open');
+    if(spView === 'doc') spRender('doc');      /* 停在文档视图时，就地显示"已关闭"空态 */
+    docpSyncQuad();
   }
-  /* 收起 = 面板缩成右缘那条竖把手（不再 display:none，右侧始终只有面板这一条框） */
+  /* 「收起文档」不再需要单独的外壳：入口就是侧边面板里的「文档」圆钮，
+     整块面板的开关由标题栏那个「侧边面板」按钮管（这里是"离开文档视图"）。 */
   function docpCollapse(){
     DOCP_ON = false;
-    docpEditFlush();              /* 收起前把编辑落定（内存 + localStorage） */
-    var p = docpEl('docPanel');
-    if(p){ p.classList.add('dp-collapsed'); p.style.display = ''; }
-    var f = docpEl('docPanelFmt'); if(f) f.style.display = 'none';
+    docpEditFlush();              /* 离开前把编辑落定（内存 + localStorage） */
     document.body.classList.remove('dp-open');
-    docpSyncEdge();
+    if(spView === 'doc') spRender('term');
+    docpSyncQuad();
   }
   function docpOpen(doc){
     if(!docpEnabled()){ showToast('会话文档预览已关闭（设置 → Skill 市场 → 会话文档预览）', false); return; }
@@ -3454,13 +3461,13 @@ svg{display:block}
     if(!DOCP.kind) DOCP.kind = 'md';
     DOCP_ON = true;
     docpEditLoad();                 /* 这份文档若改过（刷新前），把改动取回来 */
-    var p = docpEl('docPanel');
-    if(p){ p.classList.remove('dp-collapsed'); p.style.display = 'flex'; }
-    document.body.classList.add('dp-open');
     /* 导入的文档默认看「文档」页签 */
     if(DOCP.kind === 'rich') DOCP_TAB = 'doc';
-    docpTabSet(DOCP_TAB);
-    docpSyncEdge();
+    var sp = docpEl('sidePanel');
+    if(sp) sp.style.display = '';   /* 面板可能被标题栏那个按钮关掉了，先亮出来 */
+    document.body.classList.add('dp-open');
+    spRender('doc');                /* 切到侧边面板的「文档」视图（并渲染当前文档） */
+    docpSyncQuad();
   }
   /* 打开一份富文档（导入的 .docx / ③按板块填入的结果） */
   function docpOpenRich(rich, title, extra, docxBuffer){
@@ -3482,16 +3489,16 @@ svg{display:block}
   }
   /* 重新展示当前文档（右侧边缘把手用） */
   function docpReveal(){
-    if(!DOCP){ showToast('还没有可预览的文档：问一句教案（如「帮我备一节 3.3 幂函数的课」），或点右侧边缘的「导入文档」把手', false); return; }
+    if(!DOCP){ showToast('还没有可预览的文档：问一句教案（如「帮我备一节 3.3 幂函数的课」），或在面板里点「导入」', false); return; }
     if(DOCP_ON) docpClose(); else docpOpen(DOCP);
   }
-  /* 收起态的竖把手就是面板自己（#docPanelStrip）：没有文档时是「导入文档」，有文档时是「查看文档」
-     —— 入口与预览窗口在同一块面板里，右侧不会出现两条框 */
-  function docpSyncEdge(){
-    var s = docpEl('docPanelStrip'); if(!s) return;
-    s.textContent = !DOCP ? '导入文档' : '查看文档';
-    s.title = !DOCP ? '导入一份 .docx 到右侧面板（可看、可改、可下载成 Word / PPT）'
-                    : ('打开右侧面板看《' + (DOCP.title || '文档') + '》（可直接编辑）');
+  /* 入口就是侧边面板里的「文档」圆钮：有文档时角标亮一下，tooltip 报文档名 */
+  function docpSyncQuad(){
+    var b = document.querySelector('#spQuad .qbtn[data-v="doc"]');
+    var tag = docpEl('spDocTag');
+    if(b) b.title = !DOCP ? '文档：导入 .docx 或看会话里生成的教案（可直接编辑）'
+                          : ('文档：《' + (DOCP.title || '文档') + '》——预览 / 编辑 / 下载');
+    if(tag) tag.style.display = DOCP ? '' : 'none';
   }
   /* 备好一份文档但**不弹面板**（历史恢复用）：拿到预览模型、亮起右侧把手 */
   function docpArm(md, htmlName){
@@ -3502,7 +3509,7 @@ svg{display:block}
       DOCP = d;
       if(!DOCP.kind) DOCP.kind = 'md';
       docpEditLoad();                 /* 这份文档若改过（刷新前），把改动取回来 */
-      docpSyncEdge();
+      docpSyncQuad();
     }).catch(function(){});
   }
   /* 导入 .docx：解析成富结构后**只进预览**（不建模板、不落模板库） */
@@ -3537,30 +3544,8 @@ svg{display:block}
       docpOpen(d);
     }).catch(function(){});
   }
-  function docpInit(){
-    docpApplyWidth(docpWidth());
-    var grip = docpEl('docPanelGrip'), panel = docpEl('docPanel');
-    if(grip && panel){
-      var dragging = false;
-      var move = function(ev){
-        if(!dragging) return;
-        var x = (ev.touches && ev.touches[0]) ? ev.touches[0].clientX : ev.clientX;
-        docpApplyWidth(window.innerWidth - x - 14);
-        ev.preventDefault();
-      };
-      var stop = function(){
-        dragging = false; panel.classList.remove('dp-drag');
-        document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop);
-      };
-      grip.addEventListener('mousedown', function(ev){
-        dragging = true; panel.classList.add('dp-drag');
-        document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop);
-        ev.preventDefault();
-      });
-      grip.addEventListener('dblclick', function(){ docpApplyWidth(460); });   /* 双击复位 */
-    }
-    var c = docpEl('docPanelClose'); if(c) c.addEventListener('click', docpClose);
-    /* 下载：一个按钮 + 悬停菜单（hover 由 CSS 负责弹出，点击也能开，兼容触屏） */
+  /* 文档视图的按钮接线：容器每次重建（切视图）都要重来一遍，所以单独成函数 */
+  function docpWireView(){
     var dbox = docpEl('docPanelDown'), dbtn = docpEl('docPanelDownBtn');
     document.querySelectorAll('#docPanelMenu [data-dl]').forEach(function(b){
       b.addEventListener('click', function(){
@@ -3574,37 +3559,43 @@ svg{display:block}
       e.stopPropagation();
       if(dbox) dbox.classList.toggle('open');
     });
-    document.addEventListener('click', function(){ if(dbox) dbox.classList.remove('open'); });
     var db = docpEl('docPanelDir'); if(db) db.addEventListener('click', function(){
       openDirPicker(function(dir){ dzOutDirSet(dir); showToast('导出位置：' + dir); },
                     { title: '选择导出位置',
                       sub: 'Word / PPT 会保存到该目录（不存在自动创建）；留空 = 项目内 content/plans',
                       start: dzOutDirGet() || undefined });
     });
-    document.querySelectorAll('.dp-tab').forEach(function(b){
+    var pImp = docpEl('docPanelImport');
+    if(pImp) pImp.addEventListener('click', function(){ var f = docpEl('docPanelFile'); if(f) f.click(); });
+    document.querySelectorAll('#spBody .dp-tab').forEach(function(b){
       b.addEventListener('click', function(){ docpTabSet(b.dataset.dp); });
     });
-    /* 导入 .docx：只进预览，不进模板库。
-       隐藏 input 常驻（教案中心的「导入 .docx」与右侧边缘把手都用它），所以 change 必须独立绑定。 */
-    var ifile = docpEl('docPanelFile');
-    if(ifile){
-      ifile.addEventListener('change', function(){
-        if(ifile.files && ifile.files[0]) docpImportFile(ifile.files[0]);
-        ifile.value = '';
+    docpBindFmt();
+  }
+  function docpInit(){
+    docpApplyWidth(docpWidth());
+    var grip = docpEl('docPanelGrip'), panel = docpEl('sidePanel');
+    if(grip && panel){
+      var dragging = false;
+      var move = function(ev){
+        if(!dragging) return;
+        var x = (ev.touches && ev.touches[0]) ? ev.touches[0].clientX : ev.clientX;
+        docpApplyWidth(window.innerWidth - x);
+        ev.preventDefault();
+      };
+      var stop = function(){
+        dragging = false; panel.classList.remove('dp-drag');
+        document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop);
+      };
+      grip.addEventListener('mousedown', function(ev){
+        dragging = true; panel.classList.add('dp-drag');
+        document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop);
+        ev.preventDefault();
       });
+      grip.addEventListener('dblclick', function(){ docpApplyWidth(460); });   /* 双击复位 */
     }
-    /* 收起态那条竖把手 = 面板的一部分（#docPanelStrip）：没文档时点它开文件选择，
-       有文档时点它展开面板。右侧只有面板这一条框，不再有第二个悬浮按钮。 */
-    var strip = docpEl('docPanelStrip');
-    if(strip) strip.addEventListener('click', function(){
-      if(!DOCP){ if(ifile) ifile.click(); return; }   /* 空态直接开文件选择，解决"想导入却没有入口" */
-      if(DOCP_ON) docpClose(); else docpOpen(DOCP);
-    });
-    /* 面板标题栏的「导入」：与收起态把手同一个入口 */
-    var pImp = docpEl('docPanelImport');
-    if(pImp) pImp.addEventListener('click', function(){ if(ifile) ifile.click(); });
-    docpBindFmt();                                   /* 文档页签的编辑工具栏 */
-    docpSyncEdge();
+    docpSyncQuad();                                  /* 「文档」圆钮角标 */
+    /* 拖动左侧边缘调宽（双击复位）：面板贴右缘，所以宽度 = 视口宽 - 指针 x */
     window.addEventListener('resize', function(){ if(DOCP_ON) docpApplyWidth(docpWidth()); });
   }
   /* ==== 启动初始化（会话文档预览面板 + 导出位置；编排台由 dzBind 自调用初始化）==== */

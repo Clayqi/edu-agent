@@ -409,10 +409,6 @@ svg{display:block}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><path d="M9 12h6"/></svg>
           <span data-ro="teacher">我的题库</span><span data-ro="student">我的练习</span>
         </button>
-        <button class="snav" data-view="kg">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="12" cy="18" r="3"/><path d="M8 7l3 9M16 7l-3 9M9 6h6"/></svg>
-          知识星图
-        </button>
       </div>
 
       <div class="sec-label" style="display:flex;align-items:center;justify-content:space-between;padding-right:14px">项目
@@ -550,80 +546,6 @@ svg{display:block}
           </div>
         </div>
 
-        <!-- ===== 知识星图（内置视图，源自 kg.html 整体合并） ===== -->
-        <div class="view" id="view-kg">
-          <style>
-            #view-kg{position:relative;display:flex;flex-direction:column;height:100%;min-height:0;background:#0a0a1a;color:#e0e0ff;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-            #view-kg .kg-stars{position:absolute;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
-            #view-kg .kg-stars::before,#view-kg .kg-stars::after{content:'';position:absolute;top:0;left:0;width:100%;height:100%;background-image:
-              radial-gradient(2px 2px at 20px 30px,#fff,transparent),
-              radial-gradient(2px 2px at 40px 70px,rgba(255,255,255,0.8),transparent),
-              radial-gradient(1px 1px at 50px 160px,#fff,transparent),
-              radial-gradient(2px 2px at 90px 40px,rgba(255,255,255,0.9),transparent),
-              radial-gradient(1px 1px at 130px 80px,#fff,transparent),
-              radial-gradient(2px 2px at 160px 120px,rgba(255,255,255,0.7),transparent),
-              radial-gradient(1px 1px at 200px 50px,#fff,transparent),
-              radial-gradient(2px 2px at 240px 180px,rgba(255,255,255,0.8),transparent);
-              background-size:300px 300px;animation:kgTwinkle 5s ease-in-out infinite}
-            #view-kg .kg-stars::after{background-size:200px 200px;background-position:100px 50px;opacity:0.5;animation-delay:2.5s}
-            @keyframes kgTwinkle{0%,100%{opacity:0.8}50%{opacity:0.4}}
-            #view-kg .kg-header{background:rgba(10,10,40,0.8);backdrop-filter:blur(10px);padding:12px 20px;border-bottom:1px solid rgba(100,100,255,0.2);display:flex;align-items:center;justify-content:space-between;position:relative;z-index:10;flex:none}
-            #view-kg .kg-title{font-size:16px;color:#fff;text-shadow:0 0 20px rgba(100,150,255,0.5);font-weight:600}
-            #view-kg .kg-progress{display:flex;align-items:center;gap:12px}
-            #view-kg .kg-progress .kg-plabel{font-size:13px;color:#aaa}
-            #view-kg .kg-progress .kg-bar{width:160px;height:8px;background:rgba(50,50,100,0.5);border-radius:4px;overflow:hidden}
-            #view-kg .kg-progress .kg-fill{height:100%;background:linear-gradient(90deg,#7ab8ff,#9dffb8);transition:width 0.3s;box-shadow:0 0 10px rgba(100,200,255,0.5);width:0%}
-            #view-kg .kg-progress .kg-percent{font-size:13px;color:#9dffb8;font-weight:600}
-            #view-kg .kg-search{padding:10px 20px;background:rgba(10,10,40,0.6);backdrop-filter:blur(10px);border-bottom:1px solid rgba(100,100,255,0.2);display:flex;gap:16px;align-items:center;position:relative;z-index:10;flex:none}
-            #view-kg .kg-search input{flex:1;max-width:400px;padding:8px 12px;border:1px solid rgba(100,100,255,0.3);border-radius:6px;font-size:14px;outline:none;background:rgba(20,20,60,0.6);color:#fff;font-family:inherit}
-            #view-kg .kg-search input:focus{border-color:#7ab8ff;box-shadow:0 0 10px rgba(100,150,255,0.3)}
-            #view-kg .kg-search input::placeholder{color:#7a7aa8}
-            #view-kg .kg-legend{display:flex;gap:16px;font-size:12px;color:#aaa}
-            #view-kg .kg-legend-item{display:flex;align-items:center;gap:6px}
-            #view-kg .kg-legend-dot{width:10px;height:10px;border-radius:50%;box-shadow:0 0 8px currentColor}
-            #view-kg #kgChart{flex:1;width:100%;position:relative;z-index:5;min-height:0}
-            #view-kg .kg-info-panel{position:absolute;top:118px;right:20px;background:rgba(15,15,50,0.92);backdrop-filter:blur(15px);padding:16px;border-radius:12px;box-shadow:0 4px 30px rgba(0,0,100,0.5);width:280px;display:none;border:1px solid rgba(100,150,255,0.3);z-index:20;max-height:calc(100% - 150px);overflow-y:auto}
-            #view-kg .kg-info-panel h3{font-size:16px;margin:0 0 12px;color:#fff;text-shadow:0 0 10px rgba(100,150,255,0.5)}
-            #view-kg .kg-node-meta{font-size:11px;color:#888;margin-bottom:10px}
-            #view-kg .kg-prereq-title{font-size:12px;color:#888;margin-bottom:8px}
-            #view-kg .kg-prereq-item{padding:6px 8px;background:rgba(30,30,80,0.6);border-radius:6px;margin:4px 0;font-size:13px;color:#7ab8ff;cursor:pointer;transition:all 0.2s}
-            #view-kg .kg-prereq-item:hover{background:rgba(50,50,120,0.8);box-shadow:0 0 10px rgba(100,150,255,0.3)}
-            #view-kg .kg-close{position:absolute;top:8px;right:12px;cursor:pointer;color:#888;font-size:18px}
-            #view-kg .kg-mark-btn{width:100%;padding:10px;border:none;border-radius:8px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:13px;cursor:pointer;margin-top:12px;transition:all 0.2s;font-family:inherit}
-            #view-kg .kg-mark-btn:hover{box-shadow:0 0 20px rgba(100,100,255,0.5)}
-            #view-kg .kg-mark-btn.learned{background:linear-gradient(135deg,#f093fb,#f5576c)}
-          </style>
-          <div class="kg-stars"></div>
-          <div class="kg-header">
-            <div class="kg-title">✨ 高中数学知识星图</div>
-            <div class="kg-progress">
-              <span class="kg-plabel">点亮进度</span>
-              <div class="kg-bar"><div class="kg-fill" id="kgProgressFill"></div></div>
-              <span class="kg-percent" id="kgProgressPercent">0/0</span>
-            </div>
-          </div>
-          <div class="kg-search">
-            <input type="text" id="kgSearchInput" placeholder="搜索知识点，如：函数、集合、单调性...">
-            <div class="kg-legend">
-              <div class="kg-legend-item"><div class="kg-legend-dot" style="background:#7ab8ff"></div>集合</div>
-              <div class="kg-legend-item"><div class="kg-legend-dot" style="background:#ffd700"></div>函数</div>
-              <div class="kg-legend-item"><div class="kg-legend-dot" style="background:#98ff98"></div>不等式</div>
-              <div class="kg-legend-item"><div class="kg-legend-dot" style="background:#ff6b9d"></div>指数函数</div>
-            </div>
-          </div>
-          <div id="kgChart"></div>
-          <div class="kg-info-panel" id="kgInfoPanel">
-            <span class="kg-close" title="关闭" onclick="KG.closeInfo()">×</span>
-            <h3 id="kgNodeName"></h3>
-            <div class="kg-node-meta"><span id="kgNodeChapter"></span> · <span id="kgNodeDegree"></span> 个连接</div>
-            <div class="kg-prereq-title">📚 前置知识点（学这个之前要先会）：</div>
-            <div id="kgPrereqList" style="margin-bottom:12px"></div>
-            <div class="kg-prereq-title">🎯 后继知识点（学完这个可以学）：</div>
-            <div id="kgSuccList"></div>
-            <button class="kg-mark-btn" id="kgMarkBtn" onclick="KG.toggleLearn()">⭐ 点亮这颗星</button>
-          </div>
-        </div>
-
         <!-- ===== MCP / Services ===== -->
         <div class="view" id="view-services">
           <div class="view-sec">
@@ -677,7 +599,7 @@ svg{display:block}
   }
 
   /* ==== View switching ==== */
-  var views = ['market','skill','chat','library','kg','lesson','question','services'];
+  var views = ['market','skill','chat','library','lesson','question','services'];
   function switchView(v){
     currentView = v;
     views.forEach(function(id){
@@ -690,11 +612,10 @@ svg{display:block}
     document.querySelectorAll('.proj-leaf[data-view]').forEach(function(n){
       n.classList.toggle('active', n.dataset.view===v);
     });
-    var crumbText = {market:'Skill 市场',skill:'Skill 详情',chat:'新对话',library:'教材库',kg:'知识星图',lesson:'我的课程',question:'我的题库',services:'MCP 服务'}[v]||'主界面';
+    var crumbText = {market:'Skill 市场',skill:'Skill 详情',chat:'新对话',library:'教材库',lesson:'我的课程',question:'我的题库',services:'MCP 服务'}[v]||'主界面';
     document.getElementById('crumb').innerHTML = '<b>'+crumbText+'</b>';
     if(v==='chat'){ updateGreeting(); }
     if(v==='library'){ libRender(); }
-    if(v==='kg'){ window.__kgEnter && window.__kgEnter(); }
   }
 
   document.querySelectorAll('.snav[data-view]').forEach(function(n){
@@ -1910,192 +1831,6 @@ function updateThemeIcon(isDark){
 })();
 </script>
 
-
-<script>
-/* ===== 知识星图（内置视图逻辑，源自 kg.html 合并；懒加载，首次进入视图时初始化） ===== */
-(function(){
-  if (window.__kgLoaded) return;
-  window.__kgLoaded = true;
-  var KG = window.KG = {};
-  var chart = null, graphData = {nodes:[], links:[]};
-  var learnedSet = new Set(JSON.parse(localStorage.getItem('kg_learned') || '[]'));
-  var currentNodeId = null;
-  var constellationColors = {
-    '第一章': '#7ab8ff', '第二章': '#98ff98', '第三章': '#ffd700',
-    '第四章': '#ff6b9d', '初中衔接': '#c084fc'
-  };
-  var ECHARTS_URL = 'https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js';
-
-  function loadEcharts(cb){
-    if (window.echarts) { cb(); return; }
-    var s = document.createElement('script');
-    s.src = ECHARTS_URL;
-    s.onload = cb;
-    s.onerror = function(){ kgFail('ECharts 库加载失败（需要联网）'); };
-    document.head.appendChild(s);
-  }
-  function kgFail(msg){
-    var el = document.getElementById('kgChart');
-    if (el) el.innerHTML = '<div style="padding:40px;text-align:center;color:#999">' + msg + '</div>';
-  }
-  function saveLearned(){ localStorage.setItem('kg_learned', JSON.stringify([...learnedSet])); }
-  function updateProgress(){
-    var total = graphData.nodes.length, learned = learnedSet.size;
-    var percent = total > 0 ? Math.round(learned / total * 100) : 0;
-    document.getElementById('kgProgressFill').style.width = percent + '%';
-    document.getElementById('kgProgressPercent').textContent = learned + '/' + total;
-  }
-  function renderGraph(nodes, links, focusNode){
-    if (!chart) return;
-    var seriesData = nodes.map(function(n){
-      var isLearned = learnedSet.has(n.id);
-      var color = constellationColors[n.category] || '#fff';
-      var degree = n.degree || 1;
-      var baseSize = 8 + Math.min(degree * 2, 12);
-      if (focusNode === n.id) baseSize += 6;
-      return {
-        id: n.id, name: n.name, category: n.category, degree: degree,
-        symbolSize: baseSize,
-        itemStyle: { color: isLearned ? color : '#666', opacity: isLearned ? 1 : 0.6,
-          shadowBlur: isLearned ? (degree > 5 ? 25 : 15) : 0, shadowColor: isLearned ? color : 'transparent' },
-        label: { show: true, fontSize: 12, position: 'bottom',
-          color: isLearned ? '#ffffff' : '#888888',
-          textShadow: isLearned ? '0 0 6px ' + color : '0 1px 2px rgba(0,0,0,0.8)',
-          fontWeight: isLearned ? 'bold' : 'normal' }
-      };
-    });
-    var option = {
-      backgroundColor: 'transparent',
-      tooltip: {
-        backgroundColor: 'rgba(10, 10, 40, 0.9)', borderColor: 'rgba(100, 150, 255, 0.3)',
-        textStyle: { color: '#fff' },
-        formatter: function(params){
-          if (params.dataType === 'node') {
-            var st = learnedSet.has(params.data.id) ? ' ✨已点亮' : ' ⭕未点亮';
-            return '<b>' + params.data.name + '</b>' + st;
-          }
-          return params.data.relation;
-        }
-      },
-      series: [{
-        type: 'graph', layout: 'force',
-        force: { repulsion: 400, edgeLength: [100, 200], gravity: 0.1 },
-        roam: true, draggable: true,
-        data: seriesData,
-        links: links.map(function(l){
-          var both = learnedSet.has(l.source) && learnedSet.has(l.target);
-          var lineType = l.relation === '前置知识点' ? 'dashed' : (l.relation === '可推导' ? 'dotted' : 'solid');
-          return {
-            source: l.source, target: l.target, relation: l.relation,
-            lineStyle: { color: both ? 'rgba(255,255,255,0.5)' : 'rgba(150,150,200,0.3)',
-              width: both ? 1.5 : 1, curveness: 0.1, type: lineType,
-              shadowBlur: both ? 5 : 0, shadowColor: 'rgba(100,150,255,0.3)' }
-          };
-        }),
-        emphasis: { focus: 'adjacency', lineStyle: { width: 2.5, color: 'rgba(255,255,255,0.8)' }, itemStyle: { shadowBlur: 30 } }
-      }]
-    };
-    chart.setOption(option);
-  }
-  function showNodeInfo(id, name){
-    document.getElementById('kgNodeName').textContent = name;
-    document.getElementById('kgPrereqList').innerHTML = '<div style="color:#666">加载中...</div>';
-    document.getElementById('kgSuccList').innerHTML = '';
-    document.getElementById('kgNodeChapter').textContent = '';
-    document.getElementById('kgNodeDegree').textContent = '';
-    document.getElementById('kgInfoPanel').style.display = 'block';
-    var markBtn = document.getElementById('kgMarkBtn');
-    if (learnedSet.has(id)) { markBtn.textContent = '💫 取消点亮'; markBtn.classList.add('learned'); }
-    else { markBtn.textContent = '⭐ 点亮这颗星'; markBtn.classList.remove('learned'); }
-    fetch('/api/kg/node/' + encodeURIComponent(id)).then(function(r){ return r.json(); }).then(function(data){
-      document.getElementById('kgNodeChapter').textContent = data.chapter || '';
-      document.getElementById('kgNodeDegree').textContent = data.degree || 0;
-      var pre = document.getElementById('kgPrereqList');
-      if (!data.prerequisites || !data.prerequisites.length) {
-        pre.innerHTML = '<div style="color:#555;font-size:13px">无前置知识点</div>';
-      } else {
-        pre.innerHTML = data.prerequisites.map(function(p){
-          var learned = learnedSet.has(p.id) ? ' ✨' : '';
-          return '<div class="kg-prereq-item" onclick="KG.jumpToNode(\'' + p.id + '\',\'' + String(p.name).replace(/'/g,"\\'") + '\')">' + p.name + learned + '</div>';
-        }).join('');
-      }
-      var succ = document.getElementById('kgSuccList');
-      if (!data.successors || !data.successors.length) {
-        succ.innerHTML = '<div style="color:#555;font-size:13px">这是末端知识点，后面没有了</div>';
-      } else {
-        succ.innerHTML = data.successors.map(function(p){
-          var learned = learnedSet.has(p.id) ? ' ✨' : '';
-          return '<div class="kg-prereq-item" style="background:rgba(100,200,150,0.2);color:#98ff98" onclick="KG.jumpToNode(\'' + p.id + '\',\'' + String(p.name).replace(/'/g,"\\'") + '\')">' + p.name + learned + '</div>';
-        }).join('');
-      }
-    }).catch(function(){ pre.innerHTML = '<div style="color:#666">加载失败</div>'; });
-  }
-  KG.toggleLearn = function(){
-    if (!currentNodeId) return;
-    if (learnedSet.has(currentNodeId)) learnedSet.delete(currentNodeId);
-    else learnedSet.add(currentNodeId);
-    saveLearned(); updateProgress();
-    showNodeInfo(currentNodeId, document.getElementById('kgNodeName').textContent);
-    fetch('/api/kg/related/' + encodeURIComponent(currentNodeId) + '?hops=1')
-      .then(function(r){ return r.json(); })
-      .then(function(d){ renderGraph(d.nodes, d.links, currentNodeId); });
-  };
-  KG.closeInfo = function(){
-    document.getElementById('kgInfoPanel').style.display = 'none';
-    renderGraph(graphData.nodes, graphData.links);
-  };
-  KG.jumpToNode = function(id, name){
-    showNodeInfo(id, name);
-    fetch('/api/kg/related/' + encodeURIComponent(id) + '?hops=1')
-      .then(function(r){ return r.json(); })
-      .then(function(d){ renderGraph(d.nodes, d.links, id); });
-  };
-  function bindEvents(){
-    if (chart) chart.on('click', function(params){
-      if (params.dataType === 'node') {
-        currentNodeId = params.data.id;
-        showNodeInfo(params.data.id, params.data.name);
-        fetch('/api/kg/related/' + encodeURIComponent(params.data.id) + '?hops=1')
-          .then(function(r){ return r.json(); })
-          .then(function(d){ renderGraph(d.nodes, d.links, params.data.id); });
-      }
-    });
-    var input = document.getElementById('kgSearchInput');
-    if (input) input.addEventListener('input', function(e){
-      var q = e.target.value.trim();
-      if (!q) { renderGraph(graphData.nodes, graphData.links); return; }
-      fetch('/api/kg/search?q=' + encodeURIComponent(q)).then(function(r){ return r.json(); }).then(function(data){
-        if (data.results && data.results.length > 0) {
-          var first = data.results[0];
-          showNodeInfo(first.id, first.name);
-          fetch('/api/kg/related/' + encodeURIComponent(first.id) + '?hops=1')
-            .then(function(r){ return r.json(); })
-            .then(function(d){ renderGraph(d.nodes, d.links, first.id); });
-        }
-      });
-    });
-  }
-  function loadGraph(){
-    fetch('/api/kg/graph').then(function(r){ return r.json(); }).then(function(data){
-      graphData = data || {nodes:[], links:[]};
-      updateProgress();
-      renderGraph(graphData.nodes, graphData.links);
-    }).catch(function(){ kgFail('星图加载失败'); });
-  }
-  window.__kgEnter = function(){
-    loadEcharts(function(){
-      if (!chart && window.echarts) {
-        chart = echarts.init(document.getElementById('kgChart'));
-        bindEvents();
-        loadGraph();
-      } else {
-        setTimeout(function(){ chart && chart.resize(); }, 60);
-        if (!graphData.nodes.length) loadGraph();
-      }
-    });
-  };
-})();
-</script>
 
 </body>
 </html>

@@ -659,9 +659,9 @@ svg{display:block}
             #view-kg .kg-mark-btn{width:100%;padding:10px;border:none;border-radius:8px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:13px;cursor:pointer;margin-top:12px;transition:all 0.2s;font-family:inherit}
             #view-kg .kg-mark-btn:hover{box-shadow:0 0 20px rgba(100,100,255,0.5)}
             #view-kg .kg-mark-btn.learned{background:linear-gradient(135deg,#f093fb,#f5576c)}
-            #view-kg .kg-toolbar{position:absolute;right:16px;bottom:18px;z-index:16;display:flex;gap:4px;background:var(--kg-panel);border:1px solid var(--kg-panel-line);border-radius:10px;padding:4px;box-shadow:var(--kg-panel-shadow);backdrop-filter:blur(12px)}
-            #view-kg .kg-toolbar button{width:30px;height:30px;border:none;background:#fff;color:#3d6ef2;border-radius:7px;cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;transition:all 0.15s;font-family:inherit;box-shadow:0 1px 4px rgba(30,50,120,0.18)}
-            #view-kg .kg-toolbar button:hover{background:#f0f4ff;color:#2b55c9;box-shadow:0 2px 8px rgba(30,50,120,0.28)}
+            /* 打开星图时整块视图“弹开”入场 */
+            #view-kg.active{animation:kgPop .55s cubic-bezier(.34,1.56,.64,1)}
+            @keyframes kgPop{from{opacity:0;transform:scale(.965)}to{opacity:1;transform:scale(1)}}
           </style>
           <div class="kg-stars"></div>
           <div class="kg-header">
@@ -677,12 +677,6 @@ svg{display:block}
             <div class="kg-legend" id="kgLegend"></div>
           </div>
           <div id="kgChart"></div>
-          <div class="kg-toolbar" id="kgToolbar">
-            <button title="放大" onclick="KG.zoom(1)">＋</button>
-            <button title="缩小" onclick="KG.zoom(-1)">－</button>
-            <button title="适配画布" onclick="KG.fitView()">⛶</button>
-            <button title="重新布局" onclick="KG.relayout()">🔄</button>
-          </div>
           <div class="kg-info-panel" id="kgInfoPanel">
             <span class="kg-close" title="关闭" onclick="KG.closeInfo()">×</span>
             <h3 id="kgNodeName"></h3>
@@ -2069,61 +2063,77 @@ function updateThemeIcon(isDark){
       }
     };
   }
-  /* 生态浮动模式：布局收敛后物理引擎不停机，用「高阻尼+低速」持续运行，
-     节点一直轻微漂浮；再配合周期性涟漪扰动，整张图保持动态而不僵硬 */
+  /* 性能优先：布局收敛后彻底关闭物理引擎（停止力导向仿真与动画渲染循环），
+     图静止不卡；拖动时临时开启物理联动，松手后短稳定并再次关闭 */
   function lockPhysics(){
     try {
-      if (network) network.setOptions({
-        physics: {
-          enabled: true,
-          solver: 'forceAtlas2Based',
-          forceAtlas2Based: {
-            gravitationalConstant: -60,
-            centralGravity: 0.005,
-            springLength: 120,
-            springConstant: 0.08,
-            damping: 0.9,
-            avoidOverlap: 0.8
-          },
-          stabilization: { enabled: false },
-          timestep: 0.6,
-          adaptiveTimestep: true,
-          maxVelocity: 12,
-          minVelocity: 0.05
-        }
-      });
+      if (network) network.setOptions({ physics: { enabled: false } });
     } catch(e){}
   }
   var draggingNow = false, breatheTimer = null;
+  /* 轻量光晕呼吸：只对「已点亮」节点脉动光晕（不移动节点、不触发物理引擎），
+     视觉上有星星呼吸闪烁的活感；节点过多时自动休眠。相比之前的 moveNode 涟漪
+     几乎零 CPU 开销 */
   function startBreathe(){
     if (breatheTimer) return;
+    var t = 0;
     breatheTimer = setInterval(function(){
+      t++;
       if (!network || !nodesDS || draggingNow) return;
-      var ids = nodesDS.getIds();
-      if (!ids.length) return;
-      var id = ids[Math.floor(Math.random() * ids.length)];
-      var pos = null;
-      try { pos = network.getPositions([id])[id]; } catch(e){}
-      if (!pos) return;
-      try {
-        var dx = (Math.random() - 0.5) * 10, dy = (Math.random() - 0.5) * 10;
-        network.moveNode(id, pos.x + dx, pos.y + dy);
-      } catch(e){}
-    }, 2200);
+      var all = nodesDS.get();
+      if (!all.length || all.length > 120) return;
+      var upd = [];
+      for (var i = 0; i < all.length; i++) {
+        var n = all[i];
+        if (!learnedSet.has(n.id)) continue;
+        var base = (typeof n._shadowBase === 'number') ? n._shadowBase : 10;
+        var s = base + Math.sin(t * 0.5) * 2;
+        if (s < 4) s = 4;
+        upd.push({ id: n.id, shadow: { enabled: true, color: n._catColor || '#888', size: s, x: 0, y: 0 } });
+      }
+      if (upd.length) {
+        try { nodesDS.update(upd); network.redraw(); } catch(e){}
+      }
+    }, 1500);
   }
   function stopBreathe(){
     if (breatheTimer) { clearInterval(breatheTimer); breatheTimer = null; }
   }
+  /* 自适应稳定迭代：节点越多迭代越少，避免大图渲染卡顿 */
+  function adaptIts(nodes, iters){
+    var n = (nodes && nodes.length) || 0;
+    if (n >= 300) return Math.min(iters, 40);
+    if (n >= 150) return Math.min(iters, 70);
+    if (n >= 80)  return Math.min(iters, 100);
+    return iters;
+  }
   function renderGraph(nodes, links, focusNode, iters){
     if (!network) return;
     var kr = kgPalette();
-    var nodeItems = nodes.map(function(n){
+    var its = (typeof iters === 'number' && iters > 0) ? iters : 0;
+    /* 动态弹开模式：全图/首次/重新布局时，节点先从画布中心聚成“星核”，再被力导向整体弹开 */
+    var isBurst = its > 0 && !focusNode && nodes.length >= 2 && nodes.length <= 220;
+    var burstCenter = null;
+    if (isBurst) {
+      var elB = document.getElementById('kgChart');
+      var cw = (elB && elB.clientWidth) || 800, ch = (elB && elB.clientHeight) || 600;
+      try { burstCenter = network.DOMtoCanvas({ x: cw / 2, y: ch / 2 }); } catch(e){}
+      if (!burstCenter) burstCenter = { x: cw / 2, y: ch / 2 };
+    }
+    var nodeItems = nodes.map(function(n, i){
       var isLearned = learnedSet.has(n.id);
       var color = constellationColors[n.category] || kr.defColor;
       var degree = n.degree || 1;
       var size = 8 + Math.min(degree * 2, 12);
       if (focusNode === n.id) size += 4;
-      return {
+      var px, py;
+      if (burstCenter) {
+        var ang = (i % 6) * (Math.PI / 3) + Math.random() * 0.4;
+        var rad = 1 + Math.random() * 5;
+        px = burstCenter.x + Math.cos(ang) * rad;
+        py = burstCenter.y + Math.sin(ang) * rad;
+      }
+      var item = {
         id: n.id,
         label: String(n.name || n.id),
         title: '<b>' + escHtml(n.name) + '</b><br>' + (isLearned ? '✨ 已点亮' : '⭕ 未点亮') + '<br>章节：' + escHtml(n.category || '-') + '<br>' + degree + ' 个连接',
@@ -2138,8 +2148,12 @@ function updateThemeIcon(isDark){
         font: { size: 11, color: isLearned ? kr.nodeLabel : kr.nodeDimLabel, face: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' },
         shadow: isLearned ? { enabled: true, color: color, size: degree > 5 ? 18 : 10, x: 0, y: 0 } : { enabled: false },
         _degree: degree,
-        _category: n.category || ''
+        _category: n.category || '',
+        _shadowBase: isLearned ? (degree > 5 ? 18 : 10) : 0,
+        _catColor: color
       };
+      if (burstCenter) { item.x = px; item.y = py; }
+      return item;
     });
     // 同一对节点之间的多条边：roundness 逐条错开，曲线自然散开互不重叠
     var pairCount = {};
@@ -2169,6 +2183,18 @@ function updateThemeIcon(isDark){
     });
     nodesDS = new vis.DataSet(nodeItems);
     edgesDS = new vis.DataSet(edgeItems);
+    if (isBurst) {
+      // 弹开模式：进入可视化动画（非隐藏的定点迭代），先配置好再喂数据，保证从“星核”开始弹
+      var optB = visOptions();
+      optB.physics.enabled = true;
+      optB.physics.stabilization.enabled = false;
+      optB.physics.stabilization.fit = false;
+      optB.physics.forceAtlas2Based.gravitationalConstant = -110; // 更强的互相排斥 → 弹开更明显
+      optB.physics.forceAtlas2Based.centralGravity = 0.002;
+      optB.physics.maxVelocity = 140;
+      optB.physics.minVelocity = 0.08;
+      network.setOptions(optB);
+    }
     network.setData({ nodes: nodesDS, edges: edgesDS });
     function settle(){
       if (focusNode) {
@@ -2180,19 +2206,39 @@ function updateThemeIcon(isDark){
         try { network.fit({ animation: { duration: 400 } }); } catch(e){}
       }
     }
-    var its = (typeof iters === 'number' && iters > 0) ? iters : 0;
     if (its > 0) {
-      // 全图/初次：跑力导向稳定，稳定完成后进入生态浮动（图保持动态、不僵硬）
-      var opt = visOptions();
-      opt.physics.stabilization.iterations = its;
-      opt.physics.stabilization.fit = true;
-      network.setOptions(opt);
-      network.once('stabilizationIterationsDone', function(){
-        lockPhysics();
-        settle();
-      });
+      if (isBurst) {
+        // ===== 动态弹开：节点聚成“星核”后被力导向整体弹开，稳定瞬间回弹适配 =====
+        var burstDone = false, burstTimer = null;
+        function finishBurst(){
+          if (burstDone) return;
+          burstDone = true;
+          if (burstTimer) clearTimeout(burstTimer);
+          lockPhysics();
+          if (focusNode) {
+            try { network.selectNodes([focusNode]); } catch(e){}
+            setTimeout(function(){
+              try { network.focus(focusNode, { scale: 1.3, animation: { duration: 400, easingFunction: 'easeInOutQuad' } }); } catch(e){}
+            }, 120);
+          } else {
+            try { network.fit({ animation: { duration: 600, easingFunction: 'easeOutQuint' } }); } catch(e){}
+          }
+        }
+        network.once('stabilized', finishBurst);
+        burstTimer = setTimeout(finishBurst, nodes.length > 120 ? 4200 : 3200); // 兜底：动画期间一定收敛
+      } else {
+        // 大图/聚焦局部刷新：快速稳定迭代（按节点量自适应），稳定后关闭物理，图静止不卡
+        var opt = visOptions();
+        opt.physics.stabilization.iterations = adaptIts(nodes, its);
+        opt.physics.stabilization.fit = true;
+        network.setOptions(opt);
+        network.once('stabilizationIterationsDone', function(){
+          lockPhysics();
+          settle();
+        });
+      }
     } else {
-      // 局部刷新（点亮/改色等）：不重跑布局，保持生态浮动只适配画布
+      // 局部刷新（点亮/改色等）：不重跑布局，保持静止只适配画布
       lockPhysics();
       settle();
     }
@@ -2214,7 +2260,9 @@ function updateThemeIcon(isDark){
           hover: { background: '#fff', border: color }
         },
         font: { size: 11, color: isLearned ? kr.nodeLabel : kr.nodeDimLabel, face: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' },
-        shadow: isLearned ? { enabled: true, color: color, size: (n._degree && n._degree > 5) ? 18 : 10, x: 0, y: 0 } : { enabled: false }
+        shadow: isLearned ? { enabled: true, color: color, size: (n._degree && n._degree > 5) ? 18 : 10, x: 0, y: 0 } : { enabled: false },
+        _shadowBase: isLearned ? ((n._degree && n._degree > 5) ? 18 : 10) : 0,
+        _catColor: color
       });
     });
     nodesDS.update(upd);
@@ -2285,31 +2333,6 @@ function updateThemeIcon(isDark){
       }
     }).catch(function(){ pre.innerHTML = '<div style="color:' + kr.loading + '">加载失败</div>'; });
   }
-  KG.zoom = function(dir){
-    if (!network) return;
-    try {
-      var s = network.getScale();
-      var ns = dir > 0 ? Math.min(s * 1.35, 6) : Math.max(s / 1.35, 0.15);
-      network.moveTo({ scale: ns, animation: { duration: 220, easingFunction: 'easeInOutQuad' } });
-    } catch(e){}
-  };
-  KG.fitView = function(){
-    if (!network) return;
-    try { network.fit({ animation: { duration: 300, easingFunction: 'easeInOutQuad' } }); } catch(e){}
-  };
-  KG.relayout = function(){
-    if (!network) return;
-    try {
-      var opt = visOptions();
-      opt.physics.stabilization.iterations = 150;
-      opt.physics.stabilization.fit = true;
-      network.setOptions(opt);
-      network.once('stabilizationIterationsDone', function(){
-        lockPhysics();
-        try { network.fit({ animation: { duration: 300 } }); } catch(e){}
-      });
-    } catch(e){}
-  };
   KG.toggleLearn = function(){
     if (!currentNodeId) return;
     if (learnedSet.has(currentNodeId)) learnedSet.delete(currentNodeId);
@@ -2330,7 +2353,7 @@ function updateThemeIcon(isDark){
   };
   function bindEvents(){
     if (network) {
-      /* 自然拖动：按下拖动时临时开启物理引擎（邻居弹簧联动），松手后短稳定进入生态浮动 */
+      /* 拖动联动：按下时临时开启物理引擎（邻居弹簧联动），松手后短稳定并关闭物理 */
       network.on('dragStart', function(){
         draggingNow = true;
         try {

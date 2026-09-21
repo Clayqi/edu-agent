@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 
-ROOT = Path(r"D:\教育agent\content\structured_auto")
+ROOT = Path(r"D:\edu-agent\content\structured_auto")
 SUBJECT_MAP = {"数学": "数学", "物理": "物理", "化学": "化学"}
 for f in sorted(ROOT.glob("*.md")):
     text = f.read_text(encoding="utf-8")

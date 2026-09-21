@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 
-ROOT = Path(r"D:\教育agent\content\structured_auto")
+ROOT = Path(r"D:\edu-agent\content\structured_auto")
 
 def fullwidth_map():
     m = {}

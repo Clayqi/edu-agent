@@ -35,9 +35,13 @@
       radial-gradient(1px 1px at 130px 80px, #fff, transparent),
       radial-gradient(2px 2px at 160px 120px, rgba(255,255,255,0.7), transparent),
       radial-gradient(1px 1px at 200px 50px, #fff, transparent),
-      radial-gradient(2px 2px at 240px 180px, rgba(255,255,255,0.8), transparent);
-    background-size: 300px 300px;
-    animation: twinkle 5s ease-in-out infinite;
+      radial-gradient(2px 2px at 240px 180px, rgba(255,255,255,0.8), transparent),
+      radial-gradient(1px 1px at 70px 200px, rgba(255,255,255,0.6), transparent),
+      radial-gradient(1px 1px at 180px 220px, #fff, transparent),
+      radial-gradient(2px 2px at 280px 90px, rgba(255,255,255,0.7), transparent),
+      radial-gradient(1px 1px at 320px 150px, #fff, transparent);
+    background-size: 350px 350px;
+    animation: twinkle 4s ease-in-out infinite;
   }
   .stars::after {
     background-size: 200px 200px;
@@ -228,7 +232,7 @@ const DEFAULT_VIS_OPTIONS = {
     hoverConnectedEdges: false,
     selectConnectedEdges: false
   },
-  nodes: { shape: 'dot', borderWidth: 1, scaling: { min: 10, max: 26 } },
+  nodes: { shape: 'dot', borderWidth: 1, scaling: { min: 2, max: 12 } },
   edges: {
     smooth: { type: 'continuous', roundness: 0.4 },
     selectionWidth: 2,
@@ -243,7 +247,7 @@ const KG_DARK = {
   nodeLabel: '#ffffff',
   nodeDimLabel: '#aab2d8',
   linkOn: 'rgba(255, 255, 255, 0.55)',
-  linkOff: 'rgba(160, 170, 220, 0.35)',
+  linkOff: 'rgba(160, 170, 220, 0.18)',
   emLine: '#ffffff',
   defColor: '#c9a3ff',
   succBg: 'rgba(100,200,150,0.2)',
@@ -325,7 +329,7 @@ function renderGraph(nodes, links, focusNode = null, iters = 130) {
     const color = constellationColors[n.category] || KG_DARK.defColor;
     // 根据度数自动计算大小（度数越高越大，核心节点更突出）
     const degree = n.degree || 1;
-    let baseSize = 8 + Math.min(degree * 2, 12); // 8~20之间
+    let baseSize = isLearned ? (5 + Math.min(degree * 1.2, 7)) : (2 + Math.min(degree * 0.8, 3)); // 点亮大，未点亮小
     if (focusNode === n.id) baseSize += 4;
     let px, py;
     if (burstCenter) {
@@ -354,7 +358,7 @@ function renderGraph(nodes, links, focusNode = null, iters = 130) {
         hover: { background: '#fff', border: color }
       },
       font: { size: 11, color: isLearned ? KG_DARK.nodeLabel : KG_DARK.nodeDimLabel, face: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' },
-      shadow: (!lowSpec && isLearned) ? { enabled: true, color: color, size: degree > 5 ? 14 : 8, x: 0, y: 0 } : { enabled: false },
+      shadow: (!lowSpec && isLearned) ? { enabled: true, color: color, size: degree > 5 ? 10 : 6, x: 0, y: 0 } : { enabled: false },
       _degree: degree,
       _category: n.category || '',
       _shadowBase: (!lowSpec && isLearned) ? (degree > 5 ? 14 : 8) : 0,
@@ -518,22 +522,26 @@ function lockPhysics() {
       }
     });
   } catch(e) {}
-  // 持续注入能量，让节点永远飘着
-  if (window._breatheInterval) clearInterval(window._breatheInterval);
-  window._breatheInterval = setInterval(() => {
-    if (!network || draggingNow) return;
+  // 用 moveNode 手动给节点加正弦浮动，平滑不跳
+  if (window._floatInterval) clearInterval(window._floatInterval);
+  let _ft = 0;
+  window._floatInterval = setInterval(() => {
+    if (!network || draggingNow || !nodesDS) return;
+    _ft += 0.02;
     try {
-      // 轻轻推一下，让节点重新浮动
-      network.setOptions({ physics: {
-        forceAtlas2Based: { gravitationalConstant: -100 }
-      }});
-      setTimeout(() => {
-        try { network.setOptions({ physics: {
-          forceAtlas2Based: { gravitationalConstant: -80 }
-        }}); } catch(e) {}
-      }, 200);
+      const all = nodesDS.get();
+      if (all.length > 80) return; // 大图不浮动，避免卡
+      const upd = [];
+      for (let i = 0; i < all.length; i++) {
+        const n = all[i];
+        const dx = Math.sin(_ft + i * 0.5) * 0.8;
+        const dy = Math.cos(_ft * 0.7 + i * 0.3) * 0.6;
+        if (n.x === undefined) continue;
+        upd.push({ id: n.id, x: n.x + dx, y: n.y + dy });
+      }
+      if (upd.length) nodesDS.update(upd);
     } catch(e) {}
-  }, 2500);
+  }, 50);
 }
 // 轻量光晕呼吸：只对「已点亮」节点脉动光晕（不移动节点、不触发物理引擎），
 // 视觉上有星星呼吸闪烁的活感；节点过多时自动休眠。相比之前的 moveNode 涟漪几乎零 CPU 开销
@@ -681,12 +689,15 @@ function jumpToNode(id, name) {
 }
 
 // 搜索
+let _searchTimer = null;
 document.getElementById('searchInput').addEventListener('input', function(e) {
   const q = e.target.value.trim();
+  if (_searchTimer) clearTimeout(_searchTimer);
   if (!q) {
     renderGraph(graphData.nodes, graphData.links, null, 30);
     return;
   }
+  _searchTimer = setTimeout(() => {
   fetch(`/api/kg/search?q=${encodeURIComponent(q)}`)
     .then(r => r.json())
     .then(data => {
@@ -698,6 +709,7 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
           .then(d => renderGraph(d.nodes, d.links, first.id, 60));
       }
     });
+  }, 350);
 });
 
 // vis-network 自动监听窗口大小变化，无需手动 redraw

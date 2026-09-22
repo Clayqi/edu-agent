@@ -1,0 +1,42 @@
+# 行尾统一（根治「整文件 diff」）
+#
+# 背景（2026-09-12 踩到的）：仓库里所有 blob 都存 LF，但 Windows 上 checkout 出 CRLF，
+# 而 `static/index.html` 曾被标成 `-text`（binary），git 于是**跳过它的行尾归一** ——
+# 结果是：只要动一行，`git diff` 就把整个文件（3200+ 行）都报成改动，评审根本没法看。
+#
+# 规则：
+#   * text=auto        —— 仓库内一律存 LF，工作区按 core.autocrlf 检出（Windows 得 CRLF）
+#   逐个点名文本类型    —— 防止再被误判成 binary 而跳过归一（这才是上面那个坑的根因）
+#   .cmd/.bat 强制 CRLF —— cmd.exe 解析需要 CRLF（历史坑：UTF-8 + LF 会让 cmd 指针错位）
+#
+# 改完索引后如需一次性归位：git add --renormalize .
+* text=auto
+
+*.py    text
+*.md    text
+*.json  text
+*.html  text
+*.js    text
+*.css   text
+*.ps1   text
+*.txt   text
+*.yml   text
+*.yaml  text
+*.toml  text
+*.cfg   text
+*.ini   text
+*.cmd   text eol=crlf
+*.bat   text eol=crlf
+
+# 二进制：不做任何转换
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.docx  binary
+*.pptx  binary
+*.xlsx  binary
+*.bin   binary
+*.sqlite3 binary

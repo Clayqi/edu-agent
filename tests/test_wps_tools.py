@@ -22,6 +22,10 @@ sys.path.insert(0, str(_PROJ / "src"))
 from edu_agent import capabilities as cap          # noqa: E402
 from edu_agent import mcp_tools, wps_export        # noqa: E402
 
+# web_server 在 import 时会建 SessionStore，先把数据根指到临时目录，避免污染本机
+os.environ.setdefault("EDU_DATA_DIR", tempfile.mkdtemp(prefix="edu_test_data_"))  # noqa: E402
+from edu_agent import web_server as ws             # noqa: E402
+
 WPS_LIVE = os.getenv("EDU_TEST_WPS") == "1" and cap.wps_entry().exists()
 
 
@@ -54,6 +58,141 @@ class TestGate(_EnvSandbox):
     def test_default_on(self):
         self.assertTrue(cap.is_enabled("mcp", "wps-office"))
         self.assertTrue(cap.is_enabled("skill", "wps-word"))
+        self.assertTrue(cap.is_enabled("skill", "doc-session-preview"), "会话预览默认开启")
+
+
+class TestSessionDocPreview(_EnvSandbox):
+    """会话内文档预览：纯内存、不落盘、不碰 WPS，且与落盘导出解耦。
+
+    对应「会话内内存预览」与「WPS 落盘导出」两条链路的分离：
+    关掉 wps-office 导出被拒，但预览照常；关掉 doc-session-preview 预览不渲染，但导出照常。
+    """
+
+    MD = """# 3.3 幂函数
+
+**教学目标**
+- 理解幂函数的概念。
+
+**教学过程**
+### 情境导入（约 5 分钟）
+投影实例。
+### 课堂小结（约 3 分钟）
+回顾路径。
+"""
+
+    def test_capability_registered_and_builtin(self):
+        row = [s for s in cap.snapshot()["skills"] if s["id"] == "doc-session-preview"]
+        self.assertEqual(len(row), 1)
+        self.assertTrue(row[0]["builtin"], "内置能力（没有 skills/<id>/SKILL.md）")
+        self.assertTrue(row[0]["enabled"])
+        self.assertTrue(row[0]["active"], "不依赖 MCP，开启即生效")
+
+    def test_status_field(self):
+        self.assertTrue(cap.snapshot()["session_doc_preview_ready"])
+        cap.set_enabled("skill", "doc-session-preview", False)
+        self.assertFalse(cap.snapshot()["session_doc_preview_ready"])
+        self.assertFalse(cap.session_preview_ready())
+
+    def test_preview_is_pure_no_disk_no_wps(self):
+        """预览只做内存整理：不落盘、不调用 WPS 客户端。"""
+        before = set(p.name for p in wps_export.resolve_out_dir(None).glob("*")) \
+            if wps_export.resolve_out_dir(None).exists() else set()
+        called = []
+        orig = wps_export.mcp_tools.call_sequence
+        wps_export.mcp_tools.call_sequence = lambda *a, **k: called.append(a) or []
+        os.environ["WPS_MCP_ENTRY"] = str(Path(self._tmp.name) / "nope" / "index.js")
+        cap._CACHE.clear()
+        try:
+            r = ws.api_session_doc_preview(ws.DocPreviewReq(markdown=self.MD))
+        finally:
+            wps_export.mcp_tools.call_sequence = orig
+        self.assertTrue(r["ok"], r.get("error"))
+        self.assertEqual(called, [], "预览不得触发任何 MCP 调用")
+        after = set(p.name for p in wps_export.resolve_out_dir(None).glob("*")) \
+            if wps_export.resolve_out_dir(None).exists() else set()
+        self.assertEqual(before, after, "预览不得往导出目录写文件")
+
+    def test_preview_echoes_input(self):
+        r = ws.api_session_doc_preview(ws.DocPreviewReq(markdown=self.MD,
+                                                        payload={"title": "自定义标题"}))
+        self.assertEqual(r["markdown"], self.MD, "markdown 原样回传")
+        self.assertEqual(r["payload"], {"title": "自定义标题"}, "payload 原样回传")
+        self.assertEqual(r["title"], "自定义标题", "payload 标题优先")
+        self.assertEqual([s["name"] for s in r["slides"]], ["情境导入", "课堂小结"])
+        self.assertEqual(r["stats"]["minutes"], 8)
+        self.assertGreater(r["stats"]["blocks"], 0)
+
+    def test_preview_strips_agent_tag(self):
+        """历史会话兜底进来的正文带「**【Agent B · 教案 Agent】**」标签，必须摘掉。
+
+        不摘的后果：标题取到标签 → 退化成「未命名文档」；标签还会渲染进面板与导出文件。
+        注意 B/A 的标签**和正文粘在同一行**（`_tag()` 没带回车），换行那种也要能摘。
+        """
+        r = ws.api_session_doc_preview(ws.DocPreviewReq(
+            markdown="**【Agent B · 教案 Agent】**\n\n" + self.MD))
+        self.assertEqual(r["title"], "3.3 幂函数", "标题应取正文首个标题，而不是标签行")
+        self.assertTrue(r["markdown"].startswith("# 3.3 幂函数"), "回传正文不该带标签")
+        self.assertNotIn("Agent B", r["markdown"])
+        # 会话库里真实的样子：标签和首个标题粘在同一行
+        glued = ws.api_session_doc_preview(ws.DocPreviewReq(
+            markdown="**【Agent B · 教案 Agent】**# 3.3 幂函数\n\n**教学目标**\n- 一条\n"))
+        self.assertEqual(glued["title"], "3.3 幂函数", "同一行粘连时也要摘掉")
+        self.assertTrue(glued["markdown"].startswith("# 3.3 幂函数"))
+        # 三种标签（A / B / 总指挥）都要摘；正文中间的【…】不许动
+        for tag in ("**【Agent A · 课本教练（答疑）】**", "**【Agent B · 教案 Agent】**",
+                    "**【总指挥 · 监督 Agent】**"):
+            rr = ws.api_session_doc_preview(ws.DocPreviewReq(markdown=tag + self.MD))
+            self.assertNotIn("Agent", rr["markdown"].splitlines()[0], tag)
+            self.assertEqual(rr["title"], "3.3 幂函数", tag)
+        keep = ws.api_session_doc_preview(ws.DocPreviewReq(
+            markdown=self.MD + "\n正文里的【重点】不能动。\n"))
+        self.assertIn("正文里的【重点】不能动。", keep["markdown"], "正文内的【…】不属于标签")
+        self.assertEqual(ws._strip_agent_tag("**【重点】**正文"), "**【重点】**正文",
+                         "开头但不是 Agent 标签的【…】不动")
+
+    def test_history_meta_doc_is_cleaned(self):
+        """老会话里**已落库**的 meta.doc 也要清洗（前端历史重载是原样复用的）。
+
+        修复前生成的 payload 会把「**【Agent B · 教案 Agent】**」当正文、标题退化成「未命名文档」，
+        不清洗的话老会话永远带着这个瑕疵；不带标签的消息必须原对象返回（零成本）。
+        """
+        dirty = {"role": "assistant", "content": "x",
+                 "meta": {"mode": "B", "doc": {"title": "未命名文档", "markdown":
+                         "**【Agent B · 教案 Agent】**\n\n# 3.3 幂函数\n\n**教学目标**\n- 一条\n"}}}
+        clean = {"role": "assistant", "content": "y",
+                 "meta": {"mode": "B", "doc": {"title": "3.3 幂函数", "markdown": "# 3.3 幂函数\n"}}}
+        out = ws._clean_doc_meta(dirty)
+        self.assertEqual(out["meta"]["doc"]["title"], "3.3 幂函数")
+        self.assertNotIn("Agent B", out["meta"]["doc"]["markdown"])
+        self.assertTrue(out["meta"]["doc"]["markdown"].startswith("# 3.3 幂函数"))
+        self.assertIs(ws._clean_doc_meta(clean), clean, "干净的消息不该被重建")
+        self.assertEqual(ws._clean_doc_meta({"role": "user", "content": "hi"}),
+                         {"role": "user", "content": "hi"})
+
+    def test_preview_still_works_when_wps_off(self):
+        """★ 两条链路解耦：关掉 WPS 导出被拒，预览照常。"""
+        cap.set_enabled("mcp", "wps-office", False)
+        self.assertFalse(cap.wps_available()[0])
+        exp = wps_export.export({"title": "x", "steps": [{"name": "导入"}]}, kind="docx")
+        self.assertFalse(exp["ok"])
+        self.assertEqual(exp.get("gate"), "capability")
+        prev = ws.api_session_doc_preview(ws.DocPreviewReq(markdown=self.MD))
+        self.assertTrue(prev["ok"], "预览不该被 WPS 开关影响")
+
+    def test_export_still_works_when_preview_off(self):
+        """★ 反向解耦：关掉会话预览，导出链路一行不受影响。"""
+        cap.set_enabled("skill", "doc-session-preview", False)
+        self.assertFalse(cap.session_preview_ready())
+        prev = ws.api_session_doc_preview(ws.DocPreviewReq(markdown=self.MD))
+        self.assertTrue(prev["ok"], "接口仍可用")
+        self.assertFalse(prev["enabled"], "但会告诉前端：别渲染面板")
+        self.assertTrue(cap.is_enabled("mcp", "wps-office"), "WPS 开关未被连带关闭")
+
+    def test_status_endpoint_exposes_field(self):
+        st = ws.api_mcp_status()
+        self.assertIn("session_doc_preview_ready", st)
+        cap.set_enabled("skill", "doc-session-preview", False)
+        self.assertFalse(ws.api_mcp_status()["session_doc_preview_ready"])
 
     def test_toggle_persists(self):
         self.assertTrue(cap.set_enabled("mcp", "wps-office", False)["ok"])

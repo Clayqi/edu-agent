@@ -110,6 +110,7 @@ class SkillSpec:
     icon: str
     mcp: str = ""             # 绑定的 MCP 服务 id
     default_on: bool = True
+    builtin: bool = False     # True = 内置能力（没有 skills/<id>/SKILL.md 实体，UI 显示「内置」而非「文件缺失」）
 
 
 MCP_SPECS: tuple[McpSpec, ...] = (
@@ -146,6 +147,11 @@ SKILL_SPECS: tuple[SkillSpec, ...] = (
     SkillSpec(id="wps-office", name="WPS 跨应用助手", icon="O",
               desc="统一管理 Excel / Word / PPT，处理跨应用操作与通用功能",
               category="WPS Office", mcp="wps-office"),
+    # 2026-09-12：会话内文档预览（纯前端内存渲染，不落盘、不碰 WPS）
+    # 关闭它只会让会话页不渲染右侧预览面板，**完全不影响导出链路**。
+    SkillSpec(id="doc-session-preview", name="会话文档预览", icon="D",
+              desc="AI 生成文档后，在会话页右侧唤起多格式预览面板（内存渲染，不落盘、不调用 WPS）",
+              category="文档", builtin=True),
 )
 
 _KIND_SPECS: dict[str, dict[str, McpSpec | SkillSpec]] = {
@@ -365,10 +371,17 @@ def snapshot(deep: bool = False) -> dict:
             "category": spec.category, "icon": spec.icon, "mcp": bound,
             "enabled": en, "active": en and bound_en,
             "installed": files["exists"], "size": files["size"], "path": files["path"],
+            "builtin": spec.builtin,
         })
     return {"mcp": mcp_rows, "skills": skill_rows,
             "wps_export_ready": wps_available()[0],
+            "session_doc_preview_ready": session_preview_ready(),
             "state_file": str(state_path())}
+
+
+def session_preview_ready() -> bool:
+    """会话内文档预览是否启用（只影响会话页右侧预览面板的渲染，不影响任何导出）。"""
+    return is_enabled("skill", "doc-session-preview")
 
 
 def wps_available() -> tuple[bool, str]:

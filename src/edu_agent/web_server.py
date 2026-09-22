@@ -299,7 +299,7 @@ def _last_plan_markdown(sid: str) -> str:
             continue
         text = m.get("content") or ""
         if (m.get("meta") or {}).get("mode") == "B" or "Agent B" in text[:60]:
-            return text
+            return _strip_agent_tag(text)
     return ""
 
 
@@ -555,6 +555,29 @@ def _tag(mode: str) -> str:
     return "**【Agent A · 课本教练（答疑）】**" if mode == "A" else "**【Agent B · 教案 Agent】**"
 
 
+_TAG_PREFIX_RE = re.compile(r"^(?:\*\*)?\s*【\s*(?:Agent\s*[ABS]\b|总指挥)[^】]*】\s*(?:\*\*)?[ \t]*")
+
+
+def _strip_agent_tag(md: str) -> str:
+    """摘掉正文**开头**那个 Agent 标签（`_tag()` 加的「**【Agent B · 教案 Agent】**」）。
+
+    会话里存的回答正文带这个标签，但它属于聊天装饰、不属于文档：不摘掉会渲染进右侧预览、
+    跟着进导出文件，还会让预览标题退化成「未命名文档」（首行不是标题，取不到题名）。
+
+    坑：mode B/A 的标签**后面没有换行**，和正文首个标题粘在同一行
+    （`**【Agent B · 教案 Agent】**# 3.3 幂函数`），所以按"行首前缀"摘，而不是"整行匹配"；
+    只认开头，且括号里必须是 Agent/总指挥，正文里的【…】不动。
+    """
+    s = str(md or "")
+    head = re.match(r"[ \t\r\n]*", s)          # 跳过开头的空白行
+    rest = s[head.end():]
+    hit = _TAG_PREFIX_RE.match(rest)
+    if not hit:
+        return s
+    return rest[hit.end():].lstrip("\r\n")
+
+
+
 def _sse(gen):
     def stream():
         for ev in gen:
@@ -626,8 +649,8 @@ def _plan_options_event(req: ChatReq, text: str, code: str, last: dict | None) -
     ]
     if has_plan:
         options.append(
-            {"id": "fill_center", "label": "填入教案中心",
-             "hint": "不重新生成：把上面这份教案按标题填进模板对应板块，之后在教案中心接着改"})
+            {"id": "fill_center", "label": "按模板填入",
+             "hint": "不重新生成：按标题填进模板对应板块，结果直接进右侧预览面板"})
     return {
         "t": "options", "kind": "plan", "reason": reason,
         "topic": (text or "").strip()[:40],
@@ -719,11 +742,51 @@ def _stream_supervisor(sid: str, req: ChatReq, text: str):
         elif ty == "error":
             yield ev
             return
-    _store.append(sid, "assistant", _tag("S") + final_text,
-                  meta={"mode": "S", "citations": citations,
-                        "pages": sorted({c.get("page") for c in citations if c.get("page")})})
-    yield {"t": "done", "mode": "S", "agent": "A" if not html_name else "B",
-           "text": final_text, "citations": citations, "html": html_name}
+    # 总指挥如果产出了教案（html_name 非空），同样下发结构化 payload
+    doc = (_doc_payload(final_text) if (html_name and capabilities.session_preview_ready()) else None)
+    meta = {"mode": "S", "citations": citations,
+            "pages": sorted({c.get("page") for c in citations if c.get("page")})}
+    if doc:
+        meta["doc"] = doc
+    _store.append(sid, "assistant", _tag("S") + final_text, meta=meta)
+    done = {"t": "done", "mode": "S", "agent": "A" if not html_name else "B",
+            "text": final_text, "citations": citations, "html": html_name}
+    if doc:
+        done["doc"] = doc
+    yield done
+
+
+def _doc_payload(md: str, title: str = "", grade: str = "") -> dict:
+    """把一份教案 Markdown 整理成「结构化文档 payload」（纯内存，不落盘、不调 WPS）。
+
+    形状沿用 wps 导出 payload 的字段命名，前端 4 个 Tab 共用这一份数据源。
+    """
+    md = _strip_agent_tag(str(md or ""))
+    slides: list[dict] = []
+    title_from_md = ""
+    if md.strip():
+        try:
+            data = wps_export.slides_from_markdown(md)
+            slides = data.get("slides") or []
+            title_from_md = str(data.get("title") or "")
+        except Exception:  # noqa: BLE001 纯整理，解析失败不该让对话出错
+            slides = []
+    blocks = _plan_blocks(md) if md.strip() else []
+    minutes = 0
+    for s in slides:
+        try:
+            minutes += int(s.get("minutes") or 0)
+        except (TypeError, ValueError):
+            pass
+    return {
+        "title": str(title or "").strip() or title_from_md or "未命名文档",
+        "grade": grade,
+        "markdown": md,
+        "slides": slides,
+        "blocks": blocks,
+        "stats": {"chars": len(md), "blocks": len(blocks),
+                  "slides": len(slides), "minutes": minutes},
+    }
 
 
 def _stream_planner(sid: str, req: ChatReq, text: str):
@@ -739,11 +802,18 @@ def _stream_planner(sid: str, req: ChatReq, text: str):
         html_path = plan_html.save_html(md, rec.title)
         html_name = html_path.name
         _store.set_last_html(sid, html_name)
-        _store.append(sid, "assistant", _tag("B") + md,
-                      meta={"mode": "B", "citations": [c.model_dump() for c in rec.citations],
-                            "pages": sorted({c.page for c in rec.citations if c.page})})
-        yield {"t": "done", "mode": "B", "text": md, "html": html_name,
-               "title": rec.title, "citations": [c.model_dump() for c in rec.citations]}
+        # 结构化 payload：skill 开着才下发给前端（含落库，历史恢复时还能重载）
+        doc = (_doc_payload(md, title=rec.title) if capabilities.session_preview_ready() else None)
+        meta = {"mode": "B", "citations": [c.model_dump() for c in rec.citations],
+                "pages": sorted({c.page for c in rec.citations if c.page})}
+        if doc:
+            meta["doc"] = doc
+        _store.append(sid, "assistant", _tag("B") + md, meta=meta)
+        done = {"t": "done", "mode": "B", "text": md, "html": html_name,
+                "title": rec.title, "citations": [c.model_dump() for c in rec.citations]}
+        if doc:
+            done["doc"] = doc
+        yield done
     except Exception as e:
         yield {"t": "error", "text": "B 出错：" + type(e).__name__ + ": " + str(e)}
 
@@ -759,13 +829,127 @@ def api_last_html(body: dict):
     return {"html": sess.get("last_html", "")}
 
 
+# ---------- 会话内文档预览（2026-09-12）----------
+# 与「WPS 落盘导出」是**两条独立链路**：
+#   · 本接口：payload / markdown → 结构化预览模型（标题 / 板块 / 幻灯片页 / 统计），
+#             **纯内存计算：不落盘、不调用 WPS MCP、不查 WPS 能力开关**；
+#   · /api/wps/export：同一份 payload / markdown → 落盘 docx / pptx，受 wps-office 开关约束。
+# 前端渲染与否由 skill 开关 `doc-session-preview` 决定（见 capabilities.session_preview_ready）。
+class DocPreviewReq(BaseModel):
+    payload: dict | None = None      # 编排台结构（可选）
+    markdown: str = ""               # 教案 Markdown（可选）
+    session_id: str = ""
+
+
+@app.post("/api/session/doc-preview")
+def api_session_doc_preview(body: DocPreviewReq):
+    """结构化文档 → 前端预览：**只透传**，无任何磁盘 IO、不调用 WPS MCP。
+
+    与 /api/wps/export 是两条独立链路：
+      · 本接口：payload → 原样回传（+ 派生页结构供幻灯片 Tab 用），内存计算；
+      · 导出接口：同一份 payload → 落盘 docx/pptx，受 wps-office 开关约束。
+    """
+    payload = body.payload if isinstance(body.payload, dict) else {}
+    # markdown 优先取请求体，其次取 payload.markdown；都没有再用会话里最近一份教案兜底
+    md = _strip_agent_tag(str(body.markdown or payload.get("markdown") or ""))
+    if not md.strip():
+        md = _last_plan_markdown(str(body.session_id or "").strip()
+                                 or (_store.current_id() or ""))
+
+    # payload 自带的 slides/blocks 优先（Agent 已结构化），否则由 markdown 纯计算派生
+    slides = payload.get("slides") if isinstance(payload.get("slides"), list) else []
+    blocks = payload.get("blocks") if isinstance(payload.get("blocks"), list) else []
+    title = str(payload.get("title") or "").strip()
+    title_from_md = ""
+    if md.strip():
+        try:
+            data = wps_export.slides_from_markdown(md)
+            title_from_md = str(data.get("title") or "")
+            if not slides:
+                slides = data.get("slides") or []
+        except Exception:  # noqa: BLE001 纯预览，解析失败不该 500
+            slides = slides or []
+        if not blocks:
+            blocks = _plan_blocks(md)
+    # 标题优先级：payload 标题 > 正文首个标题 > 占位
+    # （历史会话兜底进来的正文原本带「**【Agent B · 教案 Agent】**」标签，
+    #   已由 _strip_agent_tag 摘掉，否则这里只会取到标签、退化成「未命名文档」）
+    if not title:
+        title = title_from_md or "未命名文档"
+
+    minutes = 0
+    for s in slides:
+        try:
+            minutes += int(s.get("minutes") or 0)
+        except (TypeError, ValueError):
+            pass
+    return {
+        "ok": True,
+        "enabled": capabilities.session_preview_ready(),   # 前端据此决定渲染 or 清空面板
+        "title": title,
+        "payload": payload,                                # 原样回传（结构 Tab 的原始 JSON）
+        "markdown": md,                                    # 原样回传（Markdown Tab 的输入）
+        "blocks": blocks,
+        "slides": slides,
+        "stats": {"chars": len(md), "blocks": len(blocks),
+                  "slides": len(slides), "minutes": minutes},
+        "note": "内存预览：不落盘、不调用 WPS；需要落盘请走 /api/wps/export",
+    }
+
+
+def _plan_blocks(md: str) -> list[dict]:
+    """从教案 Markdown 里抽出板块清单（纯文本处理，不落盘）。"""
+    out: list[dict] = []
+    for raw in (md or "").splitlines():
+        st = raw.strip()
+        m = re.match(r"^\*\*(.+?)\*\*\s*$", st)
+        if m:
+            out.append({"title": m.group(1).strip(), "level": 2, "chars": 0})
+            continue
+        m = re.match(r"^(#{1,4})\s+(.+?)\s*$", st)
+        if m:
+            out.append({"title": m.group(2).strip(), "level": len(m.group(1)), "chars": 0})
+            continue
+        if out and st and not st.startswith("|"):
+            out[-1]["chars"] += len(st)
+    return out
+
+
+def _clean_doc_meta(msg: dict) -> dict:
+    """历史消息里已落库的 `meta.doc` 兜底清洗。
+
+    为什么需要：`meta.doc` 是**当时**那份代码算出来的、直接存进了会话库。修复前生成的
+    payload 会把正文开头的「**【Agent B · 教案 Agent】**」当成正文（标题因此退化成
+    「未命名文档」），前端做历史重载时是原样复用的——不清洗，老会话永远带着这个瑕疵。
+    只在真的带标签时才重算（不带标签时原对象返回，零成本）。
+    """
+    if not isinstance(msg, dict):
+        return msg
+    meta = msg.get("meta")
+    doc = meta.get("doc") if isinstance(meta, dict) else None
+    if not isinstance(doc, dict):
+        return msg
+    md = str(doc.get("markdown") or "")
+    if _strip_agent_tag(md) == md:
+        return msg
+    title = str(doc.get("title") or "").strip()
+    if title == "未命名文档":
+        title = ""
+    cleaned = dict(msg)
+    cleaned["meta"] = dict(meta)
+    cleaned["meta"]["doc"] = _doc_payload(_strip_agent_tag(md), title=title,
+                                          grade=str(doc.get("grade") or ""))
+    return cleaned
+
+
 @app.post("/api/session/get")
 def api_sess_get(body: dict):
     sess = _store.get(body.get("id", ""))
     if sess is None:
         return {"id": body.get("id", ""), "title": "新会话", "messages": [], "last_html": ""}
     return {"id": sess["id"], "title": sess["title"],
-            "messages": sess["messages"], "last_html": sess["last_html"]}
+            "messages": [_clean_doc_meta(m) for m in sess["messages"]],
+            "last_html": sess["last_html"]}
 
 
 @app.post("/api/session/del")
@@ -955,7 +1139,9 @@ def api_mcp_status():
     """右栏「运行状态」面板用的轻量快照（不做工具握手）。"""
     snap = capabilities.snapshot(deep=False)
     return {"mcp": snap["mcp"], "skills": snap["skills"],
-            "wps_export_ready": capabilities.wps_available()[0]}
+            "wps_export_ready": capabilities.wps_available()[0],
+            # 会话内文档预览是否启用（skill: doc-session-preview；只影响会话页右侧预览面板）
+            "session_doc_preview_ready": capabilities.session_preview_ready()}
 
 
 # ---------- WPS 导出（教案中心 -> .docx / .pptx） ----------

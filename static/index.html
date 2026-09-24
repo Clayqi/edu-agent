@@ -6,7 +6,7 @@
 <title>教育 Agent · UnderstandAnything</title>
 <style>
 :root{
-  --ink-900:#1a1a1b; --ink-800:#27272a; --ink-700:#3f3f46; --ink-600:#52525b; --ink-500:#71717a; --ink-400:#a1a1aa;
+  --ink-900:#1a1a1b; --ink-800:#27272a; --ink-700:#3f3f46; --ink-600:#52525b; --ink-500:#64646e; --ink-400:#71717a;
   --line:#ececec; --line-strong:#d9d9d9;
   --bg:#ffffff; --bg-soft:#fafafa; --bg-hover:#f4f4f4; --bg-active:#f1f1f0;
   --blue:#3b82f6; --blue-soft:#eff6ff;
@@ -23,6 +23,7 @@ html,body{height:100%}
 body{font-family:var(--font);font-size:14px;color:var(--ink-900);background:var(--bg);-webkit-font-smoothing:antialiased;overflow:hidden}
 button{font-family:var(--font);cursor:pointer}
 button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+button:disabled{cursor:not-allowed!important;opacity:.48}
 svg{display:block}
 .hidden{display:none!important}
 
@@ -157,6 +158,7 @@ svg{display:block}
 .mk-toolbar{display:flex;align-items:center;gap:8px;margin-top:16px}
 .search-pill{display:flex;align-items:center;gap:8px;height:38px;min-width:200px;padding:0 14px;border-radius:var(--r-pill);background:var(--bg-soft);border:.5px solid var(--line)}
 .search-pill input{border:none;background:transparent;outline:none;font-size:13.5px;width:100%;font-family:var(--font)}
+.search-pill:focus-within{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.16)}
 .search-pill svg{width:15px;height:15px;color:var(--ink-500)}
 .drop-pill{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:var(--r-pill);border:.5px solid var(--line);background:#fff;font-size:13.5px;color:var(--ink-700)}
 .drop-pill:hover{background:var(--bg-soft)}
@@ -527,6 +529,48 @@ svg{display:block}
     /* 面板本身不裁剪，否则悬停菜单会被切掉（停靠态没有圆角，滚动区也不用圆角） */
     .dp-bd{border-radius:0}
 
+    /* 暗色主题：变量驱动，补齐少量仍使用固定白色背景的旧组件。 */
+    body.theme-dark{
+      --ink-900:#f4f4f5;--ink-800:#e4e4e7;--ink-700:#d4d4d8;--ink-600:#b4b4bd;
+      --ink-500:#a1a1aa;--ink-400:#a1a1aa;--line:#34343a;--line-strong:#4a4a53;
+      --bg:#18181b;--bg-soft:#202024;--bg-hover:#2a2a30;--bg-active:#303038;
+      --blue-soft:#172554;--green-soft:#143321;color-scheme:dark
+    }
+    body.theme-dark .titlebar,body.theme-dark .skill-card,body.theme-dark .drop-pill,
+    body.theme-dark .icon-pill,body.theme-dark .modal,body.theme-dark .pop,
+    body.theme-dark .dz-slide,body.theme-dark .newapi .plus-orb{background:var(--bg);color:var(--ink-900)}
+    body.theme-dark .role-seg button.active{background:#f4f4f5;color:#18181b}
+    body.theme-dark .avt{color:#fff}
+
+    /* 会话菜单不再只依赖鼠标 hover，键盘聚焦和触屏都能到达。 */
+    .proj-leaf:focus-within .ps-menu{display:inline-flex}
+
+    /* 平板：右侧面板改成覆盖式抽屉，不再挤压主工作区。 */
+    @media (max-width:1199px){
+      .sidepanel{position:fixed;z-index:55;right:0;top:45px;bottom:0;height:auto;width:min(360px,calc(100vw - 48px));
+        box-shadow:-10px 0 30px rgba(0,0,0,.14)}
+      .sidepanel.sp-doc{width:min(var(--docp-w,680px),calc(100vw - 24px));max-width:calc(100vw - 24px)}
+      .dz-grid{grid-template-columns:1fr;padding:16px 22px 36px}
+      .mk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    }
+    /* 手机：左右栏都作为抽屉，主区独占宽度；工具条和卡片改为单列。 */
+    @media (max-width:767px){
+      .titlebar{min-height:42px;padding:4px 8px 0}.titlebar .wtab:not(.active),.win-controls{display:none}
+      .sidebar{position:fixed;z-index:60;left:0;top:42px;bottom:0;height:auto;width:min(300px,86vw)!important;
+        box-shadow:10px 0 30px rgba(0,0,0,.16);transform:translateX(0);transition:transform .16s ease}
+      .shell.side-collapsed .sidebar{width:min(300px,86vw)!important;transform:translateX(-105%);border-right:.5px solid var(--line)}
+      .main{width:100%}.main-head{padding:8px 10px}.mh-right{gap:4px}.ai-chip{display:none}
+      .sidepanel{top:42px;width:calc(100vw - 24px);padding:14px 12px}
+      .sidepanel.sp-doc{width:calc(100vw - 12px);max-width:calc(100vw - 12px);min-width:0}
+      .home{padding:24px 16px 76px}.home-input-wrap{margin-top:24px}
+      #chatMsgBox{padding:18px 14px 10px!important}#chatLive>div:last-child{padding:6px 14px 14px!important}
+      .mk-head,.view-sec{padding-left:16px;padding-right:16px}.mk-toolbar{flex-wrap:wrap}.search-pill{width:100%}
+      .mk-grid{grid-template-columns:1fr}.mk-body{padding-left:16px;padding-right:16px}
+      .dz-grid{grid-template-columns:1fr;padding:12px 14px 30px}.dz-col{min-width:0}
+      .overlay{padding:10px}.modal{padding:18px 16px;max-height:92vh}
+      .proj-leaf .ps-menu{display:inline-flex}
+    }
+
 </style>
 <!-- 侧边面板的多格式渲染库：CDN 主用，加载失败自动落回本地 vendor（离线不白屏） -->
 <script defer src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js" onerror="this.onerror=null;this.src='/static/vendor/marked.min.js'"></script>
@@ -544,9 +588,9 @@ svg{display:block}
     <div class="wtab">Yan Work GUI</div>
     <div class="titlebar-spacer"></div>
     <div class="win-controls">
-      <button class="wctl" title="最小化"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
-      <button class="wctl" title="最大化"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14" rx="1"/></svg></button>
-      <button class="wctl close" title="关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <button class="wctl" title="浏览器模式下不可用" aria-label="最小化（浏览器模式下不可用）" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
+      <button class="wctl" title="浏览器模式下不可用" aria-label="最大化（浏览器模式下不可用）" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14" rx="1"/></svg></button>
+      <button class="wctl close" title="浏览器模式下不可用" aria-label="关闭（浏览器模式下不可用）" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
   </div>
 
@@ -610,7 +654,7 @@ svg{display:block}
       <div class="side-bottom">
         <button class="sb-btn" id="btnSettings" title="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg></button>
         <button class="sb-btn" id="btnDark" title="外观"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg></button>
-        <button class="sb-btn" title="帮助"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.9.7c0 1.5-2.4 2-2.4 3.3M12 17h.01"/></svg></button>
+        <button class="sb-btn" id="btnHelp" title="帮助"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.9.7c0 1.5-2.4 2-2.4 3.3M12 17h.01"/></svg></button>
         <div class="mh-spacer"></div>
         <div class="role-seg" id="roleSeg">
           <button class="active" data-role="teacher">教师</button>
@@ -628,9 +672,9 @@ svg{display:block}
         <div class="crumb" id="crumb"><b>主界面</b></div>
         <div class="mh-spacer"></div>
         <div class="mh-right">
-          <button class="wctl" title="工具栏" style="width:30px;height:30px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>
+          <button class="wctl" title="更多工具尚未开放" aria-label="更多工具（尚未开放）" style="width:30px;height:30px" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>
           <div class="avt" id="avat">师</div>
-          <button class="ai-chip">y-an<b> AI</b><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+          <button class="ai-chip" id="aiChip" title="选择 Agent 模式 / 模型">y-an<b> AI</b><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
           <button class="wctl" title="侧边面板" id="btnSidePanel" style="width:30px;height:30px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
         </div>
       </div>
@@ -647,8 +691,8 @@ svg{display:block}
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
                 <input placeholder="搜索 Skill" id="skillSearch">
               </div>
-              <button class="drop-pill">全部<svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
-              <button class="icon-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+              <button class="drop-pill" id="skillCategory" aria-haspopup="menu" aria-expanded="false">全部<svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+              <button class="icon-pill" id="skillAdd" aria-label="新增 Skill" title="新增 Skill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
               <div class="mh-spacer"></div>
             </div>
           </div>
@@ -671,7 +715,7 @@ svg{display:block}
                 <textarea id="chatInput" rows="1" placeholder="描述你想生成的教案、题目或教学问题…"></textarea>
                 <div class="home-toolbar">
                   <button class="htool" id="attBtn" title="上传 PDF 教材/资料"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 20h16"/></svg></button>
-                  <span class="access-tag" id="accessTag" title="回答依据的知识范围"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span id="accessName">教材</span></span>
+                  <button type="button" class="access-tag" id="accessTag" title="回答依据的知识范围" aria-haspopup="menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span id="accessName">教材</span></button>
                   <div class="spacer" style="flex:1"></div>
                   <button class="model-pill" id="modelPill" title="Agent 模式 / 模型"><b id="modelName">deepseek-v4-flash</b><span id="modeName">自动</span><svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
                   <button class="send-orb" id="sendOrb" title="发送"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
@@ -687,7 +731,7 @@ svg{display:block}
                 <textarea id="chatInput2" rows="1" placeholder="继续提问…（Enter 发送，Shift+Enter 换行）"></textarea>
                 <div class="home-toolbar">
                   <button class="htool" id="attBtn2" title="上传 PDF 教材/资料"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 20h16"/></svg></button>
-                  <span class="access-tag" id="accessTag2" title="回答依据的知识范围"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span id="accessName2">教材</span></span>
+                  <button type="button" class="access-tag" id="accessTag2" title="回答依据的知识范围" aria-haspopup="menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span id="accessName2">教材</span></button>
                   <div class="spacer" style="flex:1"></div>
                   <button class="model-pill" id="modelPill2" title="Agent 模式 / 模型"><b id="modelName2">deepseek-v4-flash</b><span id="modeName2">自动</span><svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
                   <button class="send-orb" id="sendOrb2" title="发送"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
@@ -713,7 +757,7 @@ svg{display:block}
           </div>
           <div class="view-sec" style="padding-top:18px">
             <div class="row-card">
-              <div class="lrow"><div class="lm"><div class="t">当前进度 · 必修二 空间几何（第 1/3 课时）</div><div class="s">薄弱知识点：三视图还原、组合体体积计算</div></div><div class="side"><button class="pill-btn dark">继续学习</button><button class="pill-btn">生成学习计划</button><button class="pill-btn">错题本</button></div></div>
+              <div class="lrow"><div class="lm"><div class="t">当前进度 · 必修二 空间几何（第 1/3 课时）</div><div class="s">薄弱知识点：三视图还原、组合体体积计算</div></div><div class="side"><button class="pill-btn dark" disabled title="课程模块尚未接入">继续学习（尚未开放）</button><button class="pill-btn" disabled title="课程模块尚未接入">生成学习计划</button><button class="pill-btn" disabled title="课程模块尚未接入">错题本</button></div></div>
             </div>
           </div>
         </div>
@@ -734,8 +778,8 @@ svg{display:block}
             <input type="file" id="tplFile" accept=".docx" style="display:none">          </div>
           <div class="view-sec" style="padding-top:14px" id="dzEditBar">
             <div class="row-card" style="padding:14px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-              <input class="text-input" id="dzTitle" placeholder="课题，例：3.3 幂函数" style="width:230px;height:34px">
-              <input class="text-input" id="dzGrade" placeholder="学情/课时，例：重点班 45 分钟" style="width:220px;height:34px">
+              <input class="text-input" id="dzTitle" aria-label="教案课题" placeholder="课题，例：3.3 幂函数" style="width:230px;height:34px">
+              <input class="text-input" id="dzGrade" aria-label="学情与课时" placeholder="学情/课时，例：重点班 45 分钟" style="width:220px;height:34px">
               <button class="pill-btn dark" id="dzSkeleton">生成骨架</button>
               <button class="pill-btn" id="dzAddStep">＋ 添加环节</button>
               <span style="flex:1"></span>
@@ -747,7 +791,7 @@ svg{display:block}
             </div>
             <div class="row-card" style="margin-top:8px;padding:10px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <span style="font-size:12.5px;color:var(--ink-500);flex:none">导出位置</span>
-              <input class="text-input" id="dzOutDir" placeholder="留空 = content/plans（项目内）" style="flex:1;min-width:240px;height:32px;font-family:ui-monospace,Consolas,monospace;font-size:12px">
+              <input class="text-input" id="dzOutDir" aria-label="教案导出位置" placeholder="留空 = content/plans（项目内）" style="flex:1;min-width:240px;height:32px;font-family:ui-monospace,Consolas,monospace;font-size:12px">
               <button class="pill-btn" id="dzPickDir" style="flex:none">选择…</button>
               <span id="dzExportResult" style="font-size:12px;color:var(--ink-500);flex:none"></span>
             </div>
@@ -773,12 +817,12 @@ svg{display:block}
           </div>
           <div class="view-sec" style="padding-top:18px">
             <div class="row-card" data-ro="teacher" id="qTeacher">
-              <div class="lrow"><div class="lm"><div class="t">出题与组卷</div><div class="s">按知识点生成题目 · 批量校验 · 组卷导出</div></div><div class="side"><button class="pill-btn dark">生成题目</button><button class="pill-btn">批量校验</button><button class="pill-btn">组卷</button><button class="pill-btn">导出试卷</button></div></div>
-              <div class="lrow" style="align-items:flex-start"><div class="lm" style="padding:6px 0"><div class="t" style="font-size:14px">1. 选择题：棱柱的侧面一定是（ ）</div><div class="s">A. 平行四边形　B. 矩形　C. 正方形　D. 菱形</div><div class="side" style="margin-top:8px"><button class="pill-btn">查看解析</button><button class="pill-btn">难度评价</button></div></div></div>
+              <div class="lrow"><div class="lm"><div class="t">出题与组卷</div><div class="s">按知识点生成题目 · 批量校验 · 组卷导出</div></div><div class="side"><button class="pill-btn dark" disabled title="题库生成模块尚未接入">生成题目（尚未开放）</button><button class="pill-btn" disabled title="题库模块尚未接入">批量校验</button><button class="pill-btn" disabled title="题库模块尚未接入">组卷</button><button class="pill-btn" disabled title="题库模块尚未接入">导出试卷</button></div></div>
+              <div class="lrow" style="align-items:flex-start"><div class="lm" style="padding:6px 0"><div class="t" style="font-size:14px">1. 选择题：棱柱的侧面一定是（ ）</div><div class="s">A. 平行四边形　B. 矩形　C. 正方形　D. 菱形</div><div class="side" style="margin-top:8px"><button class="pill-btn" disabled title="题目解析模块尚未接入">查看解析</button><button class="pill-btn" disabled title="难度评价模块尚未接入">难度评价</button></div></div></div>
             </div>
             <div class="row-card" data-ro="student" id="qStudent">
-              <div class="lrow"><div class="lm"><div class="t">今日练习</div><div class="s">1. 选择题：棱柱的侧面一定是（ ）　A. 平行四边形　B. 矩形　C. 正方形　D. 菱形</div></div></div>
-              <div class="lrow"><div class="side"><button class="pill-btn dark">提交答案</button><button class="pill-btn">加入错题本</button><button class="pill-btn">查看解析</button><button class="pill-btn">再练一组</button></div></div>
+              <div class="lrow"><div class="lm"><div class="t">今日练习</div><div class="s">1. 选择题：棱柱的侧面一定是（ ）</div><fieldset id="practiceOptions" aria-label="选择答案" style="border:0;margin-top:10px;display:flex;gap:14px;flex-wrap:wrap"><label><input type="radio" name="practiceAnswer" value="A"> A. 平行四边形</label><label><input type="radio" name="practiceAnswer" value="B"> B. 矩形</label><label><input type="radio" name="practiceAnswer" value="C"> C. 正方形</label><label><input type="radio" name="practiceAnswer" value="D"> D. 菱形</label></fieldset><div id="practiceResult" class="s" role="status" aria-live="polite" style="margin-top:8px"></div></div></div>
+              <div class="lrow"><div class="side"><button class="pill-btn dark" id="practiceSubmit">提交答案</button><button class="pill-btn" disabled title="错题本模块尚未接入">加入错题本</button><button class="pill-btn" id="practiceExplain" disabled>查看解析</button><button class="pill-btn" disabled title="题库模块尚未接入">再练一组</button></div></div>
             </div>
           </div>
         </div>
@@ -834,6 +878,7 @@ svg{display:block}
 <script>
 (function(){
   var role = 'teacher';
+  try{ role = localStorage.getItem('edu_role') === 'student' ? 'student' : 'teacher'; }catch(e){}
   var currentView = 'market';
 
   /* ==== Role separation CSS rules applied dynamically ==== */
@@ -844,6 +889,10 @@ svg{display:block}
       el.style.display = show ? '' : 'none';
     });
     document.getElementById('avat').textContent = (role==='teacher')?'师':'生';
+    document.querySelectorAll('#roleSeg button').forEach(function(b){ b.classList.toggle('active', b.dataset.role === role); });
+    var qt = document.getElementById('qTitle'), qs = document.getElementById('qSub');
+    if(qt) qt.textContent = role === 'teacher' ? '我的题库' : '我的练习';
+    if(qs) qs.textContent = role === 'teacher' ? '题库 · 生成 / 校验 / 评价' : '今日练习 · 提交 / 解析 / 巩固';
   }
 
   /* ==== View switching ==== */
@@ -855,13 +904,15 @@ svg{display:block}
       if(el) el.classList.toggle('active', id===v);
     });
     document.querySelectorAll('.snav[data-view]').forEach(function(n){
-      n.classList.toggle('active', n.dataset.view===v);
+      var target = (n.dataset.roSwap === '1' && role === 'student' && n.dataset.viewStudent) ? n.dataset.viewStudent : n.dataset.view;
+      n.classList.toggle('active', target===v);
     });
     document.querySelectorAll('.proj-leaf[data-view]').forEach(function(n){
       n.classList.toggle('active', n.dataset.view===v);
     });
     var crumbText = {market:'Skill 市场',skill:'Skill 详情',chat:'新对话',library:'教材库',lesson:'我的课程',question:'我的题库',services:'MCP 服务',design:'教案中心'}[v]||'主界面';
     if(v==='chat') crumbText = convLabel(CUR_TITLE);   /* 聊天页显示当前对话名称 */
+    if(v==='question' && role==='student') crumbText = '我的练习';
     document.getElementById('crumb').innerHTML = '<b>'+escHtml(crumbText)+'</b>';
     if(v==='chat'){ updateGreeting(); }
     if(v==='library'){ libRender(); }
@@ -882,8 +933,7 @@ svg{display:block}
     n.addEventListener('click', function(){ switchView(n.dataset.view); });
   });
   document.getElementById('newChatBtn').addEventListener('click', function(){
-    // 生成中直接返回：按钮此时已被 setBusy() 置灰(原生 disabled)，这里只作兜底
-    if(BUSY) return;
+    /* 并行对话（2026-09-19）：生成中也能开新任务 —— 这正是一条新的并行会话 */
     switchView('chat');
     newChatIn(DEFAULT_PROJ);
   });
@@ -892,7 +942,7 @@ svg{display:block}
   document.querySelectorAll('#roleSeg button').forEach(function(b){
     b.addEventListener('click', function(){
       role = b.dataset.role;
-      document.querySelectorAll('#roleSeg button').forEach(function(x){ x.classList.toggle('active', x===b); });
+      try{ localStorage.setItem('edu_role', role); }catch(e){}
       applyRoleTag();
       // role-specific copy
       if(role==='teacher'){
@@ -903,16 +953,31 @@ svg{display:block}
       buildChips();
       updateGreeting();
       // guard: if a student lands on teacher view, redirect
-      if(role==='student' && (currentView==='library')) switchView('chat');
+      if(role==='student' && (currentView==='library' || currentView==='design')) switchView('chat');
       if(role==='teacher' && (currentView==='lesson')) switchView('chat');
     });
   });
+
+  /* 学生练习最小闭环：选择、判分、解析。未接后端的错题本/换题入口明确禁用。 */
+  (function(){
+    var submit = document.getElementById('practiceSubmit'), explain = document.getElementById('practiceExplain'), result = document.getElementById('practiceResult');
+    if(!submit || !explain || !result) return;
+    submit.addEventListener('click', function(){
+      var chosen = document.querySelector('input[name="practiceAnswer"]:checked');
+      if(!chosen){ result.style.color='var(--red)'; result.textContent='请先选择一个答案。'; return; }
+      var ok = chosen.value === 'A';
+      result.style.color = ok ? 'var(--green)' : 'var(--red)';
+      result.textContent = ok ? '回答正确。棱柱的两个底面平行且全等，侧面都是平行四边形。' : '回答不正确，正确答案是 A。';
+      explain.disabled = false;
+    });
+    explain.addEventListener('click', function(){ result.style.color='var(--ink-600)'; result.textContent='解析：棱柱的侧棱互相平行且相等，因此每个侧面由两条平行侧棱和底面对应边组成，是平行四边形；不一定是矩形。'; });
+  })();
 
   /* ==== Greeting (time based) ==== */
   function greetingText(){
     var h = new Date().getHours();
     var g = h<6?'夜深了':(h<12?'早上好':(h<18?'下午好':'晚上好'));
-    return g + '，' + (role==='teacher'?'王老师':'同学');
+    return g + '，' + userName();
   }
   function updateGreeting(){
     document.getElementById('greet').textContent = greetingText();
@@ -944,6 +1009,7 @@ svg{display:block}
     marketFilter = filter || '';
     var html = capSkillCards(marketFilter);
     marketData.forEach(function(cat){
+      if(marketCategory !== 'all' && marketCategory !== cat.cat) return;
       var skills = cat.skills.filter(function(s){ return !filter || s.title.indexOf(filter)>-1; });
       if(!skills.length) return;
       html += '<div class="mk-cat"><div class="mk-cat-name">'+cat.cat+'</div><div class="mk-cat-desc">'+cat.desc+'</div>';
@@ -996,7 +1062,7 @@ svg{display:block}
      与后端 edu_agent.capabilities 同源：enabled=开关（默认全开，落 data/capabilities.json），
      running/detail=运行状态，wps_export_ready=教案中心能否经 WPS 导出。 */
   var CAP = {mcp:[], skills:[], wps_export_ready:false, state_file:''};
-  var marketFilter = '';
+  var marketFilter = '', marketCategory = 'all';
   function capLoad(deep){
     var url = '/api/capabilities' + (deep ? '?deep=1' : '');
     return spJson(url).then(function(d){ if(d && d.mcp) CAP = d; return CAP; })
@@ -1029,19 +1095,21 @@ svg{display:block}
                             : '下载这份文档（鼠标悬停选择格式）';
   }
   var svcSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>';
-  function capSwitchHtml(kind, id, on, tip){
-    return '<button class="switch'+(on?' on':'')+'" data-cap-kind="'+kind+'" data-cap-id="'+escHtml(id)+'" title="'+escHtml(tip||'开启 / 关闭')+'"></button>';
+  function capSwitchHtml(kind, id, on, tip, name){
+    var label = (on ? '关闭 ' : '开启 ') + (name || id);
+    return '<button class="switch'+(on?' on':'')+'" role="switch" aria-checked="'+(on?'true':'false')+'" aria-label="'+escHtml(label)+'" data-cap-kind="'+kind+'" data-cap-id="'+escHtml(id)+'" title="'+escHtml(tip||label)+'"></button>';
   }
   function capWireSwitches(box, after){
     box.querySelectorAll('.switch[data-cap-id]').forEach(function(sw){
       sw.addEventListener('click', function(){
         var next = !sw.classList.contains('on');
         sw.classList.toggle('on', next);
+        sw.setAttribute('aria-checked', next ? 'true' : 'false');
         capToggle(sw.dataset.capKind, sw.dataset.capId, next).then(function(r){
-          if(r && r.ok === false){ sw.classList.toggle('on', !next); showToast(r.error || '切换失败', false); return; }
+          if(r && r.ok === false){ sw.classList.toggle('on', !next); sw.setAttribute('aria-checked', next ? 'false' : 'true'); showToast(r.error || '切换失败', false); return; }
           showToast((next ? '已开启　' : '已关闭　') + sw.dataset.capId);
           capLoad().then(function(){ if(after) after(); });
-        }).catch(function(){ sw.classList.toggle('on', !next); showToast('切换失败', false); });
+        }).catch(function(){ sw.classList.toggle('on', !next); sw.setAttribute('aria-checked', next ? 'false' : 'true'); showToast('切换失败', false); });
       });
     });
   }
@@ -1059,7 +1127,7 @@ svg{display:block}
              '<div class="lm"><div class="t">'+escHtml(m.name)+'</div><div class="s">'+escHtml(m.desc)+'</div>'+
              '<div class="s" style="font-size:11.5px;color:var(--ink-400);margin-top:3px">'+escHtml(meta)+'</div></div>'+
              '<span class="st-pill '+st.cls+'"><span class="dot"></span>'+st.text+'</span>'+
-             '<div class="side">'+capSwitchHtml('mcp', m.id, m.enabled)+'</div></div>';
+             '<div class="side">'+capSwitchHtml('mcp', m.id, m.enabled, '', m.name)+'</div></div>';
       });
       var mcpOn = {};
       (CAP.mcp || []).forEach(function(m){ mcpOn[m.id] = m.enabled; });
@@ -1069,9 +1137,9 @@ svg{display:block}
         h += '<div class="lrow"><div class="li">'+svcSvg+'</div>'+
              '<div class="lm"><div class="t">'+escHtml(s.name)+' <span style="font-weight:400;color:var(--ink-400);font-size:11.5px">Skill</span></div>'+
              '<div class="s">'+escHtml(s.desc || '')+'</div>'+
-             '<div class="s" style="font-size:11.5px;color:var(--ink-400);margin-top:3px">'+escHtml('依赖 MCP：'+(s.mcp||'—')+(s.installed?('　·　'+s.size+' B'):'　·　文件缺失'))+'</div></div>'+
+             '<div class="s" style="font-size:11.5px;color:var(--ink-400);margin-top:3px">'+escHtml('依赖 MCP：'+(s.mcp||'—')+(s.builtin?'　·　内置':(s.installed?('　·　'+s.size+' B'):'　·　文件缺失')))+'</div></div>'+
              '<span class="st-pill '+st.cls+'"><span class="dot"></span>'+st.text+'</span>'+
-             '<div class="side">'+capSwitchHtml('skill', s.id, s.enabled)+'</div></div>';
+             '<div class="side">'+capSwitchHtml('skill', s.id, s.enabled, '', s.name)+'</div></div>';
       });
       box.innerHTML = h || '<div class="lrow"><div class="lm"><div class="t">（未注册任何能力）</div></div></div>';
       var foot = document.getElementById('svcFoot');
@@ -1083,6 +1151,7 @@ svg{display:block}
   }
   /* Skill 市场：把真实 Skill（WPS 系列）插到最前面 */
   function capSkillCards(filter){
+    if(marketCategory !== 'all' && marketCategory !== 'system') return '';
     var list = (CAP.skills || []).filter(function(s){
       return !filter || ((s.name||'') + (s.desc||'') + (s.id||'')).indexOf(filter) > -1;
     });
@@ -1116,7 +1185,7 @@ svg{display:block}
       '<div class="sd-sec-desc">与「MCP 服务」页同一状态；关闭后该 Skill 不再注入 Agent 上下文。</div>'+
       '<div class="sd-row"><div class="r-icon">'+(s.icon||'W')+'</div><div class="r-main">'+
       '<div class="r-name">'+escHtml(s.name)+'</div><div class="r-desc">'+escHtml(s.desc||'')+'</div></div>'+
-      capSwitchHtml('skill', s.id, s.enabled)+'</div></div>';
+      capSwitchHtml('skill', s.id, s.enabled, '', s.name)+'</div></div>';
     html += '<div class="sd-sec"><div class="sd-sec-title">文件</div><div class="sd-list">'+
       '<div class="sd-row"><div class="r-main"><div class="r-name">SKILL.md</div>'+
       '<div class="r-desc" style="font-size:11.5px;word-break:break-all">'+escHtml(s.path||'')+'</div>'+
@@ -1147,26 +1216,69 @@ svg{display:block}
     var t = document.getElementById('btnSideToggle'), e = document.getElementById('btnSideExpand');
     if(t) t.addEventListener('click', function(){ setSideCollapsed(true); });
     if(e) e.addEventListener('click', function(){ setSideCollapsed(false); });
-    try{ if(localStorage.getItem('edu_side_collapsed') === '1') SHELL.classList.add('side-collapsed'); }catch(err){}
+    try{
+      var savedSide = localStorage.getItem('edu_side_collapsed');
+      if(savedSide === '1' || (savedSide === null && window.matchMedia('(max-width:767px)').matches)) SHELL.classList.add('side-collapsed');
+    }catch(err){}
+    /* 手机首屏只展示主工作区，右侧能力面板由顶部按钮按需打开。 */
+    if(window.matchMedia('(max-width:767px)').matches){
+      var mobilePanel = document.getElementById('sidePanel');
+      if(mobilePanel) mobilePanel.style.display = 'none';
+    }
   })();
 
   /* ==== Side panel 内容补齐（状态 / 引用 / 知识源 / 会话） ==== */
-  var lastCites = [], spView = 'term';
+  var lastCites = [], spView = 'term', spRenderGeneration = 0;
   var spBody = document.getElementById('spBody');
+  function spRenderCurrent(id, view){ return id === spRenderGeneration && spView === view; }
   function spRow(k, v){ return '<div class="sp-kv"><span class="k">'+escHtml(k)+'</span><span class="v">'+escHtml(v==null?'—':v)+'</span></div>'; }
   function spJson(url, method, body){
     var opt = {method: method||'GET'};
     if(body){ opt.headers = {'Content-Type':'application/json'}; opt.body = JSON.stringify(body); }
     return fetch(url, opt).then(function(r){ return r.json(); });
   }
-  function spRenderTerm(){
+  /* 写操作统一权限闭环：服务端返回 gate=permission 时，在前端确认后原样重试。
+     deny 不重试；若调用方已经做过更详细的确认，可预先传 confirm:true。 */
+  function permissionRetry(result, retry){
+    if(!result || result.gate !== 'permission' || result.policy !== 'ask' || result.need !== 'confirm'){
+      return Promise.resolve(result);
+    }
+    var msg = result.hint || ('这一步会：' + (result.label || '修改本地数据') + '。是否继续？');
+    if(!window.confirm(msg)){
+      return Promise.resolve({ok:false, cancelled:true, error:'已取消操作'});
+    }
+    return retry();
+  }
+  function spJsonPermission(url, method, body){
+    var first = Object.assign({}, body || {});
+    return spJson(url, method || 'POST', first).then(function(result){
+      return permissionRetry(result, function(){
+        return spJson(url, method || 'POST', Object.assign({}, first, {confirm:true}));
+      });
+    });
+  }
+  function spFormPermission(url, form){
+    function send(confirmed){
+      var u = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'confirm=' + (confirmed ? 'true' : 'false');
+      return fetch(u, {method:'POST', body:form}).then(function(r){ return r.json(); });
+    }
+    return send(false).then(function(result){
+      return permissionRetry(result, function(){ return send(true); });
+    });
+  }
+  function spRenderTerm(renderId){
+    if(!renderId) renderId = ++spRenderGeneration;
     spBody.innerHTML = '<div class="sp-h">运行状态</div><div class="sp-card">' +
       spRow('Agent A','课本教练 · 答疑') + spRow('Agent B','教案生成') + spRow('Agent S','总指挥派单') + '</div>';
     spJson('/api/sessions').then(function(d){
-      var cur = d && d.current, list = (d && d.list) || [];
+      if(!spRenderCurrent(renderId, 'term')) return;
+      /* 2026-09-19 修：右面板「当前会话」与左侧高亮统一跟随前端真正打开的会话（CUR），
+         不再读后端的 d.current（它只在会话有新消息时才前进，会与主区显示不一致）。 */
+      var cur = CUR, list = (d && d.list) || [];
       var ms = '';
       if(cur){
         spJson('/api/session/get','POST',{id:cur}).then(function(s){
+          if(!spRenderCurrent(renderId, 'term')) return;
           ms = '<div class="sp-card"><div class="t">'+escHtml((s&&s.title)||'新对话')+'</div>' +
                '<div class="s">'+((s&&s.messages)?s.messages.length:0)+' 条消息 · 当前会话</div></div>';
           spBody.innerHTML = '<div class="sp-h">运行状态</div><div class="sp-card">' +
@@ -1174,20 +1286,41 @@ svg{display:block}
         });
       } else {
         spBody.innerHTML = '<div class="sp-h">运行状态</div><div class="sp-card">' +
-          spRow('对话总数', list.length) + '</div><div class="sp-empty">尚无会话，去聊一句吧</div>';
+          spRow('对话总数', list.length) + '</div><div class="sp-empty">' +
+          (list.length ? '当前未打开对话' : '尚无会话，去聊一句吧') + '</div>';
       }
     }).catch(function(){
+      if(!spRenderCurrent(renderId, 'term')) return;
       spBody.innerHTML = '<div class="sp-h">运行状态</div><div class="sp-empty">服务不可达</div>';
     });
     Promise.all([spJson('/api/textbook').catch(function(){return null;}),
                  spJson('/api/templates').catch(function(){return null;})]).then(function(a){
+      if(!spRenderCurrent(renderId, 'term')) return;
       var tb = a[0], tpl = a[1];
       var rows = spRow('教材', tb && tb.file ? String(tb.file).split('/').pop() : '—');
       rows += spRow('模板', tpl && tpl.templates ? tpl.templates.length : '—');
       spBody.insertAdjacentHTML('beforeend', '<div class="sp-card">' + rows + '</div>');
     });
+    /* 长期记忆 · 自我积累（2026-09-19）：条数 / 待确认冲突 / 自建技能 + 管理入口 */
+    spJson('/api/memory').then(function(m){
+      if(!spRenderCurrent(renderId, 'term')) return;
+      if(!m || !m.ok) return;
+      var st = m.stats || {}, cf = (m.conflicts || []).length;
+      spJson('/api/skills/local').catch(function(){ return null; }).then(function(sk){
+        if(!spRenderCurrent(renderId, 'term')) return;
+        var n = (sk && sk.skills) ? sk.skills.length : 0;
+        spBody.insertAdjacentHTML('beforeend',
+          '<div class="sp-card"><div class="t">长期记忆</div><div class="s">' +
+          (st.facts || 0) + ' 条 · 待确认冲突 ' + cf + ' · 自建技能 ' + n +
+          ' · ' + (st.enabled ? '已开启' : '已关闭') + '</div></div>' +
+          '<div class="sp-act"><button class="pill-btn" id="spMemOpen">管理记忆</button></div>');
+        var b = document.getElementById('spMemOpen');
+        if(b) b.onclick = openMemoryModal;
+      });
+    });
     /* MCP 服务 / Skill 运行状态（WPS 集成） */
     spJson('/api/mcp/status').then(function(d){
+      if(!spRenderCurrent(renderId, 'term')) return;
       if(!d) return;
       var rows = '';
       (d.mcp || []).forEach(function(m){
@@ -1200,6 +1333,89 @@ svg{display:block}
       rows += spRow('WPS 导出', d.wps_export_ready ? '就绪' : '不可用');
       spBody.insertAdjacentHTML('beforeend', '<div class="sp-card"><div class="t">MCP / Skill</div>' + rows + '</div>');
     }).catch(function(){});
+  }
+  /* ==== 长期记忆管理弹层（2026-09-19）====
+     能做：看全部条目 · 钉住/删除 · 手动加一条 · 整理（合并重复+衰减）· 裁决说法冲突 ·
+     看/删自建技能（agent 自己写的 SKILL.md）· 记忆总开关 · 重建历史检索索引。 */
+  function openMemoryModal(){ renderMemoryModal(); }
+  function memAct(url, body, tip){
+    spJson(url, 'POST', body).then(function(r){
+      if(r && r.ok === false){ showToast((tip||'操作') + '失败：' + (r.error || '未知')); }
+      else { showToast(tip || '完成'); }
+      renderMemoryModal();
+    }).catch(function(){ showToast('操作失败：服务不可达', false); });
+  }
+  function renderMemoryModal(){
+    Promise.all([spJson('/api/memory'), spJson('/api/skills/local').catch(function(){return null;})])
+      .then(function(a){
+        var m = a[0] || {}, sk = a[1] || {};
+        var facts = m.facts || [], cfs = m.conflicts || [], st = m.stats || {};
+        var closeBtn = '<button class="m-close wctl" style="position:static;float:right;width:32px;height:32px">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>';
+        var h = closeBtn + '<div class="m-title">长期记忆</div>' +
+          '<div class="m-sub">跨会话记住的偏好与学情 —— 可钉住、可删除、可关闭；关掉后不注入也不自动抽取。</div>';
+        h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px">' +
+             '<button class="pill-btn' + (m.enabled ? ' dark' : '') + '" id="mmToggle">记忆：' + (m.enabled ? '已开启' : '已关闭') + '</button>' +
+             '<button class="pill-btn" id="mmPrune">整理（合并重复 + 衰减）</button>' +
+             '<button class="pill-btn ghost" id="mmReindex">重建历史索引</button></div>';
+        if(cfs.length){
+          h += '<div class="m-sub" style="color:var(--orange);margin-top:12px">待确认的说法冲突（' + cfs.length + '）—— 以哪个为准？</div>';
+          cfs.forEach(function(c){
+            h += '<div class="sp-card" style="margin:6px 0"><div class="s">此前记的：' + escHtml(c.old_text) + '</div>' +
+                 '<div class="s">这次说的：' + escHtml(c.new_text) + '</div>' +
+                 '<div style="display:flex;gap:6px;margin-top:6px">' +
+                 '<button class="pill-btn" data-cf="' + c.id + '" data-keep="new">用新的（删旧）</button>' +
+                 '<button class="pill-btn ghost" data-cf="' + c.id + '" data-keep="old">保留旧的（删新）</button></div></div>';
+          });
+        }
+        h += '<div class="m-sub" style="margin-top:14px">已记住 ' + facts.length + ' 条（钉住 ' + (st.pinned || 0) + '，用过 ' + (st.used_any || 0) + '）</div>';
+        if(!facts.length) h += '<div class="sp-empty">还没有记忆。说「记住：我带的是高二(3)班」就会有一条。</div>';
+        facts.forEach(function(f){
+          h += '<div class="sp-card" style="margin:6px 0;display:flex;gap:8px;align-items:flex-start">' +
+               '<div style="flex:1"><div class="s">' + escHtml(f.text) + '</div>' +
+               '<div class="s" style="color:var(--ink-400)">' +
+               (f.source === 'user' ? '你让我记的' : '自动抽取') + ' · 用过 ' + (f.used || 0) + ' 次' +
+               (f.pinned ? ' · 已钉住' : '') + '</div></div>' +
+               '<button class="pill-btn ghost" data-pin="' + f.id + '" data-on="' + (f.pinned ? 0 : 1) + '">' + (f.pinned ? '取消钉住' : '钉住') + '</button>' +
+               '<button class="pill-btn danger" data-del="' + f.id + '">删除</button></div>';
+        });
+        h += '<div style="display:flex;gap:6px;margin-top:12px">' +
+             '<input id="mmNew" placeholder="手动加一条，例如：我带的是高二(3)班" style="flex:1;height:32px;border:.5px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px">' +
+             '<button class="pill-btn dark" id="mmAdd">添加</button></div>';
+        var skills = (sk.skills || []);
+        h += '<div class="m-sub" style="margin-top:16px">自建技能 ' + skills.length + ' 条 · 让 agent 积累"怎么做"而不只是"记事实"</div>' +
+             '<div class="m-sub" style="color:var(--ink-400)">在对话里说「存成技能：名字」，就会把这一轮的做法写成 SKILL.md，下次自动按它做。</div>';
+        skills.forEach(function(s){
+          h += '<div class="sp-card" style="margin:6px 0;display:flex;gap:8px;align-items:flex-start">' +
+               '<div style="flex:1"><div class="s"><b>' + escHtml(s.name) + '</b> <span style="color:var(--ink-400)">(' + escHtml(s.id) + ')</span></div>' +
+               '<div class="s" style="color:var(--ink-400)">' + escHtml(s.description || '') + ' · ' + (s.body_chars || 0) + ' 字</div></div>' +
+               '<button class="pill-btn danger" data-sdel="' + escHtml(s.id) + '">删除</button></div>';
+        });
+        openModal(h, true);
+        var g = function(id){ return document.getElementById(id); };
+        if(g('mmToggle')) g('mmToggle').onclick = function(){ memAct('/api/memory/toggle', {enabled: !m.enabled}, '记忆开关已更新'); };
+        if(g('mmPrune')) g('mmPrune').onclick = function(){ memAct('/api/memory/prune', {}, '记忆已整理'); };
+        if(g('mmReindex')) g('mmReindex').onclick = function(){
+          spJson('/api/session/reindex', 'POST', {}).then(function(r){ showToast('历史索引已重建（' + ((r && r.indexed) || 0) + ' 个会话）'); });
+        };
+        if(g('mmAdd')) g('mmAdd').onclick = function(){
+          var v = (g('mmNew') || {}).value || '';
+          if(!v.trim()){ showToast('先写点什么'); return; }
+          memAct('/api/memory/add', {text: v, kind: 'preference', source: 'user'}, '已添加');
+        };
+        modal.querySelectorAll('[data-cf]').forEach(function(b){
+          b.onclick = function(){ memAct('/api/memory/conflict/resolve', {id: +b.dataset.cf, keep: b.dataset.keep}, b.dataset.keep === 'new' ? '已按新说法' : '已保留旧说法'); };
+        });
+        modal.querySelectorAll('[data-pin]').forEach(function(b){
+          b.onclick = function(){ memAct('/api/memory/pin', {id: +b.dataset.pin, pinned: b.dataset.on === '1'}, '已更新'); };
+        });
+        modal.querySelectorAll('[data-del]').forEach(function(b){
+          b.onclick = function(){ memAct('/api/memory/delete', {id: +b.dataset.del}, '已删除'); };
+        });
+        modal.querySelectorAll('[data-sdel]').forEach(function(b){
+          b.onclick = function(){ memAct('/api/skill/delete', {id: b.dataset.sdel}, '技能已归档'); };
+        });
+      }).catch(function(){ showToast('读取记忆失败', false); });
   }
   function spRenderDocs(){
     if(!lastCites.length){
@@ -1327,15 +1543,17 @@ svg{display:block}
     if(g('pgBack')) g('pgBack').onclick = function(){ pgLoad(PG.cite); };
     pgLoad(p);
   }
-  function spRenderWeb(){
+  function spRenderWeb(renderId){
     spBody.innerHTML = '<div class="sp-h">知识源</div>';
     spJson('/api/textbook').then(function(tb){
+      if(!spRenderCurrent(renderId, 'web')) return;
       var row = '<div class="sp-card"><div class="t">教材原文（只读）</div><div class="s">' +
                 escHtml(tb && tb.file ? String(tb.file).split('/').pop() : '未配置') +
                 (tb && tb.offset ? ' · 页码偏移 +' + tb.offset : '') + '</div></div>';
       spBody.insertAdjacentHTML('beforeend', row);
     }).catch(function(){});
     spJson('/api/pdfs').then(function(d){
+      if(!spRenderCurrent(renderId, 'web')) return;
       var srcs = (d && d.sources) || [];
       if(srcs.length){
         var h = '<div class="sp-h" style="margin-top:12px">上传 PDF</div>';
@@ -1344,12 +1562,13 @@ svg{display:block}
       }
     }).catch(function(){});
   }
-  function spRenderChat(){
+  function spRenderChat(renderId){
     if(!CUR){
       spBody.innerHTML = '<div class="sp-h">当前会话</div><div class="sp-empty">尚未打开对话<br>在左侧项目树选择一个，或点「＋ 新对话」</div>';
       return;
     }
     spJson('/api/session/get','POST',{id:CUR}).then(function(s){
+      if(!spRenderCurrent(renderId, 'chat')) return;
       var title = (s && s.title) || '新对话', n = (s && s.messages) ? s.messages.length : 0;
       var pn = DEFAULT_PROJ;
       var projs = lsGet(PROJS_KEY, {});
@@ -1367,11 +1586,13 @@ svg{display:block}
       if(g('spActRen')) g('spActRen').onclick = function(){ renameSess(CUR); };
       if(g('spActDel')) g('spActDel').onclick = function(){ delSess(CUR, pn); };
     }).catch(function(){
+      if(!spRenderCurrent(renderId, 'chat')) return;
       spBody.innerHTML = '<div class="sp-h">当前会话</div><div class="sp-empty">读取失败</div>';
     });
   }
   function spRender(v){
     spView = v;
+    var renderId = ++spRenderGeneration;
     document.querySelectorAll('#spQuad .qbtn').forEach(function(b){
       b.classList.toggle('fill', b.dataset.v === v);
     });
@@ -1380,11 +1601,11 @@ svg{display:block}
     if(sp) sp.classList.toggle('sp-doc', v === 'doc');
     /* 文档视图默认把那排按钮收起来，把高度让给文档；用户手动选过就按用户的 */
     if(v === 'doc') spQuadAutoCollapse();
-    if(v==='term') spRenderTerm();
+    if(v==='term') spRenderTerm(renderId);
     else if(v==='docs') spRenderDocs();
-    else if(v==='web') spRenderWeb();
+    else if(v==='web') spRenderWeb(renderId);
     else if(v==='doc') spRenderDoc();            /* ← 文档预览/编辑就在这块侧边面板里 */
-    else if(v==='chat') spRenderChat();
+    else if(v==='chat') spRenderChat(renderId);
   }
   /* 上面那排按钮的收起/展开：状态记 localStorage；没手动选过时，文档视图自动收起 */
   var SP_QUAD_KEY = 'edu_sp_quad_collapsed';
@@ -1493,7 +1714,7 @@ svg{display:block}
         '<button class="pill-btn dark" id="libUp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;vertical-align:-2px;margin-right:5px"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 20h16"/></svg>上传教材 / 资料</button></div>';
       /* —— 教材行（数学必修一，现单本；多教材时后端扩展列表） —— */
       h += '<div class="row-card" style="margin-bottom:16px">' +
-        '<div class="lrow hoverable lib-row" data-k="tb" style="cursor:pointer">' +
+        '<div class="lrow hoverable lib-row" data-k="tb" role="button" tabindex="0" aria-expanded="false" style="cursor:pointer">' +
           '<div class="li" style="color:var(--blue);background:var(--blue-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5v13z"/></svg></div>' +
           '<div class="lm"><div class="t">' + escHtml(st.book || '数学 · 必修第一册') + '</div>' +
           '<div class="s">' + (st.chapters || '?') + ' 章 · ' + (st.blocks == null ? '?' : st.blocks) + ' 知识块 · 已向量化</div></div>' +
@@ -1530,7 +1751,7 @@ svg{display:block}
         pdfs.forEach(function(s){
           var c = 'pdf:' + s.source;
           var active = curCorpus === c;
-          h += '<div class="lrow hoverable lib-row" data-k="' + escHtml(s.source) + '" style="cursor:pointer;background:' + (active ? 'var(--blue-soft)' : '') + '">' +
+          h += '<div class="lrow hoverable lib-row" data-k="' + escHtml(s.source) + '" role="button" tabindex="0" aria-expanded="false" style="cursor:pointer;background:' + (active ? 'var(--blue-soft)' : '') + '">' +
             '<div class="li" style="color:var(--red)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/></svg></div>' +
             '<div class="lm"><div class="t">' + escHtml(s.file || s.source) + '</div>' +
             '<div class="s">' + (s.pages || '?') + ' 页 · ' + (s.chunks || '?') + ' 知识块' + (active ? ' · 当前知识源' : '') + '</div></div>' +
@@ -1546,14 +1767,17 @@ svg{display:block}
       body.innerHTML = h;
       /* 交互：行点击展开/收起 */
       body.querySelectorAll('.lib-row').forEach(function(row){
-        row.addEventListener('click', function(){
+        var toggle = function(){
           var det = row.nextElementSibling;
           if(!det || !det.classList.contains('lib-detail')) return;
           var open = det.style.display !== 'none';
           det.style.display = open ? 'none' : 'block';
+          row.setAttribute('aria-expanded', open ? 'false' : 'true');
           var cv = row.querySelector('.lib-chev');
           if(cv) cv.style.transform = open ? '' : 'rotate(90deg)';
-        });
+        };
+        row.addEventListener('click', toggle);
+        row.addEventListener('keydown', function(e){ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggle(); } });
       });
       var ub = document.getElementById('libUseTextbook');
       if(ub) ub.onclick = function(e){ e.stopPropagation(); curCorpus = 'textbook'; syncToolbars(); libRender(); showToast('知识范围：教材'); };
@@ -1616,16 +1840,34 @@ svg{display:block}
     CUR_TITLE = t || '';
     if(currentView === 'chat') document.getElementById('crumb').innerHTML = '<b>'+escHtml(convLabel(CUR_TITLE))+'</b>';
   }
-  // DeepSeek 式忙态：生成中把「新建任务」(及项目树里的「＋ 新对话」) 置灰——原生 disabled，
-  // 点了没反应、不弹任何提示，回答结束后自动恢复可点。
-  function setBusy(v){
-    BUSY = !!v;
+  /* 并行对话（2026-09-19）：忙态改为「按会话」记录，不再是全局布尔 ——
+     A 会话生成中，切到 B 会话仍可提问，两条 SSE 同时在跑。
+     BUSY 保留为「当前会话正在生成」的派生值，供既有判断沿用（refreshBusyUI/syncBusy 维护）。 */
+  var BUSY_SIDS = {};
+  function busyOf(sid){ return !!(sid && BUSY_SIDS[sid]); }
+  function syncBusy(){ BUSY = busyOf(CUR); }
+  /* 入口不再全局置灰（生成中允许开新对话 / 切会话 = 并行的前提）；
+     能不能发送由 bindComposer 的 busyOf(CUR) 判定（点了没反应，不弹提示，照旧 DeepSeek 式）。 */
+  function refreshBusyUI(){
     var b = document.getElementById('newChatBtn');
-    if(b) b.disabled = BUSY;
-    document.querySelectorAll('.proj-add-sess').forEach(function(e){ e.disabled = BUSY; });
+    if(b) b.disabled = false;
+    document.querySelectorAll('.proj-add-sess').forEach(function(e){ e.disabled = false; });
   }
+  function setSessionBusy(sid, v){
+    if(!sid) return;
+    if(v) BUSY_SIDS[sid] = 1; else delete BUSY_SIDS[sid];
+    syncBusy(); refreshBusyUI();
+  }
+  // 兼容旧签名 setBusy(true/false)：作用于「当前会话」
+  function setBusy(v, sid){ setSessionBusy(sid || CUR, v); }
+
 
   function escHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function normalizeAgentPrefix(s){
+    var rest = String(s || ''), first = '', re = /^\s*(?:\*\*)?\s*(【\s*(?:Agent\s*[ABS]\b|总指挥)[^】]*】)\s*(?:\*\*)?\s*/;
+    while(true){ var m = rest.match(re); if(!m) break; if(!first) first = m[1]; rest = rest.slice(m[0].length); }
+    return first ? ('**' + first + '**' + rest) : String(s || '');
+  }
   function mdLight(s){
     var t = escHtml(s);
     t = t.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
@@ -1886,8 +2128,9 @@ svg{display:block}
     var cp = document.createElement('button'); cp.className='pill-btn'; cp.textContent='复制';
     cp.onclick = function(){ if(navigator.clipboard) navigator.clipboard.writeText(raw).then(function(){ cp.textContent='已复制'; setTimeout(function(){ cp.textContent='复制'; },1500); }); };
     var rg = document.createElement('button'); rg.className='pill-btn'; rg.textContent='重新生成';
-    /* q：该条回答对应的问题（历史恢复时逐条传入，避免"重新生成"用了别的轮次的问题） */
-    rg.onclick = function(){ if(BUSY) return; var qq = q || lastQ; if(!qq) return; sendText(qq); };
+    /* q：该条回答对应的问题（历史恢复时逐条传入，避免"重新生成"用了别的轮次的问题）
+       并行语义：只在「当前会话正在生成」时挡住重新生成（别的会话在跑不影响这里） */
+    rg.onclick = function(){ if(busyOf(CUR)) return; var qq = q || lastQ; if(!qq) return; sendText(qq); };
     row.appendChild(cp); row.appendChild(rg);
     chatDocButton(row, el, raw, q);        /* 第三个按钮：生成文档 → 右侧面板 */
     el.appendChild(row);
@@ -1911,7 +2154,7 @@ svg{display:block}
         lastCites = [];
         var prevQ = '', planBodies = [], lastDoc = null;
         msgs.forEach(function(m){
-          var c = (m.content||'').replace(/^【\*{2}.*?\*{2}】\s*/,'');
+          var c = normalizeAgentPrefix(m.content||'');
           if(!c) return;
           if(m.role==='user'){ prevQ = c; bubbleUser(c); }
           else {
@@ -1949,7 +2192,11 @@ svg{display:block}
     if(!box) return;
     fetch('/api/sessions').then(function(r){ return r.json(); }).then(function(d){
       var list = (d && d.list) || [];
-      var cur = d && d.current;
+      /* 2026-09-19 修：树高亮只跟随「前端真正打开的会话」CUR。
+         旧逻辑用后端 d.current（只有该会话发过消息才会前进）→ 点开旧会话时高亮会停在上一个
+         发过消息的会话上（George 实测：主区是「什么是增函数?」，高亮却在「你会」）。
+         没打开任何会话（CUR=null）时不高亮，避免"高亮一个主区没打开的会话"。 */
+      var cur = CUR;
       var byId = {};
       list.forEach(function(s){ byId[s.id] = s; });
       var arch = lsGet(ARCH_KEY, {});
@@ -1995,8 +2242,8 @@ svg{display:block}
         }
       });
       box.innerHTML = html;
-      // 项目树整段重建：重建后按当前忙态恢复「＋ 新对话」的置灰状态
-      box.querySelectorAll('.proj-add-sess').forEach(function(e){ e.disabled = BUSY; });
+      // 并行对话（2026-09-19）：入口不再置灰，生成中也能开新对话
+      box.querySelectorAll('.proj-add-sess').forEach(function(e){ e.disabled = false; });
       box.querySelectorAll('.proj-row').forEach(function(r){
         r.addEventListener('click', function(){
           var pn = r.dataset.p, o = lsGet(PROJS_KEY+'_open', {});
@@ -2006,16 +2253,19 @@ svg{display:block}
         });
       });
       box.querySelectorAll('.proj-add-sess').forEach(function(b){
-        b.addEventListener('click', function(){ if(BUSY) return; newChatIn(b.dataset.p); });
+        /* 并行对话：生成中也能在任意项目下开新对话 */
+        b.addEventListener('click', function(){ newChatIn(b.dataset.p); });
       });
       box.querySelectorAll('.proj-sess').forEach(function(b){
         b.addEventListener('click', function(e){
           if(e.target.classList.contains('ps-menu')){ openSessMenu(e, b.dataset.sid, b.dataset.p); return; }
-          if(BUSY) return;
+          /* 并行对话：生成中允许切走（原会话的流在后台继续跑完并落库） */
           CUR = b.dataset.sid;
+          syncBusy();
           switchView('chat');
           loadHistory(b.dataset.sid);
           buildTree();
+          if(spView === 'term') spRenderTerm();   /* 高亮/面板一起跟上选中的会话 */
         });
       });
     }).catch(function(){});
@@ -2032,6 +2282,7 @@ svg{display:block}
       resetToHome();
       switchView('chat');
       buildTree();
+      if(spView === 'term') spRenderTerm();   /* 新建后高亮/面板立刻指向新会话 */
     }).catch(function(){});
   }
   function addProject(){
@@ -2091,9 +2342,8 @@ svg{display:block}
       var name = (inp ? inp.value : '').trim().replace(/[\\/:*?"<>|]/g,'_');
       if(!name){ if(inp) inp.focus(); return; }
       if(lsGet(PROJS_KEY, {})[name]){ showToast('同名项目已存在', false); return; }
-      fetch('/api/project/new',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({name:name, base:pjBase})})
-        .then(function(r){ return r.json(); }).then(function(d){
+      spJsonPermission('/api/project/new','POST',{name:name, base:pjBase})
+        .then(function(d){
           if(d && d.ok){
             var projs = lsGet(PROJS_KEY, {});
             projs[name] = [];
@@ -2272,21 +2522,28 @@ svg{display:block}
     document.getElementById('chatInput').value='';
     lastQ = val;
     showThink('正在检索教材 · 可取消');
-    setBusy(true);
+    /* 并行对话：startSid = 本流归属会话，全程跟着这条流走，切到别的会话也不被改写 */
+    var startSid = CUR;
+    setSessionBusy(startSid, true);
     var doFetch = function(sid){
       return fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({text:val,session_id:sid||CUR||'',preset:preset,template_id:tpl,corpus:curCorpus})})
         .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.body.getReader(); })
-        .then(function(reader){ return streamRead(reader); });
+        .then(function(reader){ return streamRead(reader, sid || CUR); });
     };
     var p = CUR ? doFetch(CUR) : fetch('/api/session/new',{method:'POST'}).then(function(r){return r.json();})
-        .then(function(d){ CUR = d.id; return doFetch(CUR); });
-    p.catch(function(e){ hideThink(); showErr('网络错误：'+(e.message||'连接失败')+'。服务是否在运行？'); setBusy(false); });
+        .then(function(d){ CUR = d.id; startSid = d.id; setSessionBusy(d.id, true); return doFetch(CUR); });
+    p.catch(function(e){
+      hideThink(); setSessionBusy(startSid, false);
+      /* 只在用户仍看着这条会话时报错；已切走就不打扰（后台流失败静默） */
+      if(!startSid || startSid === CUR) showErr('网络错误：'+(e.message||'连接失败')+'。服务是否在运行？');
+    });
   }
   function bindComposer(inputId, orbId){
     var input = document.getElementById(inputId);
     var orb = document.getElementById(orbId);
-    var fire = function(){ if(BUSY) return; var v=(input.value||'').trim(); if(!v) return; sendText(v); input.value=''; };
+    /* 并行语义：只有「当前会话」在生成时挡住发送；换到别的会话可以继续问 */
+    var fire = function(){ if(busyOf(CUR)) return; var v=(input.value||'').trim(); if(!v) return; sendText(v); input.value=''; };
     if(orb) orb.addEventListener('click', fire);
     if(input) input.addEventListener('keydown', function(e){
       if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); fire(); }
@@ -2294,16 +2551,20 @@ svg{display:block}
   }
   bindComposer('chatInput','sendOrb');
   bindComposer('chatInput2','sendOrb2');
-  function streamRead(reader){
+  function streamRead(reader, sid){
     hideThink();
+    /* 本流归属会话：切到别的会话后 live()=false，下面的 DOM 写入全部跳过，
+       但流照常读到结束 —— 后端在生成器里已把回答落库，切回来 loadHistory 就能看到。 */
+    var mySid = sid || CUR;
+    function live(){ return mySid === CUR; }
     var bodyEl = bubbleAiStart();
     var dec = new TextDecoder(), buf='', lastEvt=Date.now(), raw='';
     var wt = setInterval(function(){
-      if(Date.now()-lastEvt>8000){ showThink('仍在思考，已等待 '+Math.round((Date.now()-lastEvt)/1000)+'s…'); }
+      if(Date.now()-lastEvt>8000 && live()){ showThink('仍在思考，已等待 '+Math.round((Date.now()-lastEvt)/1000)+'s…'); }
     },3000);
     function pump(){
       return reader.read().then(function(res){
-        if(res.done){ clearInterval(wt); setBusy(false); return; }
+        if(res.done){ clearInterval(wt); setSessionBusy(mySid, false); if(!live()) buildTree(); return; }
         buf += dec.decode(res.value,{stream:true}); lastEvt=Date.now();
         var i;
         while((i=buf.indexOf('\n\n'))>=0){
@@ -2317,10 +2578,14 @@ svg{display:block}
     }
     function handleEv(ev){
       var t = ev.t;
-      if(t==='session'){ CUR = ev.id; setConvTitle(ev.title); }
-      else if(t==='status'){ if(thinkEl) showThink(ev.text||'正在处理…'); }
-      else if(t==='d'){ hideThink(); raw += ev.text||''; bodyEl.innerHTML = mdLight(raw); scrollChat(); }
+      if(t==='session'){ if(!mySid) mySid = ev.id; if(live()){ CUR = ev.id; setConvTitle(ev.title); } }
+      else if(t==='status'){ if(live() && thinkEl) showThink(ev.text||'正在处理…'); }
+      else if(t==='d'){
+        raw += ev.text||'';
+        if(live()){ hideThink(); bodyEl.innerHTML = mdLight(raw); scrollChat(); }
+      }
       else if(t==='done'){
+        if(!live()){ buildTree(); return; }          /* 用户在别的会话：不写 DOM，只刷新树（标题/时间） */
         hideThink();
         if(ev.text && ev.text!==raw){ raw = ev.text; bodyEl.innerHTML = mdLight(raw); }
         lastCites = ev.citations || [];
@@ -2351,8 +2616,8 @@ svg{display:block}
         buildTree();
         if(spView==='docs') spRenderDocs();
       }
-      else if(t==='options'){ hideThink(); renderPlanOptions(bodyEl, ev); scrollChat(); }
-      else if(t==='error'){ hideThink(); PLAN_FILL_PENDING = null; showErr(ev.text||'请求出错'); }
+      else if(t==='options'){ if(live()){ hideThink(); renderPlanOptions(bodyEl, ev); scrollChat(); } }
+      else if(t==='error'){ PLAN_FILL_PENDING = null; if(live()){ hideThink(); showErr(ev.text||'请求出错'); } }
     }
     return pump();
   }
@@ -2377,6 +2642,7 @@ svg{display:block}
   }
   function closeAnyPop(){
     document.querySelectorAll('.tool-pop').forEach(function(p){ p.remove(); });
+    var category = document.getElementById('skillCategory'); if(category) category.setAttribute('aria-expanded','false');
     document.removeEventListener('click', closeAnyPop);
   }
   function openToolPop(anchor, content, width){
@@ -2444,8 +2710,7 @@ svg{display:block}
     showToast('正在上传解析 ' + file.name + ' …');
     var fd = new FormData();
     fd.append('file', file);
-    fetch('/api/pdf/ingest', {method:'POST', body: fd})
-      .then(function(r){ return r.json(); })
+    spFormPermission('/api/pdf/ingest', fd)
       .then(function(d){
         if(d && d.ok){
           var src = d.source || '';
@@ -2466,51 +2731,114 @@ svg{display:block}
   syncToolbars();
 
   /* ==== Settings modal (常规) ==== */
-  var overlay = null, modal = null;
-  function openModal(body, wide){
+  var overlay = null, modal = null, modalReturnFocus = null;
+  function modalKeydown(e){
+    if(!modal) return;
+    if(e.key === 'Escape'){ e.preventDefault(); closeModal(); return; }
+    if(e.key !== 'Tab') return;
+    var focusable = Array.prototype.slice.call(modal.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])'));
+    if(!focusable.length){ e.preventDefault(); modal.focus(); return; }
+    var first = focusable[0], last = focusable[focusable.length - 1];
+    if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  }
+  function openModal(body, wide, label){
     closeModal();
+    modalReturnFocus = document.activeElement;
     overlay = document.createElement('div');
     overlay.className = 'overlay';
     modal = document.createElement('div');
     modal.className = 'modal' + (wide?' m-wide':'');
+    modal.setAttribute('role','dialog');
+    modal.setAttribute('aria-modal','true');
+    modal.setAttribute('tabindex','-1');
     modal.innerHTML = body;
+    var titleEl = modal.querySelector('.m-title,.set-h');
+    modal.setAttribute('aria-label', label || (titleEl && titleEl.textContent.trim()) || '对话框');
     overlay.appendChild(modal);
     overlay.addEventListener('click', function(e){ if(e.target===overlay) closeModal(); });
     document.body.appendChild(overlay);
+    document.addEventListener('keydown', modalKeydown);
     wireModal();
+    var initial = modal.querySelector('.m-close,button:not([disabled]),input:not([disabled])');
+    if(initial) initial.focus(); else modal.focus();
   }
-  function closeModal(){ if(overlay) overlay.remove(); overlay=null; }
+  function closeModal(){
+    if(overlay) overlay.remove();
+    overlay=null; modal=null;
+    document.removeEventListener('keydown', modalKeydown);
+    if(modalReturnFocus && modalReturnFocus.focus) modalReturnFocus.focus();
+    modalReturnFocus=null;
+  }
   function wireModal(){
     var cs = modal.querySelectorAll('.m-close');
-    cs.forEach(function(c){ c.addEventListener('click', closeModal); });
+    cs.forEach(function(c){ if(!c.getAttribute('aria-label')) c.setAttribute('aria-label','关闭对话框'); c.addEventListener('click', closeModal); });
   }
 
-  /* ==== 常规 settings ==== */
-  document.getElementById('btnSettings').addEventListener('click', function(){
-    var body = '<button class="m-close wctl" style="position:static;float:right;width:32px;height:32px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'+
-      '<div class="set-h" style="font-size:22px">常规</div>'+
-      '<div class="sec-h"><h3>外观与语言</h3></div>'+
-      '<div class="set-card">'+
-        '<div class="set-row"><div class="sl"><div class="t">主题</div><div class="s">选择教育 Agent 的界面外观</div></div><button class="switch blue on"></button></div>'+
-        '<div class="set-row"><div class="sl"><div class="t">语言</div><div class="s">选择教育 Agent 的界面语言</div></div><div class="seg"><button class="active">中文</button><button>English</button></div></div>'+
-      '</div>'+
-      '<div class="sec-h" style="margin-top:26px"><h3>教案</h3></div>'+
-      '<div class="set-card">'+
-        '<div class="set-row"><div class="sl"><div class="t">导出位置</div><div class="s">对话与教案中心共用；留空 = 项目内 content/plans</div></div>'+
-        '<span style="font-size:12px;color:var(--ink-500)">'+(dzOutDirGet() ? escHtml(dzOutDirGet()) : 'content/plans')+'</span></div>'+
-      '</div>'+
-      '<div class="sec-h" style="margin-top:26px"><h3>用户</h3></div>'+
-      '<div class="set-card"><div class="set-row"><div class="sl"><div class="t">用户名</div><div class="s">让教育 Agent 记住你的名字</div></div><input class="text-input" value="王老师"></div></div>'+
-      '<div class="sec-h" style="margin-top:26px"><h3>权限</h3></div>'+
-      '<div class="set-card">'+
-        '<div class="set-row"><div class="sl"><div class="t">读取文件</div><div class="s">允许读取工作区与上传的文件</div></div><button class="switch on"></button></div>'+
-        '<div class="set-row"><div class="sl"><div class="t">写入文件</div><div class="s">允许创建或修改文件</div></div><button class="switch on"></button></div>'+
-        '<div class="set-row"><div class="sl"><div class="t">执行命令</div><div class="s">允许运行 Shell 命令（谨慎）</div></div><button class="switch on"></button></div>'+
-        '<div class="set-row"><div class="sl"><div class="t">联网检索</div><div class="s">允许在线检索补充教材外资料</div></div><button class="switch"></button></div>'+
-      '</div>';
-    openModal(body);
-    wireToggles();
+  /* ==== 常规 settings：主题/用户名本地持久化，动作权限以后端策略为唯一真相源 ==== */
+  var THEME_KEY = 'edu_theme', USER_KEY = 'edu_user_name';
+  function userName(){ try{ return (localStorage.getItem(USER_KEY) || '').trim() || (role==='teacher'?'王老师':'同学'); }catch(e){ return role==='teacher'?'王老师':'同学'; } }
+  function themeDark(){ try{ return localStorage.getItem(THEME_KEY) === 'dark'; }catch(e){ return false; } }
+  function applyTheme(dark){
+    document.body.classList.toggle('theme-dark', !!dark);
+    var b = document.getElementById('btnDark');
+    if(b){ b.classList.toggle('active', !!dark); b.setAttribute('aria-pressed', dark?'true':'false'); b.title = dark ? '切换为浅色外观' : '切换为深色外观'; }
+    try{ localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light'); }catch(e){}
+  }
+  function permissionRows(actions){
+    if(!actions || !actions.length) return '<div class="sp-empty">没有可配置的动作权限。</div>';
+    return actions.map(function(a){
+      return '<div class="set-row"><div class="sl"><div class="t">'+escHtml(a.label)+'</div><div class="s">风险：'+escHtml(a.risk||'—')+(a.explicit?' · 已自定义':' · 使用默认策略')+'</div></div>'+
+        '<select class="text-input permission-policy" data-perm="'+escHtml(a.id)+'" aria-label="'+escHtml(a.label)+' 的权限策略" style="min-width:118px;height:32px">'+
+        '<option value="allow"'+(a.policy==='allow'?' selected':'')+'>总是允许</option><option value="ask"'+(a.policy==='ask'?' selected':'')+'>每次询问</option><option value="deny"'+(a.policy==='deny'?' selected':'')+'>禁止</option></select></div>';
+    }).join('');
+  }
+  function openSettings(){
+    spJson('/api/permissions').catch(function(){ return {ok:false,actions:[]}; }).then(function(p){
+      var dark = themeDark(), uname = role === 'teacher' ? '王老师' : '同学';
+      try{ var savedName = (localStorage.getItem(USER_KEY) || '').trim(); if(savedName) uname = savedName; }catch(e){}
+      var body = '<button class="m-close wctl" aria-label="关闭设置" style="position:static;float:right;width:32px;height:32px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'+
+        '<div class="set-h" style="font-size:22px">常规</div>'+
+        '<div class="sec-h"><h3>外观与语言</h3></div><div class="set-card">'+
+          '<div class="set-row"><div class="sl"><div class="t">深色主题</div><div class="s">设置会保存在本机浏览器</div></div><button class="switch blue'+(dark?' on':'')+'" id="setTheme" role="switch" aria-checked="'+(dark?'true':'false')+'" aria-label="深色主题"></button></div>'+
+          '<div class="set-row"><div class="sl"><div class="t">语言</div><div class="s">当前版本仅提供中文</div></div><div class="seg"><button class="active" aria-pressed="true">中文</button><button disabled title="英文界面尚未开放">English</button></div></div></div>'+
+        '<div class="sec-h" style="margin-top:26px"><h3>教案</h3></div><div class="set-card"><div class="set-row"><div class="sl"><div class="t">导出位置</div><div class="s">对话与教案中心共用；留空 = 项目内 content/plans</div></div><span style="font-size:12px;color:var(--ink-500)">'+(dzOutDirGet()?escHtml(dzOutDirGet()):'content/plans')+'</span></div></div>'+
+        '<div class="sec-h" style="margin-top:26px"><h3>用户</h3></div><div class="set-card"><div class="set-row"><div class="sl"><label class="t" for="settingsUserName">用户名</label><div class="s">用于问候语，保存在本机浏览器</div></div><input class="text-input" id="settingsUserName" style="min-width:160px"><button class="pill-btn" id="saveUserName">保存</button></div></div>'+
+        '<div class="sec-h" style="margin-top:26px"><h3>动作权限</h3></div><div class="set-h-sub">总是允许 / 每次询问 / 禁止。修改后立即写入后端权限策略。</div><div class="set-card" id="permissionSettings">'+
+          (p && p.ok ? permissionRows(p.actions||[]) : '<div class="set-row"><div class="sl"><div class="t">权限读取失败</div><div class="s">请确认服务正在运行后重试</div></div><button class="pill-btn" id="retryPermissions">重试</button></div>')+'</div>';
+      openModal(body, false, '常规设置');
+      var nameInput = document.getElementById('settingsUserName'); if(nameInput) nameInput.value = uname;
+      var theme = document.getElementById('setTheme');
+      if(theme) theme.onclick = function(){ var next=!theme.classList.contains('on'); theme.classList.toggle('on',next); theme.setAttribute('aria-checked',next?'true':'false'); applyTheme(next); };
+      var save = document.getElementById('saveUserName');
+      if(save) save.onclick = function(){ var input=document.getElementById('settingsUserName'),v=(input.value||'').trim(); if(!v){ input.focus(); showToast('用户名不能为空',false); return; } try{localStorage.setItem(USER_KEY,v);}catch(e){} updateGreeting(); showToast('用户名已保存'); };
+      modal.querySelectorAll('.permission-policy').forEach(function(sel){
+        sel.addEventListener('change', function(){
+          var previous = Array.prototype.slice.call(sel.options).find(function(o){ return o.defaultSelected; });
+          sel.disabled = true;
+          spJson('/api/permissions/set','POST',{id:sel.dataset.perm,policy:sel.value}).then(function(r){
+            sel.disabled=false;
+            if(!r || !r.ok){ if(previous) sel.value=previous.value; showToast((r&&r.error)||'权限保存失败',false); return; }
+            Array.prototype.forEach.call(sel.options,function(o){ o.defaultSelected=o.value===sel.value; });
+            showToast('权限策略已保存');
+          }).catch(function(){ sel.disabled=false; if(previous) sel.value=previous.value; showToast('权限保存失败：服务不可达',false); });
+        });
+      });
+      var retry = document.getElementById('retryPermissions'); if(retry) retry.onclick = openSettings;
+    });
+  }
+  document.getElementById('btnSettings').addEventListener('click', openSettings);
+  document.getElementById('btnDark').addEventListener('click', function(){ applyTheme(!themeDark()); });
+  document.getElementById('btnHelp').addEventListener('click', function(){
+    var body = '<button class="m-close wctl" aria-label="关闭帮助" style="position:static;float:right;width:32px;height:32px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'+
+      '<div class="m-title">使用帮助</div><div class="m-sub">教育 Agent 会优先依据本地教材回答，并在右侧展示引用、知识源和文档预览。</div>'+
+      '<div class="set-card" style="margin-top:16px"><div class="set-row"><div class="sl"><div class="t">开始对话</div><div class="s">点“新建任务”，选择知识范围和 Agent 模式后输入问题。</div></div></div>'+
+      '<div class="set-row"><div class="sl"><div class="t">教案与 PPT</div><div class="s">教师角色可进入教案中心编排环节，并在右侧预览文档。</div></div></div>'+
+      '<div class="set-row"><div class="sl"><div class="t">权限与外观</div><div class="s">在设置中管理动作权限、用户名和主题。</div></div></div></div>';
+    openModal(body, false, '使用帮助');
   });
+  var aiChip = document.getElementById('aiChip');
+  if(aiChip) aiChip.addEventListener('click', function(e){ e.stopPropagation(); openModelPop(aiChip); });
 
   function wireToggles(){
     modal.querySelectorAll('.switch').forEach(function(t){
@@ -2553,7 +2881,8 @@ svg{display:block}
   }
 
   /* ==== Git 工具 popover ==== */
-  document.getElementById('avat').addEventListener('click', function(){ openGitPop(); });
+  /* 头像只表示当前角色；未接真实 Git 数据前不再暴露硬编码的 Git 原型入口。 */
+  document.getElementById('avat').title = '当前角色';
   var gitPop = null;
   function openGitPop(){
     if(gitPop){ gitPop.remove(); gitPop=null; return; }
@@ -2621,8 +2950,32 @@ svg{display:block}
 
   /* ==== Search filter ==== */
   document.getElementById('skillSearch').addEventListener('input', function(e){ buildMarket(e.target.value.trim()); });
+  document.getElementById('skillCategory').addEventListener('click', function(e){
+    e.stopPropagation();
+    var anchor = e.currentTarget;
+    var opts = [['all','全部'],['system','系统能力'],['教学辅助','教学辅助'],['UI 美化','UI 美化']];
+    var h = '<div style="padding:6px 10px 4px;font-size:11.5px;font-weight:600;color:var(--ink-500)">Skill 分类</div>';
+    opts.forEach(function(o){ h += '<button class="sm-item" data-market-cat="'+o[0]+'">'+o[1]+(marketCategory===o[0]?'<span style="margin-left:auto;color:var(--blue)">✓</span>':'')+'</button>'; });
+    var p = openToolPop(anchor, h, 170);
+    anchor.setAttribute('aria-expanded','true');
+    p.querySelectorAll('[data-market-cat]').forEach(function(b){ b.addEventListener('click', function(){
+      marketCategory=b.dataset.marketCat;
+      anchor.firstChild.nodeValue = opts.filter(function(o){return o[0]===marketCategory;})[0][1];
+      anchor.setAttribute('aria-expanded','false');
+      buildMarket(document.getElementById('skillSearch').value.trim()); closeAnyPop();
+    }); });
+  });
+  document.getElementById('skillAdd').addEventListener('click', function(){
+    var body = '<button class="m-close wctl" aria-label="关闭" style="position:static;float:right;width:32px;height:32px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'+
+      '<div class="m-title">新增 Skill</div><div class="m-sub">当前版本支持由对话沉淀本地 Skill。</div>'+
+      '<div class="set-card" style="margin-top:16px"><div class="set-row"><div class="sl"><div class="t">在对话中创建</div><div class="s">完成一次有效任务后输入“存成技能：技能名称”，系统会把本轮做法写入本地 Skill。</div></div></div></div>'+
+      '<div class="m-foot"><button class="pill-btn dark" id="skillAddChat">去新建对话</button></div>';
+    openModal(body, false, '新增 Skill');
+    document.getElementById('skillAddChat').onclick=function(){ closeModal(); switchView('chat'); newChatIn(DEFAULT_PROJ); };
+  });
 
   /* init */
+  applyTheme(themeDark());
   applyRoleTag();
   buildMarket('');
   capLoad().then(function(){ buildMarket(marketFilter); capSyncDesignBtn(); });
@@ -2637,6 +2990,9 @@ svg{display:block}
             CUR = d.current;
             switchView('chat');
             loadHistory(d.current);
+            /* 2026-09-19：CUR 落地后再刷一次树/面板，保证冷启动时高亮与主区一致 */
+            buildTree();
+            if(spView === 'term') spRenderTerm();
           }
         }).catch(function(){});
     }
@@ -2699,7 +3055,7 @@ svg{display:block}
     var h = '';
     DZ.steps.forEach(function(s, i){
       var b = dzBullets(s).slice(0, 2);
-      h += '<div class="dz-slide" data-i="'+i+'" title="点一下跳到左边第 '+(i+1)+' 个环节">' +
+      h += '<div class="dz-slide" data-i="'+i+'" role="button" tabindex="0" title="跳到左边第 '+(i+1)+' 个环节">' +
         '<div class="mini">' +
           '<div class="t">'+escHtml(s.name)+'</div>' +
           (b.length ? '<ul>'+b.map(function(x){ return '<li>'+escHtml(x)+'</li>'; }).join('')+'</ul>'
@@ -2723,7 +3079,7 @@ svg{display:block}
       h += '<div class="dz-step" data-i="'+i+'"><div class="r1">' +
         '<span class="idx">'+(i+1)+'</span>' +
         '<input class="name" data-i="'+i+'" data-f="name" value="'+escHtml(s.name)+'" placeholder="环节名，例：新知讲授">' +
-        '<input class="min" type="number" min="1" data-i="'+i+'" data-f="minutes" value="'+(parseInt(s.minutes, 10) || 0)+'">' +
+        '<input class="min" type="number" min="1" aria-label="第 '+(i+1)+' 个环节时长（分钟）" data-i="'+i+'" data-f="minutes" value="'+(parseInt(s.minutes, 10) || 0)+'">' +
         '<span style="font-size:11.5px;color:var(--ink-400)">分钟</span><span style="flex:1"></span>' +
         '<span class="dz-ops">' +
           '<button data-act="up" data-i="'+i+'" title="上移">↑</button>' +
@@ -2791,7 +3147,7 @@ svg{display:block}
       }
       dzRender();
     });
-    if(sl) sl.addEventListener('click', function(e){
+    function dzSlideActivate(e){
       var c = e.target && e.target.closest ? e.target.closest('.dz-slide') : null;
       if(!c) return;
       var i = parseInt(c.dataset.i, 10);
@@ -2801,7 +3157,11 @@ svg{display:block}
       var inp = row.querySelector('input.name'); if(inp) inp.focus();
       row.style.borderColor = 'var(--blue)';
       setTimeout(function(){ row.style.borderColor = ''; }, 900);
-    });
+    }
+    if(sl){
+      sl.addEventListener('click', dzSlideActivate);
+      sl.addEventListener('keydown', function(e){ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); dzSlideActivate(e); } });
+    }
     var add = document.getElementById('dzAddStep');
     if(add) add.addEventListener('click', function(){
       DZ.steps.push({ name:'新环节', minutes:5, points:'' });
@@ -2865,7 +3225,7 @@ svg{display:block}
     var label = o.btn ? o.btn.textContent : '';
     var done = function(){ if(o.btn){ o.btn.disabled = false; o.btn.textContent = label; } };
     if(o.btn){ o.btn.disabled = true; o.btn.textContent = (o.kind === 'pptx' ? '正在生成 PPT…' : '正在导出…（约 1 分钟）'); }
-    spJson('/api/wps/export', 'POST', body).then(function(r){
+    spJsonPermission('/api/wps/export', 'POST', body).then(function(r){
       done();
       if(r && r.ok){
         if(o.onResult) o.onResult(expResultHtml(r));

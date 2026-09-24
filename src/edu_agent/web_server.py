@@ -53,6 +53,9 @@ _settings = load_settings()
 _store = SessionStore(path=_settings.sessions_db,
                       migrate_legacy=ROOT / "data" / "web_sessions.json")
 
+# 长期记忆归属的 profile（分隔不同老师/学生的记忆；将来做多用户时按登录身份替换这里）
+MEM_PROFILE = "default"
+
 
 # ---------- 静态 ----------
 app.mount("/files", StaticFiles(directory=str(ROOT / "content" / "plans")), name="plans")
@@ -109,6 +112,7 @@ async def api_tpl_upload(file: UploadFile = File(...)):
 class TplRichSave(BaseModel):
     template: dict
     set_current: bool = True
+    confirm: bool = False      # 权限确认：gate=permission 时前端重试带上（见 edu_agent/permissions.py）
 
 
 @app.post("/api/template/import")
@@ -173,7 +177,11 @@ def api_tpl_rich_get(id: str = ""):
 @app.post("/api/template/rich/save")
 def api_tpl_rich_save(body: TplRichSave):
     """保存编辑后的富模板（落 content/templates/<id>.json，可同时设为 Agent B 的当前模板）。"""
-    from edu_agent import template_rich
+    from edu_agent import permissions, template_rich
+
+    blocked = permissions.guard("template_save", bool(getattr(body, "confirm", False)))
+    if blocked:
+        return blocked
 
     rich = dict(body.template or {})
     src = rich.pop("_upload_path", None)
@@ -212,8 +220,11 @@ def api_tpl_delete(body: dict):
 
     删的正是当前模板时，当前会自动切回内置 `default`——否则 Agent B 会指向一个不存在的模板。
     """
-    from edu_agent import template_rich
+    from edu_agent import permissions, template_rich
 
+    blocked = permissions.guard("template_delete", bool(body.get("confirm")))
+    if blocked:
+        return blocked
     try:
         return template_rich.delete_template(str(body.get("template_id") or ""))
     except Exception as e:  # noqa: BLE001
@@ -410,6 +421,11 @@ def api_project_new(body: dict):
     name = (body.get("name") or "").strip()
     if not name:
         return {"ok": False, "error": "项目名不能为空"}
+    from edu_agent import permissions
+
+    blocked = permissions.guard("project_new", bool(body.get("confirm")))   # 建目录 = 有副作用
+    if blocked:
+        return blocked
     name = re.sub(r'[\\/:*?"<>|]', "_", name)
     base = _fs_safe((body.get("base") or _FS_ROOT))
     if base is None:
@@ -577,6 +593,17 @@ def _strip_agent_tag(md: str) -> str:
     return rest[hit.end():].lstrip("\r\n")
 
 
+def _tagged(mode: str, md: str) -> str:
+    """会话存储统一只保留一个 Agent 标签，兼容模型自己输出标签的情况。"""
+    clean = str(md or "")
+    while True:
+        stripped = _strip_agent_tag(clean)
+        if stripped == clean:
+            break
+        clean = stripped
+    return _tag(mode) + clean
+
+
 
 def _sse(gen):
     def stream():
@@ -677,7 +704,33 @@ def _stream_coach(sid: str, req: ChatReq, text: str):
 
     sess = _store.get(sid) or {"messages": []}
     history = sess["messages"][:-1][-4:]
-    prefix = profile_memory_prefix("default") if req.corpus == "textbook" else ""
+    # 长期记忆：所有模式都注入（原来只在 corpus=textbook 时注入，导致备课时记不住老师偏好）；
+    # 关掉记忆开关时 profile_memory_prefix 自身返回空串（见 memory.memory_enabled）。
+    prefix = profile_memory_prefix(MEM_PROFILE)
+    # 2026-09-19 追加两路（都失败静默，绝不影响回答）：
+    #   ① 自己积累的技能清单（经验→技能回路的"读回"端，见 skills_local）
+    #   ② 相关历史对话片段（跨会话检索，见 session_search）
+    try:
+        from edu_agent import session_search, skills_local
+
+        session_search.refresh()                       # 增量重建（只有新消息的会话才重做）
+        extra = [skills_local.prompt_block(),
+                 session_search.past_prefix(text, exclude_sid=sid)]
+        prefix = "；".join([p for p in ([prefix] + extra) if p])
+    except Exception:  # noqa: BLE001
+        pass
+    # 2026-09-22 追加第三路：知识库 wiki（"学会的讲义"，见 edu_agent/wiki_index.py）。
+    #   与上面两路同一哲学：失败静默、绝不影响回答；命中时把概念页小节拼进前缀，
+    #   并要求回答引用 [[页面名]]（wiki 页本身带 ^[pXX] 页码溯源）。
+    try:
+        from edu_agent import wiki_index
+
+        blk = wiki_index.prompt_block(text, k=2)
+        if blk:
+            prefix = (prefix + "；" if prefix else "") + blk
+    except Exception:  # noqa: BLE001
+        pass
+
     src = None
     pdir = None
     pcol = None
@@ -707,9 +760,33 @@ def _stream_coach(sid: str, req: ChatReq, text: str):
     except Exception as e:
         yield {"t": "error", "text": "A 出错：" + type(e).__name__ + ": " + str(e)}
         return
-    _store.append(sid, "assistant", _tag("A") + final_answer,
+    _store.append(sid, "assistant", _tagged("A", final_answer),
                   meta={"mode": "A", "citations": citations,
                         "pages": sorted({c.get("page") for c in citations if c.get("page")})})
+    # 长期记忆（对齐 DeepSeek「记忆」）：
+    #  ① 显式「记住：xxx」→ 立刻落库，并在流里回执给用户（让用户看得见、可去设置里删）
+    #  ② 其余交给后台线程自动抽取，不阻塞回答、失败静默
+    try:
+        from edu_agent import memory as _mem, memory_auto as _ma, skills_local as _sk
+
+        fact = _ma.explicit_fact(text)
+        if fact and _mem.add_fact(MEM_PROFILE, fact, kind="preference", source="user"):
+            yield {"t": "status", "text": "已记住：" + fact}
+        _ma.extract_async(text, final_answer, MEM_PROFILE)
+        # 经验→技能（2026-09-19）：用户说「存成技能：名字」→ 把这一轮的有效做法写成 SKILL.md，
+        # 下次回答前会随技能清单注入提示词（这才是"自我迭代"的闭环）。
+        hint = _sk.skill_intent(text)
+        if hint is not None and final_answer.strip():
+            saved = _sk.save_from_answer(text, final_answer, hint)
+            if saved and saved.get("ok"):
+                yield {"t": "status", "text": "已存成技能：" + saved["name"]}
+        drop = _sk.delete_intent(text)
+        if drop:
+            gone = _sk.delete_skill(drop)
+            if gone.get("ok"):
+                yield {"t": "status", "text": "已归档技能：" + drop}
+    except Exception:  # noqa: BLE001
+        pass
     done = {"t": "done", "mode": "A", "text": final_answer, "citations": citations}
     if plan_opt.get("suggest"):
         done["plan_options"] = plan_opt
@@ -748,7 +825,7 @@ def _stream_supervisor(sid: str, req: ChatReq, text: str):
             "pages": sorted({c.get("page") for c in citations if c.get("page")})}
     if doc:
         meta["doc"] = doc
-    _store.append(sid, "assistant", _tag("S") + final_text, meta=meta)
+    _store.append(sid, "assistant", _tagged("S", final_text), meta=meta)
     done = {"t": "done", "mode": "S", "agent": "A" if not html_name else "B",
             "text": final_text, "citations": citations, "html": html_name}
     if doc:
@@ -808,7 +885,7 @@ def _stream_planner(sid: str, req: ChatReq, text: str):
                 "pages": sorted({c.page for c in rec.citations if c.page})}
         if doc:
             meta["doc"] = doc
-        _store.append(sid, "assistant", _tag("B") + md, meta=meta)
+        _store.append(sid, "assistant", _tagged("B", md), meta=meta)
         done = {"t": "done", "mode": "B", "text": md, "html": html_name,
                 "title": rec.title, "citations": [c.model_dump() for c in rec.citations]}
         if doc:
@@ -1108,7 +1185,12 @@ def api_pdf_del(body: dict):
 
 
 @app.post("/api/pdf/ingest")
-async def api_pdf_ingest(file: UploadFile = File(...)):
+async def api_pdf_ingest(file: UploadFile = File(...), confirm: bool = False):
+    from edu_agent import permissions
+
+    blocked = permissions.guard("pdf_ingest", confirm)     # 写本地向量库 = 有副作用，先过权限闸门
+    if blocked:
+        return blocked
     if not (file.filename or "").lower().endswith(".pdf"):
         return {"ok": False, "error": "仅支持 .pdf"}
     data = await file.read()
@@ -1153,11 +1235,21 @@ def api_wps_export(body: dict):
     能力关闭时返回 {ok:false, gate:'capability'}，与 MCP/skill 开关状态一致。
     """
     try:
-        return wps_export.export(body.get("payload") or {},
-                                 markdown=str(body.get("markdown") or ""),
-                                 kind=str(body.get("kind") or "docx").lower(),
-                                 out_dir=(body.get("outDir") or "").strip() or None,
-                                 template=body.get("template") or None)
+        from edu_agent import permissions
+
+        _kind = str(body.get("kind") or "docx").lower()
+        blocked = permissions.guard("export_pptx" if _kind in ("pptx", "ppt") else "export_docx",
+                                    bool(body.get("confirm")))      # 落盘 = 有副作用，先过权限闸门
+        if blocked:
+            return blocked
+        # WPS 可用 → 照旧；WPS 不可用且本机有 WSL 后路 → 改道 WSL 渲染（见 edu_agent/wsl_docx.py）
+        from edu_agent import wsl_docx
+
+        return wsl_docx.export_best(body.get("payload") or {},
+                                   markdown=str(body.get("markdown") or ""),
+                                   kind=str(body.get("kind") or "docx").lower(),
+                                   out_dir=(body.get("outDir") or "").strip() or None,
+                                   template=body.get("template") or None)
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": type(e).__name__ + ": " + str(e)}
 
@@ -1172,6 +1264,180 @@ def api_wps_download(path: str = ""):
     if not p.is_file() or p.suffix.lower() not in (".docx", ".pptx", ".doc", ".ppt", ".pdf"):
         return JSONResponse({"ok": False, "error": "仅支持回传导出的 Office 文件"}, status_code=404)
     return FileResponse(str(p), filename=p.name)
+
+
+# ---------- 长期记忆（对齐 DeepSeek「记忆」：跨会话 · 可见 · 可删 · 可关） ----------
+@app.get("/api/memory")
+def api_memory_get():
+    """记忆面板数据：开关状态 + 全部条目 + 当前会注入的整段前缀（便于自证）。"""
+    from edu_agent import memory
+
+    return {"ok": True, "enabled": memory.memory_enabled(MEM_PROFILE), "profile": MEM_PROFILE,
+            "facts": memory.list_facts(MEM_PROFILE),
+            "stats": memory.stats(MEM_PROFILE),
+            "conflicts": memory.list_conflicts(MEM_PROFILE),
+            "prefix": memory.profile_memory_prefix(MEM_PROFILE)}
+
+
+@app.post("/api/memory/add")
+def api_memory_add(body: dict):
+    from edu_agent import memory
+
+    fid = memory.add_fact(MEM_PROFILE, str(body.get("text") or ""),
+                          kind=str(body.get("kind") or "preference"),
+                          source=str(body.get("source") or "user"))
+    if not fid:
+        return {"ok": False, "error": "内容为空，或与已有记忆重复", "facts": memory.list_facts(MEM_PROFILE)}
+    return {"ok": True, "id": fid, "facts": memory.list_facts(MEM_PROFILE)}
+
+
+@app.post("/api/memory/delete")
+def api_memory_delete(body: dict):
+    from edu_agent import memory
+
+    try:
+        fid = int(body.get("id") or 0)
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "id 非法"}
+    ok = memory.delete_fact(MEM_PROFILE, fid)
+    return {"ok": ok, "facts": memory.list_facts(MEM_PROFILE)}
+
+
+@app.post("/api/memory/clear")
+def api_memory_clear():
+    from edu_agent import memory
+
+    return {"ok": True, "removed": memory.clear_facts(MEM_PROFILE), "facts": []}
+
+
+@app.post("/api/memory/toggle")
+def api_memory_toggle(body: dict):
+    """记忆总开关：关掉后不注入、不自动抽取（已存条目保留）。"""
+    from edu_agent import memory
+
+    memory.set_memory_enabled(MEM_PROFILE, bool(body.get("enabled", True)))
+    return {"ok": True, "enabled": memory.memory_enabled(MEM_PROFILE)}
+
+
+@app.post("/api/memory/extract")
+def api_memory_extract(body: dict):
+    """手动跑一次抽取（补记/调试）：显式规则 + 一次低温模型抽取。"""
+    from edu_agent import memory, memory_auto
+
+    added = memory_auto.extract_and_store(str(body.get("text") or ""),
+                                         str(body.get("answer") or ""), MEM_PROFILE)
+    return {"ok": True, "added": added, "facts": memory.list_facts(MEM_PROFILE)}
+
+
+# ---------- 记忆治理 / 冲突确认（2026-09-19，见 edu_agent.memory 的治理段） ----------
+@app.post("/api/memory/prune")
+def api_memory_prune(body: dict):
+    """整理记忆：合并近重复 + 过期衰减 + 超量裁剪（钉住的永不删）。"""
+    from edu_agent import memory
+
+    r = memory.prune(MEM_PROFILE,
+                     cap=int(body.get("cap") or 30),
+                     ttl_days=float(body.get("ttl_days") or 180))
+    r.update({"ok": True, "stats": memory.stats(MEM_PROFILE),
+              "facts": memory.list_facts(MEM_PROFILE)})
+    return r
+
+
+@app.post("/api/memory/pin")
+def api_memory_pin(body: dict):
+    """钉住/取消钉住某条记忆（钉住的不参与衰减与裁剪）。"""
+    from edu_agent import memory
+
+    ok = memory.set_pinned(MEM_PROFILE, int(body.get("id") or 0), bool(body.get("pinned", True)))
+    return {"ok": ok, "facts": memory.list_facts(MEM_PROFILE)}
+
+
+@app.post("/api/memory/conflict/resolve")
+def api_memory_conflict_resolve(body: dict):
+    """用户裁决冲突：keep='new' 用新说法，keep='old' 保留旧说法。"""
+    from edu_agent import memory
+
+    r = memory.resolve_conflict(MEM_PROFILE, int(body.get("id") or 0), str(body.get("keep") or "new"))
+    r["facts"] = memory.list_facts(MEM_PROFILE)
+    r["conflicts"] = memory.list_conflicts(MEM_PROFILE)
+    r["stats"] = memory.stats(MEM_PROFILE)
+    return r
+
+
+# ---------- 经验→技能：agent 自己写 SKILL.md（见 edu_agent/skills_local.py） ----------
+@app.get("/api/skills/local")
+def api_skills_local():
+    """本机自建技能（与第三方 wps-skills 分开列）。"""
+    from edu_agent import skills_local
+
+    return {"ok": True, "skills": skills_local.list_skills(),
+            "dir": str(skills_local.skills_dir())}
+
+
+@app.post("/api/skill/save")
+def api_skill_save(body: dict):
+    from edu_agent import skills_local
+
+    r = skills_local.save_skill(str(body.get("id") or body.get("name") or ""),
+                                str(body.get("name") or ""),
+                                str(body.get("description") or ""),
+                                str(body.get("body") or ""),
+                                tags=[t for t in (body.get("tags") or []) if isinstance(t, str)])
+    r["skills"] = skills_local.list_skills()
+    return r
+
+
+@app.get("/api/skill/get")
+def api_skill_get(id: str = ""):
+    from edu_agent import skills_local
+
+    return {"ok": True, "id": id, "text": skills_local.read_skill(id)}
+
+
+@app.post("/api/skill/delete")
+def api_skill_delete(body: dict):
+    """删除=归档到 skills/_archive/（不物理删，可找回）。"""
+    from edu_agent import skills_local
+
+    r = skills_local.delete_skill(str(body.get("id") or ""))
+    r["skills"] = skills_local.list_skills()
+    return r
+
+
+# ---------- 跨会话检索（FTS5+trigram，见 edu_agent/session_search.py） ----------
+@app.get("/api/session/search")
+def api_session_search(q: str = "", limit: int = 5, sid: str = ""):
+    from edu_agent import session_search
+
+    return {"ok": True,
+            "hits": session_search.search(q, limit=max(1, min(limit, 20)),
+                                          exclude_sid=sid or None)}
+
+
+@app.post("/api/session/reindex")
+def api_session_reindex():
+    from edu_agent import session_search
+
+    return {"ok": True, **session_search.refresh(force=True)}
+
+
+# ---------- 操作权限（动作级 allow / ask / deny，见 edu_agent/permissions.py） ----------
+@app.get("/api/permissions")
+def api_permissions_get():
+    """权限面板数据：所有可授权动作 + 当前策略（含未表态时的默认值）。"""
+    from edu_agent import permissions
+
+    return {"ok": True, "actions": permissions.list_policies()}
+
+
+@app.post("/api/permissions/set")
+def api_permissions_set(body: dict):
+    """改一个动作的策略：allow（总是允许）/ ask（每次问）/ deny（禁止）。"""
+    from edu_agent import permissions
+
+    r = permissions.set_policy(str(body.get("id") or ""), str(body.get("policy") or ""))
+    r["actions"] = permissions.list_policies()
+    return r
 
 
 # ---------- 启动预热（自 api.py 移植：embedding + rerank 常驻） ----------

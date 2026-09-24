@@ -215,10 +215,16 @@ def _table_element(tbl) -> dict:
 def docx_to_rich(path: str | Path, template_id: str | None = None,
                  name: str | None = None) -> dict:
     """解析 .docx -> 富模板 dict（不落盘）。标题行开新板块，其余归到当前板块。"""
-    from docx import Document
-    from docx.oxml.ns import qn
-    from docx.table import Table
-    from docx.text.paragraph import Paragraph
+    try:
+        from docx import Document
+        from docx.oxml.ns import qn
+        from docx.table import Table
+        from docx.text.paragraph import Paragraph
+    except Exception:  # noqa: BLE001
+        # 本机 python-docx 不可用（Windows 智能应用控制拦 lxml）→ 丢给 WSL 里跑同一套实现
+        from edu_agent import wsl_docx
+
+        return wsl_docx.docx_to_rich(path, template_id=template_id, name=name)
 
     path = Path(path)
     if not path.exists():

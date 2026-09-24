@@ -21,6 +21,7 @@ from edu_agent import template_rich as tr      # noqa: E402
 from edu_agent import template_spec as ts      # noqa: E402
 from edu_agent import web_server as ws         # noqa: E402
 from edu_agent import wps_export as wx         # noqa: E402
+from edu_agent import permissions as perms     # noqa: E402
 
 
 def _make_docx(path: Path) -> None:
@@ -237,6 +238,8 @@ class TestUpgradeDoesNotDeleteOriginal(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         self.dir = Path(self._tmp.name)
         self._old = (tr.TEMPLATES_DIR, tr.ORIG_DIR)
+        self._old_policy_file = perms.POLICY_FILE
+        perms.POLICY_FILE = self.dir / "permissions.json"
         tr.TEMPLATES_DIR = self.dir
         tr.ORIG_DIR = self.dir / "orig"
         tr.ORIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -250,6 +253,7 @@ class TestUpgradeDoesNotDeleteOriginal(unittest.TestCase):
 
     def tearDown(self):
         tr.TEMPLATES_DIR, tr.ORIG_DIR = self._old
+        perms.POLICY_FILE = self._old_policy_file
 
     def test_upgrade_then_save_keeps_orig(self):
         up = ws.api_tpl_upgrade({"template_id": "我的模板"})
@@ -257,7 +261,11 @@ class TestUpgradeDoesNotDeleteOriginal(unittest.TestCase):
         self.assertNotIn("_upload_path", up["template"], "升级不得把原件标记成可删的临时件")
         self.assertTrue(up["template"].get("_keep_source"))
         # 模拟前端保存
-        res = ws.api_tpl_rich_save(ws.TplRichSave(template=up["template"], set_current=False))
+        blocked = ws.api_tpl_rich_save(ws.TplRichSave(template=up["template"], set_current=False))
+        self.assertEqual(blocked.get("gate"), "permission")
+        self.assertEqual(blocked.get("need"), "confirm")
+        res = ws.api_tpl_rich_save(ws.TplRichSave(
+            template=up["template"], set_current=False, confirm=True))
         self.assertTrue(res["ok"], res.get("error"))
         self.assertTrue(self.orig.exists(), "模板原件被删了！（回归失败）")
         self.assertTrue(tr.is_rich("我的模板"))
@@ -277,7 +285,8 @@ class TestUpgradeDoesNotDeleteOriginal(unittest.TestCase):
         tmp.write_bytes(self.orig.read_bytes())
         rich = tr.docx_to_rich(tmp, template_id="上传模板", name="上传模板")
         rich["_upload_path"] = str(tmp)
-        res = ws.api_tpl_rich_save(ws.TplRichSave(template=rich, set_current=False))
+        res = ws.api_tpl_rich_save(ws.TplRichSave(
+            template=rich, set_current=False, confirm=True))
         self.assertTrue(res["ok"], res.get("error"))
         self.assertFalse(tmp.exists(), "data/ 下的上传临时件应被清理")
 
@@ -323,6 +332,8 @@ class TestDeleteTemplate(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         self.dir = Path(self._tmp.name)
         self._old = (tr.TEMPLATES_DIR, tr.ORIG_DIR, ts.TEMPLATES_DIR, ts.CURRENT_FILE)
+        self._old_policy_file = perms.POLICY_FILE
+        perms.POLICY_FILE = self.dir / "permissions.json"
         tr.TEMPLATES_DIR = ts.TEMPLATES_DIR = self.dir
         tr.ORIG_DIR = self.dir / "orig"
         # CURRENT_FILE 是模块级常量，测试里必须一起指走，否则会写进真实仓库
@@ -335,6 +346,7 @@ class TestDeleteTemplate(unittest.TestCase):
 
     def tearDown(self):
         tr.TEMPLATES_DIR, tr.ORIG_DIR, ts.TEMPLATES_DIR, ts.CURRENT_FILE = self._old
+        perms.POLICY_FILE = self._old_policy_file
 
     def test_delete_moves_json_and_orig(self):
         res = tr.delete_template("我的模板")
@@ -375,10 +387,14 @@ class TestDeleteTemplate(unittest.TestCase):
         self.assertEqual(ts.get_template("default").source, "builtin", "应恢复成内置骨架")
 
     def test_endpoint_wraps_it(self):
-        res = ws.api_tpl_delete({"template_id": "我的模板"})
+        blocked = ws.api_tpl_delete({"template_id": "我的模板"})
+        self.assertEqual(blocked.get("gate"), "permission")
+        self.assertEqual(blocked.get("need"), "confirm")
+        res = ws.api_tpl_delete({"template_id": "我的模板", "confirm": True})
         self.assertTrue(res["ok"], res.get("error"))
-        self.assertFalse(ws.api_tpl_delete({"template_id": "我的模板"})["ok"], "再删一次应报不存在")
-        self.assertFalse(ws.api_tpl_delete({})["ok"], "缺 id 应报错")
+        self.assertFalse(ws.api_tpl_delete({"template_id": "我的模板", "confirm": True})["ok"],
+                         "再删一次应报不存在")
+        self.assertFalse(ws.api_tpl_delete({"confirm": True})["ok"], "缺 id 应报错")
 
 
 if __name__ == "__main__":

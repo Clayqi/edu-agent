@@ -747,9 +747,14 @@ def export(payload: dict, markdown: str = "", kind: str = "docx",
     out_dir: 自选导出目录（空 = content/plans）
     返回 {ok, path, filename, kind, outDir, calls/failed 或 slides/engine, format_ok, download_url, detail}
     """
-    ok, why = capabilities.wps_available()
-    if not ok:
-        return {"ok": False, "error": why, "gate": "capability"}
+    # WSL 渲染进程里（EDU_WSL_RENDER=1，由 scripts/wsl_docx_bridge.py 设置）跳过闸门：
+    # 那条路上是 python-docx/pptx 本地生成，不需要 WPS 桥接（本机没装那套第三方 skills）。
+    # 注意：**只在桥接进程里跳过**（环境变量控制），export() 自身「能力不可用即明确失败」的
+    # 契约不变 —— 改由调用方决定是否改道，见 edu_agent/wsl_docx.export_best()。
+    if os.environ.get("EDU_WSL_RENDER") != "1":
+        ok, why = capabilities.wps_available()
+        if not ok:
+            return {"ok": False, "error": why, "gate": "capability"}
 
     kind = "pptx" if str(kind).lower() in ("pptx", "ppt") else "docx"
     out = resolve_out_dir(out_dir)
@@ -767,6 +772,30 @@ def export(payload: dict, markdown: str = "", kind: str = "docx",
 
     # ---------- Word：WPS COM 优先（真·集成路径），未落盘则 python-docx 本地兜底 ----------
     out_path = out / (_safe_name(title) + ".docx")
+
+    # WSL 渲染后端（EDU_WSL_RENDER=1，见 src/edu_agent/wsl_docx.py）：本进程没有 WPS COM 可调，
+    # 直接用本地 python-docx 生成。必须放在「先试 WPS MCP」之前 —— 原逻辑在 MCP 不可用时会直接
+    # return 失败，根本走不到下面那段「未落盘 → python-docx 兜底」。
+    if os.environ.get("EDU_WSL_RENDER") == "1":
+        steps = [s for s in (payload.get("steps") or []) if isinstance(s, dict)]
+        grade = str(payload.get("grade") or "").strip()
+        try:
+            info = docx_native(title, grade, steps, out_path, markdown=markdown)
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": f"本地生成 .docx 失败：{type(e).__name__}: {e}", "gate": "local"}
+        if not out_path.exists():
+            return {"ok": False, "error": "本地生成 .docx 未落盘", "gate": "local"}
+        try:
+            fmt_ok: bool | None = out_path.read_bytes()[:2] == b"PK"
+        except OSError:
+            fmt_ok = None
+        return {"ok": True, "path": str(out_path), "filename": out_path.name, "kind": "docx",
+                "outDir": str(out), "engine": "python-docx（WSL 本地生成）", "opened": "none",
+                "format_ok": fmt_ok, "paragraphs": info.get("paragraphs"),
+                "url": "/files/" + out_path.name,
+                "download_url": "/api/wps/download?path=" + str(out_path).replace("\\", "/"),
+                "detail": f"已写入 {out_path.name}（python-docx 本地生成 · 未自动打开）"}
+
     calls = (markdown_calls(markdown, title, out_path) if markdown.strip()
              else design_calls(payload, out_path))
 

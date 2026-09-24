@@ -25,6 +25,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import shutil
 import sys
 from typing import Any, Iterable
@@ -66,6 +67,23 @@ _tools_cache: list[str] | None = None
 
 
 # ---------- 启动参数 ----------
+# mcp SDK 在 server.env is None 时用 get_default_environment() 起子进程 —— 那是一份
+# 白名单（PATH / HOME / ...），**PYTHONPATH 不在其中**。见 client/stdio/__init__.py:
+#   env=({**get_default_environment(), **server.env} if server.env is not None else get_default_environment())
+# .venv 解释器自带 site-packages 时这事无所谓；但 SAC 拦掉 venv python 后回退到
+# uv python + PYTHONPATH 挂 site-packages，python 写的 MCP 服务（math_server）就会
+# `ModuleNotFoundError: No module named 'sympy'`，而异常被 except 吞成空列表 ——
+# 界面只表现为「能力不可用 / tools: 0」，看不出原因（2026-09-24 实测）。
+# 这里只补必需的几个键，不把整个环境交给子进程（第三方 MCP server 不因此拿到 API key）。
+_INHERIT_ENV_KEYS = ("PYTHONPATH", "PYTHONHOME", "PYTHONUTF8",
+                     "PYTHONIOENCODING", "VIRTUAL_ENV")
+
+
+def _server_env() -> dict[str, str]:
+    """补 mcp SDK 默认会过滤掉、但 python 版 MCP 服务必需的进程环境变量。"""
+    return {k: os.environ[k] for k in _INHERIT_ENV_KEYS if os.environ.get(k)}
+
+
 def server_params(server_id: str):
     """按服务定义生成 stdio 启动参数（python 服务用当前解释器，node 服务用 node）。"""
     from mcp import StdioServerParameters
@@ -77,8 +95,10 @@ def server_params(server_id: str):
         exe = shutil.which("node")
         if not exe:
             raise RuntimeError("未检测到 Node.js")
-        return StdioServerParameters(command=exe, args=[str(spec.entry())], env=None)
-    return StdioServerParameters(command=sys.executable, args=[str(spec.entry())], env=None)
+        return StdioServerParameters(command=exe, args=[str(spec.entry())],
+                                     env=_server_env())
+    return StdioServerParameters(command=sys.executable, args=[str(spec.entry())],
+                                 env=_server_env())
 
 
 def _gate(server_id: str) -> bool:

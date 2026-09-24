@@ -152,6 +152,12 @@ SKILL_SPECS: tuple[SkillSpec, ...] = (
     SkillSpec(id="doc-session-preview", name="会话文档预览", icon="D",
               desc="AI 生成文档后，在会话页右侧唤起多格式预览面板（内存渲染，不落盘、不调用 WPS）",
               category="文档", builtin=True),
+    # 2026-09-23：PPT 优化（读已有 .pptx → 体检 → 保守原地统一 → 内容零丢失校验）
+    # **默认关闭**：它会在任务目录写中间文件、并改写老师的稿，属于"要显式开"的能力。
+    SkillSpec(id="ppt-polish", name="PPT 优化", icon="P",
+              desc="在右侧面板里读入已有 .pptx：体检（页数/字体/字号/密度）、统一字体与字号层级、清理动画，"
+                   "并在导出后逐页校验内容没被改动",
+              category="文档", builtin=True, default_on=False),
 )
 
 _KIND_SPECS: dict[str, dict[str, McpSpec | SkillSpec]] = {
@@ -385,12 +391,32 @@ def snapshot(deep: bool = False) -> dict:
     return {"mcp": mcp_rows, "skills": skill_rows, "skills_local": local_rows,
             "wps_export_ready": wps_available()[0],
             "session_doc_preview_ready": session_preview_ready(),
+            "ppt_polish_ready": ppt_polish_ready(),
             "state_file": str(state_path())}
 
 
 def session_preview_ready() -> bool:
     """会话内文档预览是否启用（只影响会话页右侧预览面板的渲染，不影响任何导出）。"""
     return is_enabled("skill", "doc-session-preview")
+
+
+def ppt_polish_enabled() -> bool:
+    """PPT 优化开关（默认关）。开不开都不影响 WPS 导出与教案生成。"""
+    return is_enabled("skill", "ppt-polish")
+
+
+def ppt_polish_ready() -> bool:
+    """PPT 优化是否可用 = 开关开着 **且** ppt-master 装好（脚本齐 + 依赖齐）。
+
+    任何一项不满足，面板上的「优化」按钮就该灰显并说明原因——比"点了报错"友好。
+    """
+    if not ppt_polish_enabled():
+        return False
+    try:
+        from edu_agent import ppt_polish  # 延迟导入：没装也不该拖慢能力快照
+        return bool(ppt_polish.status().get("intake_ready"))
+    except Exception:  # noqa: BLE001 自检失败=不可用，不抛
+        return False
 
 
 def wps_available() -> tuple[bool, str]:

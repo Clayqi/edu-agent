@@ -165,11 +165,17 @@ def _read_json(p: Path) -> dict:
 
 
 def _pick_font(block: dict) -> str:
-    """从主题字体块里取"实际会用的"字体名：优先 ea（中文），其次 latin，再取 Hans 补充面。"""
+    """从主题字体块里取"实际会用的"字体名。
+
+    顺序按 ppt-master 的 beautify 档规定：**ea（东亚）优先，ea 空时取 scripts.Hans（简中），最后才 latin**
+    —— 顺序反了会把中文稿的字体判成 Calibri（本项目实测踩过）。
+    """
     if not isinstance(block, dict):
         return ""
-    return (block.get("ea") or block.get("latin")
-            or (block.get("scripts") or {}).get("Hans") or "")
+    return (block.get("ea")
+            or (block.get("scripts") or {}).get("Hans")
+            or (block.get("scripts") or {}).get("Hant")
+            or block.get("latin") or "")
 
 
 def intake(job: dict) -> dict:
@@ -328,8 +334,12 @@ def _action_font(prs, target_ea: str, target_latin: str) -> dict:
     return {"runs": runs}
 
 
-def _action_size(prs, anchors: list[float], tolerance: float = 1.0) -> dict:
-    """把散落的字号归并到最近的层级锚（保留相对层级，不做等比缩放）。"""
+def _action_size(prs, anchors: list[float], tolerance: float = 0.6) -> dict:
+    """把散落的字号归并到最近的层级锚（保留相对层级，不做等比缩放）。
+
+    tolerance 只用来吃掉浮点噪声（0.6pt 以内不折腾）；差 1pt 这种"散落字号"要真的归并
+    —— 否则"统一字号层级"等于没做（本项目实测踩过：容差写成 1.0 时 23pt 不会被并到 24pt）。
+    """
     from pptx.util import Pt  # noqa: PLC0415
     changed, seen = 0, {}
     for _page, tf in _iter_text_frames(prs):

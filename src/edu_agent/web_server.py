@@ -21,7 +21,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import sys
+import tempfile
 import threading
 import uuid
 from pathlib import Path
@@ -37,6 +39,7 @@ from pydantic import BaseModel  # noqa: E402
 
 from edu_agent import logsetup, pdf_upload, plan_html, planner, routing  # noqa: E402
 from edu_agent import capabilities, wps_export  # noqa: E402  能力开关 + WPS 导出
+from edu_agent import ppt_polish  # noqa: E402  PPT 优化（体检 / 原地统一 / 内容校验）
 from edu_agent.config import load_settings  # noqa: E402
 from edu_agent.host.store import SessionStore  # noqa: E402
 from edu_agent.template_spec import (  # noqa: E402
@@ -1223,7 +1226,9 @@ def api_mcp_status():
     return {"mcp": snap["mcp"], "skills": snap["skills"],
             "wps_export_ready": capabilities.wps_available()[0],
             # 会话内文档预览是否启用（skill: doc-session-preview；只影响会话页右侧预览面板）
-            "session_doc_preview_ready": capabilities.session_preview_ready()}
+            "session_doc_preview_ready": capabilities.session_preview_ready(),
+            # PPT 优化可用性（skill: ppt-polish 开关 ∧ ppt-master 装好；见 docs/17）
+            "ppt_polish_ready": capabilities.ppt_polish_ready()}
 
 
 # ---------- WPS 导出（教案中心 -> .docx / .pptx） ----------
@@ -1438,6 +1443,113 @@ def api_permissions_set(body: dict):
     r = permissions.set_policy(str(body.get("id") or ""), str(body.get("policy") or ""))
     r["actions"] = permissions.list_policies()
     return r
+
+
+# ---------- PPT 优化（2026-09-23，一期：体检 / 保守原地统一 / 内容零丢失校验）----------
+# 与「WPS 落盘导出」是两条独立链路：
+#   · 本组接口：读**别人的** .pptx → 体检 → 原地保守统一 → 逐页校验内容没被改 → 下载新文件；
+#   · /api/wps/export：把**我们的**教案落到 docx/pptx。
+# 共同点：真正落盘都在服务端，进程里不碰 WPS COM。
+class PptPolishReq(BaseModel):
+    job_id: str = ""
+    actions: list[str] = []          # font / size / strip-anim
+    target_ea: str = ""              # 中文字体（默认 微软雅黑）
+    target_latin: str = ""           # 西文字体（默认 Calibri）
+    size_anchors: list[float] = []   # 字号层级锚（默认 44/32/28/24/20/18/16/14/12）
+
+
+def _ppt_gate():
+    """门禁：skill 关 → 403；没装 → 424（并带上自检，前端好提示怎么装）。"""
+    from edu_agent import capabilities
+
+    if not capabilities.ppt_polish_enabled():
+        return JSONResponse({"ok": False, "gate": "capability",
+                             "error": "「PPT 优化」已关闭（设置 → Skill 市场 → PPT 优化）"}, status_code=403)
+    st = ppt_polish.status()
+    if not st.get("intake_ready"):
+        return JSONResponse({"ok": False, "gate": "install", "error": "ppt-master 未就绪",
+                             "hint": "跑 deploy/setup_ppt_master.cmd（或设 PPT_MASTER_HOME）",
+                             "status": st}, status_code=424)
+    return None
+
+
+@app.get("/api/ppt/status")
+def api_ppt_status():
+    """安装自检 + 开关状态（**不设门禁**：面板要靠它决定按钮可不可点）。"""
+    from edu_agent import capabilities
+
+    st = ppt_polish.status()
+    return {"ok": True, "enabled": capabilities.ppt_polish_enabled(),
+            "ready": capabilities.ppt_polish_ready(), "install": st,
+            "actions": [{"id": k, "label": v} for k, v in ppt_polish._ACTION_LABELS.items()]}
+
+
+@app.post("/api/ppt/intake")
+async def api_ppt_intake(file: UploadFile = File(...)):
+    """上传一份 .pptx → 落任务目录（原文件只读）→ 体检报告。"""
+    gate = _ppt_gate()
+    if gate:
+        return gate
+    name = (file.filename or "deck.pptx").lower()
+    if not name.endswith((".pptx", ".pptm", ".ppsx", ".potx")):
+        return JSONResponse({"ok": False, "error": "只支持 .pptx（含 .pptm/.ppsx/.potx）"}, status_code=400)
+    tmp = Path(tempfile.mkdtemp(prefix="pptup_")) / (file.filename or "deck.pptx")
+    try:
+        tmp.write_bytes(await file.read())
+        job = ppt_polish.new_job(tmp)
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"ok": False, "error": f"落盘失败：{type(e).__name__}: {e}"}, status_code=500)
+    finally:
+        shutil.rmtree(tmp.parent, ignore_errors=True)
+    rep = ppt_polish.intake(job)
+    rep["job_id"] = job["job_id"]
+    return rep
+
+
+@app.post("/api/ppt/polish")
+def api_ppt_polish(body: PptPolishReq):
+    """在任务目录里做保守原地统一（原稿不动），返回逐项报告。"""
+    gate = _ppt_gate()
+    if gate:
+        return gate
+    if not body.job_id:
+        return JSONResponse({"ok": False, "error": "缺 job_id（先 /api/ppt/intake）"}, status_code=400)
+    job = {"job_id": body.job_id, "dir": str(ppt_polish.job_dir(body.job_id)),
+           "source": str(ppt_polish.job_dir(body.job_id) / "source.pptx"), "name": "source.pptx"}
+    if not Path(job["source"]).exists():
+        return JSONResponse({"ok": False, "error": "任务不存在或已过期"}, status_code=404)
+    rep = ppt_polish.polish(job, body.actions, target_ea=body.target_ea,
+                            target_latin=body.target_latin,
+                            size_anchors=body.size_anchors or None)
+    if rep.get("ok"):
+        rep["verify"] = ppt_polish.verify(job, Path(rep["file"]))
+    return rep
+
+
+@app.post("/api/ppt/cancel")
+def api_ppt_cancel(body: dict):
+    """取消 = 删任务目录（源文件与中间产物一起清）。"""
+    jid = str(body.get("job_id") or "")
+    if not jid:
+        return {"ok": False, "error": "缺 job_id"}
+    ppt_polish.cleanup_job(jid)
+    return {"ok": True, "job_id": jid}
+
+
+@app.get("/api/ppt/download")
+def api_ppt_download(job_id: str = ""):
+    """下载优化后的文件（先复制到 data/ppt_out，保留给老师）。"""
+    if not job_id:
+        return JSONResponse({"ok": False, "error": "缺 job_id"}, status_code=400)
+    src = ppt_polish.job_dir(job_id) / "polished.pptx"
+    if not src.is_file():
+        return JSONResponse({"ok": False, "error": "还没有优化结果"}, status_code=404)
+    dst = ppt_polish.outdir() / f"优化_{job_id}.pptx"
+    try:
+        shutil.copy2(src, dst)
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"ok": False, "error": f"复制失败：{e}"}, status_code=500)
+    return FileResponse(str(dst), filename=dst.name)
 
 
 # ---------- 启动预热（自 api.py 移植：embedding + rerank 常驻） ----------

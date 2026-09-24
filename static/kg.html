@@ -9,11 +9,11 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { 
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-    background: #0a0a1a; 
+    background: #0d0d0d; 
     height: 100vh; 
     display: flex; 
     flex-direction: column; 
-    color: #e0e0ff; 
+    color: #fff; 
     overflow: hidden;
   }
   /* 星空背景 */
@@ -55,29 +55,29 @@
   }
 
   .header { 
-    background: rgba(10, 10, 40, 0.8); 
+    background: rgba(13, 13, 13, 0.8); 
     backdrop-filter: blur(10px);
     padding: 16px 24px; 
-    border-bottom: 1px solid rgba(100, 100, 255, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     display: flex; 
     align-items: center; 
     justify-content: space-between;
     position: relative;
     z-index: 10;
   }
-  .header h1 { font-size: 18px; color: #fff; text-shadow: 0 0 20px rgba(100, 150, 255, 0.5); }
-  .header .back { color: #7ab8ff; text-decoration: none; font-size: 14px; }
+  .header h1 { font-size: 18px; color: #fff; text-shadow: none; }
+  .header .back { color: #fff; text-decoration: none; font-size: 14px; }
   .progress-bar { display: flex; align-items: center; gap: 12px; }
   .progress-bar .label { font-size: 13px; color: #aaa; }
-  .progress-bar .bar { width: 160px; height: 8px; background: rgba(50, 50, 100, 0.5); border-radius: 4px; overflow: hidden; }
-  .progress-bar .fill { height: 100%; background: linear-gradient(90deg, #7ab8ff, #9dffb8); transition: width 0.3s; box-shadow: 0 0 10px rgba(100, 200, 255, 0.5); }
-  .progress-bar .percent { font-size: 13px; color: #9dffb8; font-weight: 600; }
+  .progress-bar .bar { width: 160px; height: 8px; background: rgba(255, 255, 255, 0.12); border-radius: 4px; overflow: hidden; }
+  .progress-bar .fill { height: 100%; background: linear-gradient(90deg, #ccc, #fff); transition: width 0.3s; box-shadow: none; }
+  .progress-bar .percent { font-size: 13px; color: #fff; font-weight: 600; }
 
   .search-box { 
     padding: 12px 24px; 
-    background: rgba(10, 10, 40, 0.6); 
+    background: rgba(13, 13, 13, 0.6); 
     backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(100, 100, 255, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     display: flex; 
     gap: 16px; 
     align-items: center;
@@ -88,14 +88,14 @@
     flex: 1; 
     max-width: 400px; 
     padding: 8px 12px; 
-    border: 1px solid rgba(100, 100, 255, 0.3); 
+    border: 1px solid rgba(255, 255, 255, 0.2); 
     border-radius: 6px; 
     font-size: 14px; 
     outline: none; 
-    background: rgba(20, 20, 60, 0.6); 
+    background: #1a1a1a; 
     color: #fff; 
   }
-  .search-box input:focus { border-color: #7ab8ff; box-shadow: 0 0 10px rgba(100, 150, 255, 0.3); }
+  .search-box input:focus { border-color: #fff; box-shadow: none; }
   .legend { display: flex; gap: 16px; font-size: 12px; color: #aaa; }
   .legend-item { display: flex; align-items: center; gap: 6px; }
   .legend-dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
@@ -107,44 +107,44 @@
     position: absolute; 
     top: 140px; 
     right: 24px; 
-    background: rgba(15, 15, 50, 0.9); 
+    background: rgba(20, 20, 20, 0.96); 
     backdrop-filter: blur(15px);
     padding: 16px; 
     border-radius: 12px; 
-    box-shadow: 0 4px 30px rgba(0, 0, 100, 0.5); 
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5); 
     width: 280px; 
     display: none; 
-    border: 1px solid rgba(100, 150, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     z-index: 20;
   }
-  .info-panel h3 { font-size: 16px; margin-bottom: 12px; color: #fff; text-shadow: 0 0 10px rgba(100, 150, 255, 0.5); }
+  .info-panel h3 { font-size: 16px; margin-bottom: 12px; color: #fff; text-shadow: none; }
   .info-panel .prereq-title { font-size: 12px; color: #888; margin-bottom: 8px; }
   .info-panel .prereq-item { 
     padding: 6px 8px; 
-    background: rgba(30, 30, 80, 0.6); 
+    background: rgba(255, 255, 255, 0.08); 
     border-radius: 6px; 
     margin: 4px 0; 
     font-size: 13px; 
-    color: #7ab8ff; 
+    color: #fff; 
     cursor: pointer; 
     transition: all 0.2s;
   }
-  .info-panel .prereq-item:hover { background: rgba(50, 50, 120, 0.8); box-shadow: 0 0 10px rgba(100, 150, 255, 0.3); }
+  .info-panel .prereq-item:hover { background: rgba(255, 255, 255, 0.15); box-shadow: none; }
   .info-panel .close { position: absolute; top: 8px; right: 12px; cursor: pointer; color: #888; font-size: 18px; }
   .mark-btn { 
     width: 100%; 
     padding: 10px; 
     border: none; 
     border-radius: 8px; 
-    background: linear-gradient(135deg, #667eea, #764ba2); 
-    color: #fff; 
+    background: #fff; 
+    color: #111; 
     font-size: 13px; 
     cursor: pointer; 
     margin-top: 12px;
     transition: all 0.2s;
   }
-  .mark-btn:hover { box-shadow: 0 0 20px rgba(100, 100, 255, 0.5); }
-  .mark-btn.learned { background: linear-gradient(135deg, #f093fb, #f5576c); }
+  .mark-btn:hover { background: #ccc; box-shadow: none; }
+  .mark-btn.learned { background: #222; color: #fff; }
 </style>
 </head>
 <body>
@@ -163,10 +163,10 @@
   <div class="search-box">
     <input type="text" id="searchInput" placeholder="搜索知识点，如：函数、集合、单调性...">
     <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:#7ab8ff"></div>集合</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#ffd700"></div>函数</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#98ff98"></div>不等式</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#ff6b9d"></div>指数函数</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fff"></div>集合</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ddd"></div>函数</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#bbb"></div>不等式</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#999"></div>指数函数</div>
     </div>
   </div>
   
@@ -197,11 +197,11 @@ function escHtml(s) {
 
 // 星座配色
 const constellationColors = {
-  '第一章': '#7ab8ff',
-  '第二章': '#98ff98',
-  '第三章': '#ffd700',
-  '第四章': '#ff6b9d',
-  '初中衔接': '#c084fc'
+  '第一章': '#ffffff',
+  '第二章': '#ddd',
+  '第三章': '#bbb',
+  '第四章': '#999',
+  '初中衔接': '#777'
 };
 
 // vis-network 配置（forceAtlas2Based 布局 + 连续贝塞尔曲线 + 节点自动避让）
@@ -243,15 +243,15 @@ const DEFAULT_VIS_OPTIONS = {
 
 // 深色主题配色
 const KG_DARK = {
-  nodeDimColor: '#5a628a',
+  nodeDimColor: '#444',
   nodeLabel: '#ffffff',
-  nodeDimLabel: '#aab2d8',
+  nodeDimLabel: '#888',
   linkOn: 'rgba(255, 255, 255, 0.55)',
-  linkOff: 'rgba(160, 170, 220, 0.18)',
+  linkOff: 'rgba(255, 255, 255, 0.14)',
   emLine: '#ffffff',
-  defColor: '#c9a3ff',
-  succBg: 'rgba(100,200,150,0.2)',
-  succText: '#98ff98',
+  defColor: '#ffffff',
+  succBg: 'rgba(255,255,255,0.08)',
+  succText: '#ffffff',
   empty: '#666',
   loading: '#888'
 };
@@ -657,7 +657,7 @@ function showNodeInfo(id, name) {
       } else {
         succList.innerHTML = data.successors.map(p => {
           const learned = learnedSet.has(p.id) ? ' ✨' : '';
-          return `<div class="prereq-item" style="background:rgba(100,200,150,0.2);color:#98ff98" onclick="jumpToNode('${p.id}', '${p.name}')">${p.name}${learned}</div>`;
+          return `<div class="prereq-item" style="background:rgba(255,255,255,0.08);color:#fff" onclick="jumpToNode('${p.id}', '${p.name}')">${p.name}${learned}</div>`;
         }).join('');
       }
     });

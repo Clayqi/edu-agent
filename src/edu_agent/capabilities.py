@@ -373,7 +373,16 @@ def snapshot(deep: bool = False) -> dict:
             "installed": files["exists"], "size": files["size"], "path": files["path"],
             "builtin": spec.builtin,
         })
-    return {"mcp": mcp_rows, "skills": skill_rows,
+    # 2026-09-19：再加一路「自建技能」——agent 自己写出来的 SKILL.md（经验→技能回路），
+    # 与第三方 wps-skills 那批分开列，前端单独展示；读不到就当空表，绝不影响快照。
+    local_rows: list[dict] = []
+    try:
+        from edu_agent import skills_local
+
+        local_rows = skills_local.list_skills()
+    except Exception:  # noqa: BLE001
+        local_rows = []
+    return {"mcp": mcp_rows, "skills": skill_rows, "skills_local": local_rows,
             "wps_export_ready": wps_available()[0],
             "session_doc_preview_ready": session_preview_ready(),
             "state_file": str(state_path())}

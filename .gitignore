@@ -36,3 +36,6 @@ skills/
 
 # wiki 有自己的独立本地 git 仓库（教材派生内容不入 public 远端）
 content/wiki/
+# UI 检查脚本的依赖（按需 npm i jsdom，不入库）
+tools/uicheck/node_modules/
+tools/uicheck/package-lock.json

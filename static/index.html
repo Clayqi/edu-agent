@@ -470,6 +470,19 @@ svg{display:block}
     .dp-mdta{width:100%;min-height:420px;border:.5px solid var(--line);border-radius:8px;padding:10px 12px;
       font-family:ui-monospace,Consolas,monospace;font-size:12.5px;line-height:1.7;color:var(--ink-800);
       background:var(--bg-soft);resize:vertical}
+    /* 幻灯片页签里的「PPT 优化」区：体检报告 + 动作勾选 + 一键优化 */
+    .ppt-box{border:.5px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px;background:var(--bg-soft)}
+    .ppt-hd{display:flex;align-items:center;gap:8px;font-size:13px}
+    .ppt-state{font-size:11.5px;color:var(--ink-500)}
+    .ppt-state.ok{color:#16a34a}
+    .ppt-rep{margin:8px 0 6px;font-size:12px}
+    .ppt-rep .row{display:flex;gap:8px;padding:3px 0;border-bottom:.5px dashed var(--line)}
+    .ppt-rep .row span{color:var(--ink-500);flex:none;width:64px}
+    .ppt-rep .row b{color:var(--ink-800);font-weight:500}
+    .ppt-acts{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0;font-size:12px;color:var(--ink-700)}
+    .ppt-acts label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+    .ppt-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .ppt-tip{font-size:11.5px;color:var(--ink-400)}
     /* 幻灯片：面板内的 16:9 预览台（不再开新窗口） */
     .dp-stage{background:#0f172a;color:#fff;border-radius:10px;padding:16px 18px;margin-bottom:12px;
       aspect-ratio:16/9;overflow:hidden;display:flex;flex-direction:column;gap:8px}
@@ -600,7 +613,7 @@ svg{display:block}
     <aside class="sidebar">
       <div class="side-brand">
         <div class="name">教育 Agent</div>
-        <div class="ver">v1.14.0</div>
+        <div class="ver">v1.15.0</div>
         <button class="side-toggle" id="btnSideToggle" title="收起侧边栏">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M3 4h6v16H3z" fill="currentColor" stroke="none" opacity=".18"/></svg>
         </button>
@@ -850,7 +863,7 @@ svg{display:block}
     <aside class="sidepanel" id="sidePanel">
       <!-- 文档视图用的拖拽手柄与隐藏 input 常驻面板（视图内容会随切换重建，这两个不能跟着重建） -->
       <div id="docPanelGrip" title="拖动调整宽度（双击复位）"></div>
-      <input type="file" id="docPanelFile" accept=".docx" style="display:none">
+      <input type="file" id="docPanelFile" accept=".docx,.pptx" style="display:none">
       <div style="text-align:left;width:100%;display:flex;align-items:flex-start;gap:8px">
         <div style="flex:1;min-width:0">
           <div class="sp-title">侧边面板</div>
@@ -3596,14 +3609,15 @@ svg{display:block}
   function docpRenderSlides(bd){
     var deck = docpBuildDeck(), sl = deck.slides || [];
     if(!sl.length){
-      bd.innerHTML = '<div class="dp-empty">' +
+      bd.innerHTML = pptPolishHtml() + '<div class="dp-empty">' +
         (DOCP.kind === 'rich' ? '导入的 .docx 没有环节结构，下载 PPT 会按板块标题成页'
                               : '没有解析出可成页的环节 / 板块') + '</div>';
+      pptPolishWire();
       return;
     }
     if(DOCP_PAGE >= sl.length) DOCP_PAGE = sl.length - 1;
     if(DOCP_PAGE < 0) DOCP_PAGE = 0;
-    bd.innerHTML = docpStageHtml(sl) +
+    bd.innerHTML = pptPolishHtml() + docpStageHtml(sl) +
       '<div class="dp-pagebar"><button data-pg="prev">上一页</button>' +
       '<span>第 ' + (DOCP_PAGE + 1) + ' / ' + sl.length + ' 页　点下面的卡片可直接跳页</span>' +
       '<button data-pg="next">下一页</button></div>' +
@@ -3627,6 +3641,129 @@ svg{display:block}
         docpRenderSlides(bd);
       });
     });
+    pptPolishWire();
+  }
+  /* ==== PPT 优化（「边框里的 PPT 优化」一期；后端子 agent.ppt_polish / 接口 /api/ppt/*）====
+     放在「幻灯片」页签顶部：导入 .pptx → 体检报告 → 勾动作 → 一键优化 → 下载（导出后逐页校验内容没被改）。
+     开关默认关、ppt-master 没装也不可用 —— 两种情况都把按钮灰掉并说明原因，而不是点了才报错。 */
+  var PPTP = { job: null, report: null, status: null, busy: false };
+
+  function pptPolishHtml(){
+    var s = PPTP.status;
+    var state = !s ? '（正在读安装状态…）'
+      : (!s.enabled ? '「PPT 优化」已关闭 —— 去 设置 → Skill 市场 打开'
+      : (!s.install || !s.install.intake_ready ? 'ppt-master 未就绪 —— 跑 deploy/setup_ppt_master.cmd'
+      : ('就绪 · ppt-master ' + (s.install.commit || '已安装'))));
+    var ok = !!(s && s.ready);
+    var r = PPTP.report;
+    var h = '<div class="ppt-box"><div class="ppt-hd"><b>PPT 优化</b>' +
+      '<span class="ppt-state' + (ok ? ' ok' : '') + '">' + escHtml(state) + '</span>' +
+      '<span style="flex:1"></span>' +
+      '<button class="pill-btn dp-mini" id="pptPick"' + (ok ? '' : ' disabled') + '>导入 .pptx</button></div>';
+    if(!r){
+      h += '<div class="dp-empty" style="margin:6px 0 2px">导入一份已有 .pptx：先出体检报告，' +
+           '再决定改不改（原稿只读，产物另存）。</div></div>';
+      return h;
+    }
+    var t = r.theme || {}, tot = r.totals || {}, fl = r.flags || {};
+    h += '<div class="ppt-rep">' +
+      '<div class="row"><span>文件</span><b>' + escHtml(r.file || '') + '</b></div>' +
+      '<div class="row"><span>规模</span><b>' + (r.slides || 0) + ' 页 · ' + (tot.chars || 0) + ' 字</b></div>' +
+      '<div class="row"><span>画布</span><b>' + ((r.canvas && r.canvas.width_px) || '?') + '×' +
+        ((r.canvas && r.canvas.height_px) || '?') + '</b></div>' +
+      '<div class="row"><span>主题字体</span><b>' + escHtml((t.title_font || '?') + ' / ' + (t.body_font || '?')) + '</b></div>' +
+      '<div class="row"><span>字号层级</span><b>' + escHtml((t.body_levels || []).slice(0, 6).join(' · ') || '—') + '</b></div>' +
+      '<div class="row"><span>对象</span><b>表 ' + (tot.tables || 0) + ' · 图 ' + (tot.charts || 0) +
+        ' · 图示 ' + (tot.diagrams || 0) + ' · 图片 ' + (tot.images || 0) + '</b></div>' +
+      '<div class="row"><span>需留意</span><b>' +
+        ((fl.sparse_pages || []).length ? ('稀疏页 ' + fl.sparse_pages.join(',')) : '') +
+        ((fl.dense_pages || []).length ? ('　密集页 ' + fl.dense_pages.join(',')) : '') +
+        ((fl.needs_confirmation || []).length ? ('　待确认 ' + fl.needs_confirmation.join(',')) : '') +
+        ((!((fl.sparse_pages || []).length || (fl.dense_pages || []).length || (fl.needs_confirmation || []).length)) ? '未发现' : '') +
+      '</b></div></div>' +
+      '<div class="ppt-acts">' +
+        (s && s.actions ? s.actions.map(function(a){
+          var on = (a.id === 'font');   /* 默认只勾"统一字体"：最保守、可逆性最好 */
+          return '<label><input type="checkbox" data-act="' + a.id + '"' + (on ? ' checked' : '') + '>' +
+                 escHtml(a.label) + '</label>';
+        }).join('') : '') +
+      '</div>' +
+      '<div class="ppt-bar"><button class="pill-btn dark dp-mini" id="pptRun"' + (ok ? '' : ' disabled') + '>一键优化</button>' +
+      '<button class="pill-btn dp-mini" id="pptGet"' + (PPTP.job && PPTP.done ? '' : ' disabled') + '>下载优化稿</button>' +
+      '<span class="ppt-tip" id="pptTip">' + (PPTP.tip || '一键优化只改你勾的项；改完自动逐页校验内容没被改动') + '</span></div>' +
+      '</div>';
+    return h;
+  }
+
+  function pptPolishWire(){
+    if(PPTP.status === null){
+      fetch('/api/ppt/status').then(function(r){ return r.json(); }).then(function(d){
+        PPTP.status = d || {};
+        if(DOCP_TAB === 'slides') docpRenderSlides(docpEl('docPanelBody'));
+      }).catch(function(){ PPTP.status = { enabled: false, ready: false }; });
+    }
+    var pick = docpEl('pptPick');
+    if(pick) pick.addEventListener('click', function(){ var f = docpEl('docPanelFile'); if(f) f.click(); });
+    var run = docpEl('pptRun');
+    if(run) run.addEventListener('click', function(){ pptPolishRun(); });
+    var get = docpEl('pptGet');
+    if(get) get.addEventListener('click', function(){
+      if(PPTP.job) window.open('/api/ppt/download?job_id=' + encodeURIComponent(PPTP.job), '_blank');
+    });
+  }
+
+  /* 上传 .pptx → 体检（后端只落任务目录，原文件不动） */
+  function pptIntake(file){
+    var bd = docpEl('docPanelBody');
+    PPTP.tip = '正在体检 ' + (file.name || '') + '…';
+    if(DOCP_TAB === 'slides' && bd) docpRenderSlides(bd);
+    var fd = new FormData(); fd.append('file', file);
+    fetch('/api/ppt/intake', { method: 'POST', body: fd }).then(function(r){ return r.json(); }).then(function(d){
+      if(!d || !d.ok){
+        PPTP.tip = '体检失败：' + ((d && (d.error || d.hint)) || '未知错误');
+        showToast(PPTP.tip, false);
+      } else {
+        PPTP.job = d.job_id; PPTP.report = d; PPTP.done = false;
+        PPTP.tip = '体检完成：' + d.slides + ' 页 · ' + ((d.totals || {}).chars || 0) + ' 字；勾好动作再点「一键优化」';
+        showToast('体检完成：' + d.slides + ' 页', true);
+      }
+      DOCP_TAB = 'slides';
+      if(bd) docpRenderSlides(bd);
+    }).catch(function(e){
+      PPTP.tip = '体检失败：' + (e && e.message ? e.message : e);
+      if(bd) docpRenderSlides(bd);
+    });
+  }
+
+  /* 一键优化：把勾选的动作发过去；后端做完还会自动跑内容校验 */
+  function pptPolishRun(){
+    if(!PPTP.job){ showToast('先导入一份 .pptx', false); return; }
+    var acts = [];
+    Array.prototype.forEach.call(document.querySelectorAll('.ppt-box input[data-act]'), function(c){
+      if(c.checked) acts.push(c.dataset.act);
+    });
+    if(!acts.length){ showToast('至少勾一项（保守起见默认只勾「统一字体」）', false); return; }
+    PPTP.tip = '正在优化（' + acts.length + ' 项）…';
+    PPTP.busy = true;
+    var bd = docpEl('docPanelBody');
+    if(bd) docpRenderSlides(bd);
+    fetch('/api/ppt/polish', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_id: PPTP.job, actions: acts }) })
+      .then(function(r){ return r.json(); }).then(function(d){
+        PPTP.busy = false;
+        if(!d || !d.ok){ PPTP.tip = '优化失败：' + ((d && d.error) || '未知错误'); showToast(PPTP.tip, false); }
+        else {
+          var n = (d.applied || []).map(function(a){ return a.label + '：' + (a.runs || a.changed || a.timing_removed || 0); }).join(' · ');
+          var v = d.verify || {};
+          PPTP.done = true;
+          PPTP.tip = '已优化 —— ' + n + '；内容校验：' + (v.ok ? '✅ 逐页逐串都在' : '⚠ 见结果条');
+          showToast('优化完成，内容校验' + (v.ok ? '通过' : '有告警'), !!v.ok);
+        }
+        if(bd) docpRenderSlides(bd);
+      }).catch(function(e){
+        PPTP.busy = false; PPTP.tip = '优化失败：' + (e && e.message ? e.message : e);
+        if(bd) docpRenderSlides(bd);
+      });
   }
   /* 结构 Tab：板块清单 + 原始结构化 JSON 大纲 */
   function docpRenderOutline(bd){
@@ -3930,8 +4067,20 @@ svg{display:block}
       docpSyncQuad();
     }).catch(function(){});
   }
-  /* 导入 .docx：解析成富结构后**只进预览**（不建模板、不落模板库） */
+  /* 导入分流：.pptx → PPT 优化（体检/原地统一）；.docx → 原来的富文档预览 */
   function docpImportFile(file){
+    if(!file) return;
+    var nm = (file.name || '').toLowerCase();
+    if(nm.endsWith('.pptx') || nm.endsWith('.pptm') || nm.endsWith('.ppsx') || nm.endsWith('.potx')){
+      DOCP_TAB = 'slides';
+      if(DOCP_ON) docpRender();
+      pptIntake(file);
+      return;
+    }
+    docpImportDocx(file);
+  }
+  /* 导入 .docx：解析成富结构后**只进预览**（不建模板、不落模板库） */
+  function docpImportDocx(file){
     if(!file) return;
     var fd = new FormData(); fd.append('file', file);
     showToast('正在解析 ' + (file.name || '文档') + '…');
@@ -4013,6 +4162,13 @@ svg{display:block}
       grip.addEventListener('dblclick', function(){ docpApplyWidth(DOCP_W_DEFAULT); });   /* 双击复位到默认宽 */
     }
     docpSyncQuad();                                  /* 「文档」圆钮角标 */
+    /* 导入用隐藏 input 是**常驻**元素（面板标题栏/优化区都点它），所以 change 绑在这里，
+       不能跟着视图重建走 —— 之前把绑定一起搬走，结果"点了导入、选完文件没反应"（已修）。 */
+    var ifile = docpEl('docPanelFile');
+    if(ifile) ifile.addEventListener('change', function(){
+      if(ifile.files && ifile.files[0]) docpImportFile(ifile.files[0]);
+      ifile.value = '';
+    });
     /* 拖动左侧边缘调宽（双击复位）：面板贴右缘，所以宽度 = 视口宽 - 指针 x */
     window.addEventListener('resize', function(){ if(DOCP_ON) docpApplyWidth(docpWidth()); });
   }

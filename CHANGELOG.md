@@ -2,6 +2,44 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；版本号跟界面显示对齐。
 
+## [v1.15.0] - 2026-09-23
+
+### 新增
+- **「边框里的 PPT 优化」（一期）**：在右侧侧边面板的「文档」视图 →【幻灯片】页签里
+  **读入一份已有的 .pptx → 体检 → 保守原地统一 → 内容零丢失校验 → 下载**
+  （详见 `docs/18-PPT优化.md`，计划与五个候选 skill 的判定见 `docs/17-边框里的PPT优化计划书.md`）：
+  - **体检报告**：页数 / 画布 / 主题字体（含中文字体）/ 字号层级 / 表格·图表·图示·图片计数 /
+    **逐页台账**（页型、文字块、字符数、密度异常、待确认项）—— 由 ppt-master 的
+    `pptx_intake.py` + `beautify_inventory.py` 确定性产出，我们只提炼；
+  - **三个原地动作**（默认只勾「统一字体」，最保守）：统一字体（含 `<a:ea>` 中文字体）、
+    统一字号层级（归并到 44/32/28/24/20/18/16/14/12 锚点）、清理动画与转场（删 `p:timing` / `p:transition`）；
+  - **内容零丢失校验**：改完逐页逐串检查原内容还在不在（`beautify_inventory.py --verify`），缺一个即失败，
+    面板上直接给结论；
+  - **原稿只读**：上传件只拷副本进 `data/tmp/ppt_jobs/<job>/`（24h 自清），产物落 `data/ppt_out/`，
+    **`content/plans/` 一个字不写**（单测锁住）；
+  - 新接口 `GET /api/ppt/status`（不设门禁）、`POST /api/ppt/intake|polish|cancel`、`GET /api/ppt/download`；
+    门禁三档：开关关 → 403、没装 → 424（带安装指引）、都过才干活。
+- 新 skill **`ppt-polish`**（「PPT 优化」，内置，**默认关** —— 它会改写老师的稿，必须显式开）；
+  `/api/mcp/status` 与 `/api/capabilities` 新增 **`ppt_polish_ready`**（= 开关 ∧ ppt-master 装好）。
+- 安装脚本 **`deploy/setup_ppt_master.cmd`**：gh-proxy 克隆到仓库外
+  （`%LOCALAPPDATA%\edu-agent\deps\ppt-master`，与 wps-skills 同策略）+ pip 清华镜像只装一期所需
+  （**不装 AGPL 的 PyMuPDF**）+ 写安装记录 + 跑自检。
+- **UI 检查脚本进仓库**：`tools/uicheck/panel_check.js`（jsdom 真 DOM，23 项）——
+  以前放在临时目录被清过两次，历史结论没法复跑，现在跟着仓库走。
+
+### 说明
+- **一期不做"整套重排/美化"**：ppt-master 的 `beautify-pptx` 档是**模型驱动的 SVG 重排**
+  （文字逐字冻结、1:1 页数、图表表格按数据重生成），需要强模型 + 长上下文；
+  一期只吃它的确定性部分，真重排排到二期（`docs/17` §4.1.1 有完整判定）。
+
+### 兼容性
+- `wps_export.py` / `/api/wps/export` / `/api/wps/download` / WPS MCP 白名单**一行未改**；
+  PPT 优化走 python-pptx，**不碰 WPS COM、不看 WPS 开关**；开关关掉时导出与预览完全不受影响。
+- 附件：`tests/test_ppt_polish.py` **22 例**（全离线：安装自检三态 / 默认关与 ready 前提 /
+  开关不影响 WPS 与预览 / 门禁 403·424 / 任务目录（原稿只读·可清·过期自清·不碰 content/plans）/
+  三动作（含"造个 timing 节点再删掉"）/ 体检报告解析）；
+  全量 **239 例 OK**（原 217 + 22）。
+
 ## [v1.14.0] - 2026-09-19
 
 ### 新增

@@ -110,5 +110,22 @@
 cd tools/uicheck && npm i jsdom && node panel_check.js                    # 23 项检查
 ```
 
-真机证据模板：导入一份 ≥10 页、含动画与两种字体的真 `.pptx` →
-体检（页数/字体/字号/密度）→ 一键优化 → **WPS 打开**：能开、母版还在、未选中的页没变、字体统一、动画已清、每个元素仍可单独选中编辑。
+```bash
+# 4) 真机验收（一条命令：体检 → 优化 → 内容校验 → 包深检 → WPS 真打开 → 不碰 content/plans）
+.venv/Scripts/python.exe tools/ppt_acceptance.py --with-wps
+```
+
+**2026-09-24 实跑记录（14/14 全过）**，源文件 = `content/plans/完整课时模板（默认）.pptx`（11 页 / 1310 字）：
+
+| 步骤 | 结果 |
+|---|---|
+| [0] 安装自检 | ✅ ppt-master 就绪 `commit=481e057` |
+| [1] 体检 | ✅ 11 页 · 1310 字 · 主题字体 宋体/宋体 · 字号层级 32/28/24/20 · 稀疏页 [2,4,6,7,8] · 密集页 [5] |
+| [2] 优化 | ✅ 统一字体 **42 个 run**（`target_ea=微软雅黑` / `target_latin=Calibri`）；字号层级 changed=0（原稿字号本就在锚点上）；清动画 0（原稿没有动画） |
+| [3] 内容零丢失校验 | ✅ `[VERIFY] passed: every frozen string is present on its page` |
+| [4] 包完整性深检（独立核查） | ✅ zip `testzip` 无坏项 · 必要部件齐全 · 11 个 slide 部件 · 页数一致 · **文字多重集与源稿一致（42 段 / 42 段）** · 西文字体已统一为 Calibri · **中文字体写进 `<a:ea>` 42 处** · 无 `<p:timing` |
+| [5] **WPS 真打开** | ✅ 经 wps-office MCP 调 `wps_ppt_open_presentation` → **「演示文稿打开成功！」**（包坏了这一步会失败） |
+| [6] 没碰 `content/plans` | ✅ 前后目录清单一致（16 项） |
+
+> 人工还需看一眼的（机器验不了）：WPS 里**没有"需要修复"弹窗**、母版还在、
+> **每个元素仍可单独选中编辑**、未勾的动作确实没被动。产物：任务目录 `polished.pptx` + `data/ppt_out/优化_*.pptx`。

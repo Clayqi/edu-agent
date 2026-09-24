@@ -26,6 +26,10 @@
   （**不装 AGPL 的 PyMuPDF**）+ 写安装记录 + 跑自检。
 - **UI 检查脚本进仓库**：`tools/uicheck/panel_check.js`（jsdom 真 DOM，23 项）——
   以前放在临时目录被清过两次，历史结论没法复跑，现在跟着仓库走。
+- **真机验收脚本进仓库**：`tools/ppt_acceptance.py`（一条命令跑完 6 步：体检 → 优化 → 内容零丢失校验 →
+  包完整性深检 → WPS 真打开 → 不碰 `content/plans`）。首跑 **14/14 全过**，含
+  **WPS 经 MCP 真打开优化稿「演示文稿打开成功！」**、文字多重集与源稿一致（42 段）、
+  中文字体写进 `<a:ea>` 42 处、无 `<p:timing`。
 
 ### 说明
 - **一期不做"整套重排/美化"**：ppt-master 的 `beautify-pptx` 档是**模型驱动的 SVG 重排**

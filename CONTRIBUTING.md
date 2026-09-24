@@ -47,7 +47,7 @@ grep -rn "[A-Z]:[\\/]" --include='*.py' --include='*.cmd' --include='*.ps1' --in
 ## 三、提交前清单
 
 ```bash
-# 1) 先跑测试（必须全绿：Ran 112 tests, OK）
+# 1) 先跑测试（必须以 OK 结束；真实 WPS 联调用例可按环境条件跳过）
 .venv/Scripts/python.exe -m unittest discover -s tests -p "test_*.py"
 
 # 2) 改了这些要重启服务（5174）：prompts.py / generate.py / web_server.py / host/store.py

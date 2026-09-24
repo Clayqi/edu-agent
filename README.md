@@ -42,7 +42,7 @@
 **编排层 P1**（graph 把 A 的学情摘要 coach_summary 拼入 B 的 goal，B 无摘要照常独立出教案）。
 
 ### 单测
-`tests/` 全 mock（检索+LLM+节点桩），零网络/零 Chroma/零 LLM。当前 **112 例全绿**（Ran 112 tests OK；一期收口后含新增 store/routing 15 例）：
+当前离线测试套件共 **298 例全绿**（其中 2 例真实 WPS 联调按环境条件跳过；其余 296 例通过），默认不调用网络、Chroma 或真实 LLM：
 
 ```
 .venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py" -v
@@ -182,7 +182,7 @@
 - **Agent B CLI（出教案）**：`.venv/Scripts/python.exe src/edu_agent/planner.py "函数的单调性" "重点班45分钟"`
 - **编排层 CLI**：`.venv/Scripts/python.exe src/edu_agent/graph.py "帮我写一份函数的单调性的教案"`（普通问自动走 A）
 - **总指挥 CLI**：`.venv/Scripts/python.exe src/edu_agent/supervisor.py "帮我备一节 对数函数 的教案"`
-- **单测**：`.venv/Scripts/python.exe -m unittest discover -s tests -p "test_*.py"`（当前 **112 例全绿**，零网络/零 Chroma/零 LLM）
+- **单测**：`.venv/Scripts/python.exe -m unittest discover -s tests -p "test_*.py"`（当前 **298 例全绿**；296 通过、2 例真实 WPS 联调按环境跳过）
 - 停止：`deploy/stop_ui.cmd`（查杀 5174）或 `netstat -ano | findstr :5174` 后 Stop-Process
 - 注意：会话数据现在落 `data/edu_sessions.db`（SQLite），重启不丢；想整体搬数据根设 `EDU_DATA_DIR` 即可
 - 已知：个别题端到端偶发 60~113s（DeepSeek 波动），演示选已验证的快题；越界题自动降级

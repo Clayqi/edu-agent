@@ -33,3 +33,6 @@ static/*.bak-*
 # 应用侧按 WPS_MCP_DIR / data/wps_mcp.json 解析路径。下面两行是防回流护栏，别删。
 mcp_servers/wps-office-mcp/
 skills/
+
+# wiki 有自己的独立本地 git 仓库（教材派生内容不入 public 远端）
+content/wiki/

@@ -1,6 +1,6 @@
 """PPT 优化（「边框里的 PPT 优化」一期）：体检 → 保守原地统一 → 内容零丢失校验。
 
-设计要点（对应 `docs/17-边框里的PPT优化计划书.md` §4.1.1）：
+设计要点（对应 `docs/19-边框里的PPT优化计划书.md` §4.1.1）：
 
 * **确定性优先**：体检 / 台账 / 校验三件交给 ppt-master 的确定性脚本
   （`pptx_intake.py`、`beautify_inventory.py`）；"重排"那种模型驱动的活不在本模块里。
@@ -104,7 +104,7 @@ def status() -> dict:
         # 一期只用这三个能力；缺可选脚本只影响二期
         "intake_ready": not missing_req,
         "note": ("一期用 pptx_intake + beautify_inventory（体检/台账/校验）；"
-                 "二期的 SVG 重排还需要强模型，见 docs/17 §4.1.1"),
+                 "二期的 SVG 重排还需要强模型，见 docs/19 §4.1.1"),
     }
 
 

@@ -11,7 +11,7 @@
 
 > **后续迭代（2026-09-24）**：老师要的主路径不是"导入旧稿→优化→下载"，而是
 > **幻灯片页签本身可编辑 + 默认就好看的排版 + 可导入模板 + 会话内容替换模板文字** →
-> 那部分另立计划书 `docs/19-幻灯片编辑与模板计划书.md`。
+> 那部分另立计划书 `docs/21-幻灯片编辑与模板计划书.md`。
 > 本文这条链路（体检 / 保守原地统一 / 内容校验）**能力一行不减**，
 > 但入口按最新决定**从「幻灯片」页签顶部挪到「文档」页签底部的可折叠"高级"区**（详见 19 号 §6）。
 
@@ -252,7 +252,7 @@ git clone https://gh-proxy.com/https://github.com/hugohe3/ppt-master.git "%DEST%
 | 3 | 前端面板 | `static/index.html`：`spRenderDoc()` 的幻灯片页签加"优化"区；导入 accept 扩 `.pptx` |
 | 4 | 能力开关 | `capabilities.py` 注册 `ppt-polish`；`/api/mcp/status` 加 `ppt_polish_ready` |
 | 5 | 测试 | `tests/test_ppt_polish.py`（离线） |
-| 6 | 文档 | `docs/18-PPT优化.md`（落地说明：怎么用、怎么排错）、`docs/00` 索引、`CHANGELOG` |
+| 6 | 文档 | `docs/20-PPT优化.md`（落地说明：怎么用、怎么排错）、`docs/00` 索引、`CHANGELOG` |
 | 7 | 证据 | 真机一次的报告 + WPS 打开截图路径 + 单测输出 |
 
 ---

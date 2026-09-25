@@ -1227,7 +1227,7 @@ def api_mcp_status():
             "wps_export_ready": capabilities.wps_available()[0],
             # 会话内文档预览是否启用（skill: doc-session-preview；只影响会话页右侧预览面板）
             "session_doc_preview_ready": capabilities.session_preview_ready(),
-            # PPT 优化可用性（skill: ppt-polish 开关 ∧ ppt-master 装好；见 docs/17）
+            # PPT 优化可用性（skill: ppt-polish 开关 ∧ ppt-master 装好；见 docs/19）
             "ppt_polish_ready": capabilities.ppt_polish_ready()}
 
 

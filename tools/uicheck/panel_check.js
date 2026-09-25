@@ -50,6 +50,28 @@ function makeDom(opts) {
   const dom = new JSDOM(HTML, {
     url: BASE + '/', runScripts: 'dangerously', pretendToBeVisual: true, virtualConsole: vc, resources: 'usable',
     beforeParse(window) {
+      /* jsdom 缺一批浏览器 API：主脚本 init 时调用会抛未捕获错误 → 整个内联脚本当场中断，
+         后面的绑定（圆钮点击、面板渲染）全挂不上，检查会误报"点不动"。
+         这不是应用 bug（真浏览器都有），所以在检查脚本里补齐。 */
+      if (!window.matchMedia) {
+        window.matchMedia = (q) => ({ matches: false, media: q, onchange: null,
+          addListener() {}, removeListener() {},
+          addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false; } });
+      }
+      if (!window.ResizeObserver) {
+        window.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
+      }
+      if (!window.IntersectionObserver) {
+        window.IntersectionObserver = class {
+          observe() {} unobserve() {} disconnect() {} takeRecords() { return []; }
+        };
+      }
+      if (!window.requestIdleCallback) window.requestIdleCallback = (fn) => setTimeout(fn, 0);
+      if (!window.scrollTo) window.scrollTo = () => {};
+      if (window.Element && !window.Element.prototype.scrollIntoView) {
+        window.Element.prototype.scrollIntoView = () => {};
+      }
+
       const realFetch = fetch;
       window.fetch = async function (u, op) {
         const p = new URL(String(u), BASE).pathname;
